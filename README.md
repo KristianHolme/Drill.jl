@@ -16,7 +16,7 @@ DRiL.jl is a prototype DRL package, aiming to be fast, flexible, and easy to use
   
 - **Modern Architecture**: Built on [Lux.jl](https://github.com/LuxDL/Lux.jl) for neural networks with automatic differentiation support
 - **Flexible Environments**: Comprehensive environment interface supporting both discrete and continuous action spaces
-- **Rich Logging**: TensorBoard integration for training monitoring, and timer output ([TimerOutputs.jl](https://github.com/KristofferC/TimerOutputs.jl)) for performance analysis
+- **Rich Logging**: TensorBoard and WandB integration for training monitoring, and timer output ([TimerOutputs.jl](https://github.com/KristofferC/TimerOutputs.jl)) for performance analysis
 - **Parallelization**: Built-in support for parallel environment execution
 
 ## Implemented Algorithms
@@ -49,7 +49,7 @@ using Random
 ## Environment
 parallel_env = MultiThreadedParallelEnv([CartPoleEnv() for _ in 1:4])
 
-## Actor-Critic Layer (training-time)
+## Actor-Critic Layer
 model = ActorCriticLayer(
     observation_space(parallel_env), 
     action_space(parallel_env)
@@ -65,7 +65,7 @@ ppo = PPO(
     normalize_advantage=true
 )
 
-## Agent (simple unified constructor)
+## Agent
 agent = Agent(model, ppo; verbose=2)
 
 ## Train
@@ -137,6 +137,3 @@ dp = extract_policy(agent)
 # Predict env-ready actions
 env_actions = predict(dp, batch_of_obs; deterministic=true)
 ```
-
-Notes:
-- Action conversion (policy-space → env-space) is handled automatically via algorithm-selected adapters (no user code required).
