@@ -32,8 +32,6 @@ agent = Agent(model, ppo)
 train!(agent, env, ppo, max_steps)
 ```
 
-**Best for:** Discrete actions, robotic control, games.
-
 ## SAC (Soft Actor-Critic)
 
 Off-policy algorithm with entropy regularization and twin Q-networks.
@@ -62,8 +60,6 @@ model = SACLayer(obs_space, act_space)
 agent = Agent(model, sac)
 train!(agent, env, sac, max_steps)
 ```
-
-**Best for:** Continuous control, sample efficiency matters.
 
 ## Entropy Coefficient
 

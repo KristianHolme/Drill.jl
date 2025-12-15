@@ -36,7 +36,7 @@ using Zygote  # Required for automatic differentiation
 env = BroadcastedParallelEnv([YourContinuousEnv() for _ in 1:4])
 
 # SAC-specific policy
-model = SACPolicy(observation_space(env), action_space(env))
+model = SACLayer(observation_space(env), action_space(env))
 
 # SAC algorithm
 sac = SAC(learning_rate=3f-4, buffer_capacity=1_000_000)
