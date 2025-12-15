@@ -1,14 +1,19 @@
 # Algorithms
 
-::: tip Required Imports
-All examples assume `using DRiL, Zygote` (Zygote is required for automatic differentiation).
-:::
 
 ## PPO (Proximal Policy Optimization)
 
 On-policy algorithm using clipped surrogate objective.
 
 ```julia
+using DRiL
+using Zygote
+using ClassicControlEnvironments
+env = BroadcastedParallelEnv([CartPoleEnv() for _ in 1:4])
+obs_space = state_space(env)
+act_space = action_space(env)
+max_steps = 100_000
+
 ppo = PPO(;
     gamma = 0.99f0,
     gae_lambda = 0.95f0,
@@ -34,6 +39,14 @@ train!(agent, env, ppo, max_steps)
 Off-policy algorithm with entropy regularization and twin Q-networks.
 
 ```julia
+using DRiL
+using Zygote
+using ClassicControlEnvironments
+env = BroadcastedParallelEnv([CartPoleEnv() for _ in 1:4])
+obs_space = state_space(env)
+act_space = action_space(env)
+max_steps = 100_000
+
 sac = SAC(;
     learning_rate = 3f-4,
     buffer_capacity = 1_000_000,
@@ -45,7 +58,7 @@ sac = SAC(;
     ent_coef = AutoEntropyCoefficient(),
 )
 
-model = SACPolicy(obs_space, act_space)
+model = SACLayer(obs_space, act_space)
 agent = Agent(model, sac)
 train!(agent, env, sac, max_steps)
 ```

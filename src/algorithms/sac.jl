@@ -17,7 +17,7 @@ Soft Actor-Critic algorithm with automatic entropy tuning.
 # Example
 ```julia
 sac = SAC(learning_rate=3f-4, buffer_capacity=1_000_000)
-model = SACPolicy(obs_space, act_space)
+model = SACLayer(obs_space, act_space)
 agent = Agent(model, sac)
 train!(agent, env, sac, 500_000)
 ```
@@ -65,7 +65,7 @@ end
 
 get_target_entropy(ent_coef::FixedEntropyCoefficient, action_space) = nothing
 
-function SACPolicy(
+function SACLayer(
         observation_space::Union{Discrete, Box{T}},
         action_space::Box{T};
         log_std_init::T = T(-3),

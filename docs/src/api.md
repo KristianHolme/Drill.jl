@@ -48,7 +48,7 @@ evaluate_agent
 ActorCriticLayer
 ContinuousActorCriticLayer
 DiscreteActorCriticLayer
-SACPolicy
+SACLayer
 ```
 
 ## Buffers

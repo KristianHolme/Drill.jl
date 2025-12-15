@@ -60,7 +60,7 @@ export Trajectory, RolloutBuffer, OffPolicyTrajectory, ReplayBuffer
 include("algorithms/traits.jl")
 
 include("algorithms/sac.jl")
-export SAC, SACPolicy
+export SAC, SACLayer
 
 include("algorithms/ppo.jl")
 export train!, PPO, load_policy_params_and_state!
