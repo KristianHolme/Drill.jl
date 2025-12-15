@@ -28,9 +28,9 @@ Scales observations and actions to normalized ranges.
 env = ScalingWrapperEnv(env)
 ```
 
-::: warning
-ScalingWrapperEnv requires finite bounds on observation and action spaces. It will not work with spaces containing `Inf` or `-Inf` bounds.
-:::
+!!! warning
+    ScalingWrapperEnv requires finite bounds on observation and action spaces. It will not work with spaces containing `Inf` or `-Inf` bounds.
+
 
 ## MonitorWrapperEnv
 
