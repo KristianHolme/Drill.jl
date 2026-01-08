@@ -269,7 +269,7 @@ for config in configs
     train!(agent, env, alg, TOTAL_TIMESTEPS)
 
     # Mark experiment as complete and close logger
-    DearDiary.update_experiment(experiment_id, DearDiary.COMPLETED, nothing, nothing, nothing)
+    DearDiary.update_experiment(experiment_id, DearDiary.FINISHED, nothing, nothing, nothing)
     close!(agent.logger)
 end
 

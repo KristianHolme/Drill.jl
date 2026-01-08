@@ -27,16 +27,19 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 [weakdeps]
 TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 Wandb = "ad70616a-06c9-5745-b1f1-6a5f42545108"
+DearDiary = "bcf306fc-d39d-4f25-b732-26abcc96baf2"
 
 [extensions]
 DRiL_TensorBoardLoggerExt = ["TensorBoardLogger"]
 DRiL_WandbExt = ["Wandb"]
+DRiL_DearDiaryExt = ["DearDiary"]
 
 [compat]
 Accessors = "0.1.42"
 ChainRulesCore = "1.25.1"
 ComponentArrays = "0.15.27"
 DataStructures = "0.18.22, 0.19"
+DearDiary = "0.3.0"
 FileIO = "1.17.0"
 JLD2 = "0.5.13, 0.6"
 LinearAlgebra = "1"
@@ -51,7 +54,7 @@ Random = "1.10"
 Reexport = "1.2.2"
 Statistics = "1"
 StatsBase = "0.34.5"
-TimerOutputs = "0.5.29"
-julia = "1.10"
 TensorBoardLogger = "0.1.25"
+TimerOutputs = "0.5.29"
 Wandb = "0.5.6"
+julia = "1.10"
