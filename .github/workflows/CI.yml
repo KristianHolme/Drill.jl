@@ -25,7 +25,7 @@ jobs:
         version:
           # - '1.10'# doesnt support [sources] in project.toml
           - '1'
-          - 'pre'
+          # - 'pre' # Disabled until JET.jl supports Julia 1.13+
         os:
           - ubuntu-latest
         arch:

@@ -49,7 +49,7 @@ function close! end
 # Strict conversion gate: identity for wrapper, error otherwise
 Base.convert(::Type{AbstractTrainingLogger}, x::AbstractTrainingLogger) = x
 Base.convert(::Type{AbstractTrainingLogger}, x) = error(
-    "Unsupported logger $(typeof(x)). Pass NoTrainingLogger(), TensorBoardLogger.TBLogger, or Wandb.WandbLogger."
+    "Unsupported logger $(typeof(x)). Pass NoTrainingLogger(), TensorBoardLogger.TBLogger, Wandb.WandbLogger, or a DearDiary experiment ID."
 )
 
 
