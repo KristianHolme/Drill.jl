@@ -22,7 +22,7 @@
 
         # Test dict logging
         DRiL.set_step!(lg, 2)
-        DRiL.log_dict!(lg, Dict("loss" => 0.4, "reward" => 15.0))
+        DRiL.log_metrics!(lg, Dict("loss" => 0.4, "reward" => 15.0))
 
         # Test hyperparameter logging
         DRiL.log_hparams!(

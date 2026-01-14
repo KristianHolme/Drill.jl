@@ -2,7 +2,7 @@ module DRiL_TensorBoardLoggerExt
 
 using DRiL
 using TensorBoardLogger
-import DRiL: AbstractTrainingLogger, set_step!, increment_step!, log_scalar!, log_dict!, log_hparams!, flush!, close!
+import DRiL: AbstractTrainingLogger, set_step!, increment_step!, log_scalar!, log_metrics!, log_hparams!, flush!, close!
 
 mutable struct TBLoggerBackend <: AbstractTrainingLogger
     tb::TensorBoardLogger.TBLogger
@@ -26,7 +26,7 @@ function DRiL.log_scalar!(lg::TBLoggerBackend, k::AbstractString, v::Real)
     return TensorBoardLogger.log_value(lg.tb, k, v)
 end
 
-function DRiL.log_dict!(lg::TBLoggerBackend, kv::AbstractDict{<:AbstractString, <:Any})
+function DRiL.log_metrics!(lg::TBLoggerBackend, kv::AbstractDict{<:AbstractString, <:Any})
     for (k, v) in kv
         v isa Real && DRiL.log_scalar!(lg, k, v)
     end

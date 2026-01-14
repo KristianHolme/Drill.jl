@@ -19,11 +19,12 @@ Log a single scalar metric under `key`.
 function log_scalar! end
 
 """
-    log_dict!(logger::AbstractTrainingLogger, kv::AbstractDict{<:AbstractString,<:Any})
+    log_metrics!(logger::AbstractTrainingLogger, kv::AbstractDict{<:AbstractString,<:Any})
 
-Log multiple metrics at once from a string-keyed dictionary.
+Log multiple metrics at once from a string or symbol-keyed dictionary, or a NamedTuple.
+If implementing a custom logger backend, only a method for the string-keyed dictionary is required to be implemented.
 """
-function log_dict! end
+function log_metrics! end
 
 """
     log_hparams!(logger::AbstractTrainingLogger, hparams::AbstractDict{<:AbstractString,<:Any}, metrics::AbstractVector{<:AbstractString})

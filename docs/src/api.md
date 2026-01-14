@@ -82,7 +82,7 @@ NormalizedDeploymentPolicy
 AbstractTrainingLogger
 NoTrainingLogger
 log_scalar!
-log_dict!
+log_metrics!
 set_step!
 ```
 

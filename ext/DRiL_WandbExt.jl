@@ -2,7 +2,7 @@ module DRiL_WandbExt
 
 using DRiL
 using Wandb
-import DRiL: AbstractTrainingLogger, set_step!, increment_step!, log_scalar!, log_dict!, log_hparams!, flush!, close!
+import DRiL: AbstractTrainingLogger, set_step!, increment_step!, log_scalar!, log_metrics!, log_hparams!, flush!, close!
 
 mutable struct WandbBackend <: AbstractTrainingLogger
     wb::Wandb.WandbLogger
@@ -20,7 +20,7 @@ function DRiL.log_scalar!(lg::WandbBackend, k::AbstractString, v::Real)
     return nothing
 end
 
-function DRiL.log_dict!(lg::WandbBackend, kv::AbstractDict{<:AbstractString, <:Any})
+function DRiL.log_metrics!(lg::WandbBackend, kv::AbstractDict{<:AbstractString, <:Any})
     d = Dict{String, Any}()
     for (k, v) in kv
         d[string(k)] = v

@@ -2,7 +2,7 @@ module DRiL_DearDiaryExt
 
 using DRiL
 using DearDiary
-import DRiL: AbstractTrainingLogger, set_step!, increment_step!, log_scalar!, log_dict!, log_hparams!, flush!, close!
+import DRiL: AbstractTrainingLogger, set_step!, increment_step!, log_scalar!, log_metrics!, log_hparams!, flush!, close!
 
 """
     DearDiaryBackend <: AbstractTrainingLogger
@@ -95,7 +95,7 @@ function DRiL.log_scalar!(lg::DearDiaryBackend, k::AbstractString, v::Real)
     return nothing
 end
 
-function DRiL.log_dict!(lg::DearDiaryBackend, kv::AbstractDict{<:AbstractString, <:Any})
+function DRiL.log_metrics!(lg::DearDiaryBackend, kv::AbstractDict{<:AbstractString, <:Any})
     iteration_id = ensure_iteration!(lg)
     if isnothing(iteration_id)
         return nothing

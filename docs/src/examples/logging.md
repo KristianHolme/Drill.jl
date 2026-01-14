@@ -322,7 +322,7 @@ You can log additional metrics using the logging interface. The logger is access
 log_scalar!(agent.logger, "custom/my_metric", value)
 
 # Log multiple values at once
-log_dict!(agent.logger, Dict(
+log_metrics!(agent.logger, Dict(
     "custom/metric1" => value1,
     "custom/metric2" => value2,
 ))
