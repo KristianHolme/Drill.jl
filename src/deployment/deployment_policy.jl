@@ -69,3 +69,29 @@ function (dp::NormalizedDeploymentPolicy)(obs; deterministic::Bool = true, rng::
         return actions
     end
 end
+
+struct RandomPolicy{A <: AbstractSpace} <: AbstractPolicy
+    action_space::A
+end
+
+function (rp::RandomPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = Random.default_rng())
+    return rand(rng, rp.action_space)
+end
+
+function RandomPolicy(env::AbstractEnv)
+    return RandomPolicy(action_space(env))
+end
+
+struct ZeroPolicy{V} <: AbstractPolicy
+    action::V
+end
+
+function (zp::ZeroPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = Random.default_rng())
+    return zp.action
+end
+
+function ZeroPolicy(env::AbstractEnv)
+    action = rand(action_space(env))
+    zero_action = action .* zero(eltype(action))
+    return ZeroPolicy(zero_action)
+end

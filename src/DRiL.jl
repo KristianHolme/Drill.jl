@@ -81,7 +81,7 @@ export MonitorWrapperEnv, EpisodeStats, is_wrapper, unwrap, unwrap_all
 export MultiAgentParallelEnv
 
 include("deployment/deployment_policy.jl")
-export extract_policy, DeploymentPolicy, NormalizedDeploymentPolicy
+export extract_policy, DeploymentPolicy, NormalizedDeploymentPolicy, RandomPolicy, ZeroPolicy
 
 include("utils/utils.jl")
 export collect_trajectory
