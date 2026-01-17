@@ -13,7 +13,7 @@ A continuous space with lower and upper bounds per dimension.
 
 # Fields
 - `low::Array{T}`: Lower bounds for each dimension
-- `high::Array{T}`: Upper bounds for each dimension  
+- `high::Array{T}`: Upper bounds for each dimension
 - `shape::Tuple{Vararg{Int}}`: Shape of the space
 
 # Example
@@ -63,7 +63,8 @@ Sample a random value from the box space with potentially different bounds per d
 low = Float32[-1.0, -2.0]
 high = Float32[1.0, 3.0]
 space = Box(low, high)
-sample = rand(space)  # Returns a 2-element Float32 array with values in [-1,1] and [-2,3] respectively
+sample = rand(space)
+# Returns a 2-element Float32 array with values in [-1,1] and [-2,3] respectively
 ```
 """
 function Random.rand(rng::AbstractRNG, space::Box{T}) where {T}
@@ -162,7 +163,9 @@ struct Discrete{T <: Integer} <: AbstractSpace
     end
 end
 
-Base.ndims(::Discrete) = 1  # Discrete spaces are 1-dimensional even though they are single values, to work with batch dim
+Base.ndims(::Discrete) = 1
+# Discrete spaces are 1-dimensional even though they are
+#single values, to work with batch dim
 Base.eltype(::Discrete{T}) where {T} = T
 
 function Base.isequal(disc1::Discrete, disc2::Discrete)
@@ -235,7 +238,10 @@ end
 
 
 # Handle case where action might be in an array (for consistency with Box spaces)
-function process_action(action::AbstractArray{<:Integer}, action_space::Discrete, alg::AbstractAlgorithm)
+function process_action(
+        action::AbstractArray{<:Integer}, action_space::Discrete,
+        alg::AbstractAlgorithm
+    )
     return process_action.(action, Ref(action_space), Ref(alg))
 end
 
