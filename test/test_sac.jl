@@ -184,7 +184,6 @@
         end
     end
 end
-
 @testitem "SAC end-to-end gradient computation with real rollouts" tags = [:sac, :integration, :gradients] setup = [SharedTestSetup] begin
     using Random
     using Lux
