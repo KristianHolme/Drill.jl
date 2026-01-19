@@ -99,7 +99,7 @@ function sac_actor_loss(
         ps, st, data; rng::AbstractRNG = Random.default_rng()
     )
     obs = data.observations
-    ent_coef = data.log_ent_coef.log_ent_coef |> first |> exp
+    ent_coef = exp(first(data.log_ent_coef.log_ent_coef))
     actions_pi, log_probs_pi, st = action_log_prob(layer, obs, ps, st; rng)
     q_values, st = predict_values(layer, obs, actions_pi, ps, st)
     min_q_values = minimum(q_values, dims = 1) |> vec
@@ -392,7 +392,7 @@ function update!(
 
     agent.train_state = train_state
 
-    current_ent_coef = exp(agent.aux.ent_train_state.parameters[1])
+    current_ent_coef = exp(first(agent.aux.ent_train_state.parameters.log_ent_coef))
     total_grad_norm = sqrt(sum(norm(g)^2 for g in critic_grad) + sum(norm(g)^2 for g in actor_loss_grad))
     add_gradient_update!(agent)
     return Dict(
