@@ -85,7 +85,7 @@ function sac_ent_coef_loss(
         layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic}, ps, st, data;
         rng::AbstractRNG = Random.default_rng()
     )
-    log_ent_coef = ps.log_ent_coef[firstindex(ps.log_ent_coef)]
+    log_ent_coef = first(ps.log_ent_coef)
     layer_ps = data.layer_ps
     layer_st = data.layer_st
     _, log_probs_pi, layer_st = action_log_prob(layer, data.observations, layer_ps, layer_st; rng)
@@ -99,7 +99,7 @@ function sac_actor_loss(
         ps, st, data; rng::AbstractRNG = Random.default_rng()
     )
     obs = data.observations
-    ent_coef = data.log_ent_coef[firstindex(data.log_ent_coef)] |> exp
+    ent_coef = data.log_ent_coef.log_ent_coef |> first |> exp
     actions_pi, log_probs_pi, st = action_log_prob(layer, obs, ps, st; rng)
     q_values, st = predict_values(layer, obs, actions_pi, ps, st)
     min_q_values = minimum(q_values, dims = 1) |> vec
