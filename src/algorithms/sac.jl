@@ -393,7 +393,8 @@ function update!(
     agent.train_state = train_state
 
     current_ent_coef = exp(first(agent.aux.ent_train_state.parameters.log_ent_coef))
-    total_grad_norm = sqrt(sum(norm(g)^2 for g in critic_grad) + sum(norm(g)^2 for g in actor_loss_grad))
+    T = eltype(alg.learning_rate)
+    total_grad_norm = sqrt(nested_norm(critic_grad, T)^2 + nested_norm(actor_loss_grad, T)^2)
     add_gradient_update!(agent)
     return Dict(
         "actor_loss" => actor_loss,

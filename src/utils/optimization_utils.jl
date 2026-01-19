@@ -71,7 +71,7 @@ all arrays using Functors.fmap.
 # Returns
 - The L2 norm of all arrays in the structure
 """
-function nested_norm(ps, T)
+function nested_norm(ps, T::Type{<:AbstractFloat})
     s = Ref(zero(T))
     fmap(ps) do x
         if x isa AbstractArray
@@ -95,7 +95,7 @@ Scale all arrays in a nested parameter structure in-place to have a maximum norm
 # Returns
 - The modified parameter structure `ps`
 """
-function nested_scale!(ps, max_norm, norm_val)
+function nested_scale!(ps, max_norm::T, norm_val::T) where {T <: AbstractFloat}
     scale = max_norm / norm_val
     fmap(ps) do x
         if x isa AbstractArray
