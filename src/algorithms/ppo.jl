@@ -120,7 +120,7 @@ function train!(
     end
     total_steps = iterations * n_steps * n_envs
 
-    agent.verbose > 0 && @info "Training with total_steps: $total_steps, 
+    agent.verbose > 0 && @info "Training with total_steps: $total_steps,
     iterations: $iterations, n_steps: $n_steps, n_envs: $n_envs"
 
     progress_meter = Progress(
@@ -210,23 +210,23 @@ function train!(
                     mean_ratio = stats["ratio"]
                     isapprox(mean_ratio - one(mean_ratio), zero(mean_ratio), atol = eps(typeof(mean_ratio))) || @warn "ratios is not 1.0, iter $i, epoch $epoch, batch $i_batch, $mean_ratio"
                 end
-                @assert !any(isnan, grads) "gradient contains nan, iter $i, epoch $epoch, batch $i_batch"
-                @assert !any(isinf, grads) "gradient not finite, iter $i, epoch $epoch, batch $i_batch"
+                @assert !nested_has_nan(grads) "gradient contains nan, iter $i, epoch $epoch, batch $i_batch"
+                @assert !nested_has_inf(grads) "gradient not finite, iter $i, epoch $epoch, batch $i_batch"
 
-                current_grad_norm = norm(grads)
-                # @info "actor grad norm: $(norm(grads.actor_head))"
-                if norm(grads.actor_head) < 1.0e-3
-                    @info "actor grad norm is less than 1.0e-3, iter $i, epoch $epoch, batch $i_batch, $(norm(grads.actor_head))"
+                current_grad_norm = nested_norm(grads, T)
+                # @info "actor grad norm: $(nested_norm(grads.actor_head, T))"
+                if grads isa NamedTuple && haskey(grads, :actor_head) && nested_norm(grads.actor_head, T) < 1.0e-3
+                    @info "actor grad norm is less than 1.0e-3, iter $i, epoch $epoch, batch $i_batch, $(nested_norm(grads.actor_head, T))"
                 end
-                # @info "critic grad norm: $(norm(grads.critic_head))"
-                # @info "log_std grad norm: $(norm(grads.log_std))"
+                # @info "critic grad norm: $(nested_norm(grads.critic_head, T))"
+                # @info "log_std grad norm: $(nested_norm(grads.log_std, T))"
                 push!(grad_norms, current_grad_norm)
 
                 if !isnothing(alg.max_grad_norm) && current_grad_norm > alg.max_grad_norm
-                    grads = grads .* alg.max_grad_norm ./ current_grad_norm
-                    clipped_grads_norm = norm(grads)
+                    nested_scale!(grads, alg.max_grad_norm, current_grad_norm)
+                    clipped_grads_norm = nested_norm(grads, T)
                     @assert clipped_grads_norm < alg.max_grad_norm ||
-                        clipped_grads_norm ≈ alg.max_grad_norm "gradient norm 
+                        clipped_grads_norm ≈ alg.max_grad_norm "gradient norm
                             ($(clipped_grads_norm)) is greater than
                             max_grad_norm ($(alg.max_grad_norm)), iter $i, epoch $epoch, batch $i_batch"
                 end

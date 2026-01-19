@@ -85,7 +85,7 @@ function sac_ent_coef_loss(
         layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic}, ps, st, data;
         rng::AbstractRNG = Random.default_rng()
     )
-    log_ent_coef = ps.log_ent_coef[firstindex(ps.log_ent_coef)]
+    log_ent_coef = first(ps.log_ent_coef)
     layer_ps = data.layer_ps
     layer_st = data.layer_st
     _, log_probs_pi, layer_st = action_log_prob(layer, data.observations, layer_ps, layer_st; rng)
@@ -99,7 +99,7 @@ function sac_actor_loss(
         ps, st, data; rng::AbstractRNG = Random.default_rng()
     )
     obs = data.observations
-    ent_coef = data.log_ent_coef[firstindex(data.log_ent_coef)] |> exp
+    ent_coef = exp(first(data.log_ent_coef.log_ent_coef))
     actions_pi, log_probs_pi, st = action_log_prob(layer, obs, ps, st; rng)
     q_values, st = predict_values(layer, obs, actions_pi, ps, st)
     min_q_values = minimum(q_values, dims = 1) |> vec
@@ -113,7 +113,7 @@ function sac_critic_loss(
     )
     obs, actions, rewards, terminated, _, next_obs = data.observations, data.actions, data.rewards, data.terminated, data.truncated, data.next_observations
     gamma = alg.gamma
-    ent_coef = data.log_ent_coef[1] |> exp
+    ent_coef = exp(first(data.log_ent_coef.log_ent_coef))
     target_ps = data.target_ps
     target_st = data.target_st
 
@@ -187,12 +187,12 @@ function Agent(
 end
 
 
-function copy_critic_parameters(layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCritic, SharedFeatures}, ps::ComponentArray) where {N <: AbstractNoise}
-    return ComponentArray((feature_extractor = copy(ps.feature_extractor), critic_head = copy(ps.critic_head)))
+function copy_critic_parameters(layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCritic, SharedFeatures}, ps::NamedTuple) where {N <: AbstractNoise}
+    return (feature_extractor = deepcopy(ps.feature_extractor), critic_head = deepcopy(ps.critic_head))
 end
 
-function copy_critic_parameters(layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCritic, SeparateFeatures}, ps::ComponentArray) where {N <: AbstractNoise}
-    return ComponentArray((critic_feature_extractor = copy(ps.critic_feature_extractor), critic_head = copy(ps.critic_head)))
+function copy_critic_parameters(layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCritic, SeparateFeatures}, ps::NamedTuple) where {N <: AbstractNoise}
+    return (critic_feature_extractor = deepcopy(ps.critic_feature_extractor), critic_head = deepcopy(ps.critic_head))
 end
 
 function copy_critic_states(layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCritic, SharedFeatures}, st::NamedTuple) where {N <: AbstractNoise}
@@ -204,10 +204,11 @@ function copy_critic_states(layer::ContinuousActorCriticLayer{<:Any, <:Any, N, Q
 end
 
 function init_entropy_coefficient(entropy_coefficient::FixedEntropyCoefficient)
-    return ComponentArray(log_ent_coef = [entropy_coefficient.coef |> log])
+    return (; log_ent_coef = [entropy_coefficient.coef |> log])
 end
+
 function init_entropy_coefficient(entropy_coefficient::AutoEntropyCoefficient)
-    return ComponentArray(log_ent_coef = [entropy_coefficient.initial_value |> log])
+    return (; log_ent_coef = [entropy_coefficient.initial_value |> log])
 end
 
 function predict_actions(
@@ -391,8 +392,9 @@ function update!(
 
     agent.train_state = train_state
 
-    current_ent_coef = exp(agent.aux.ent_train_state.parameters[1])
-    total_grad_norm = sqrt(sum(norm(g)^2 for g in critic_grad) + sum(norm(g)^2 for g in actor_loss_grad))
+    current_ent_coef = exp(first(agent.aux.ent_train_state.parameters.log_ent_coef))
+    T = eltype(alg.learning_rate)
+    total_grad_norm = sqrt(nested_norm(critic_grad, T)^2 + nested_norm(actor_loss_grad, T)^2)
     add_gradient_update!(agent)
     return Dict(
         "actor_loss" => actor_loss,

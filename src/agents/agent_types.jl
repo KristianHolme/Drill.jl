@@ -36,8 +36,8 @@ Auxiliary state for Q-based actor-critic algorithms (e.g., SAC/TD3/DDPG).
 Holds target critic parameters/states and entropy coefficient train state.
 """
 mutable struct QAux
-    Q_target_parameters::ComponentArray
-    Q_target_states::NamedTuple
+    Q_target_parameters::NamedTuple
+    Q_target_states::NamedTuple #TODO: are these abstract types?
     ent_train_state::Lux.Training.TrainState
 end
 

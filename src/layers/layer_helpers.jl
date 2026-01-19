@@ -105,21 +105,34 @@ function get_critic_head(
     return get_mlp(latent_dim, 1, hidden_dims, activation, bias_init, hidden_init, output_init)
 end
 
-function zero_critic_grads!(critic_grad::ComponentArray, layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, SharedFeatures})
-    names_to_zero = [:critic_head]
-    zero_fields!(critic_grad, names_to_zero)
+function zero_critic_grads!(critic_grad::NamedTuple, layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, SharedFeatures})
+    if haskey(critic_grad, :critic_head)
+        fmap(critic_grad.critic_head) do x
+            if x isa AbstractArray
+                x .= zero(eltype(x))
+            end
+            return x
+        end
+    end
     return nothing
 end
 
-function zero_critic_grads!(critic_grad::ComponentArray, layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, SeparateFeatures})
-    names_to_zero = [:critic_head, :critic_feature_extractor]
-    zero_fields!(critic_grad, names_to_zero)
-    return nothing
-end
-
-function zero_fields!(a::ComponentArray{T}, names::Vector{Symbol}) where {T <: Real}
-    for name in names
-        a[name] .= zero(T)
+function zero_critic_grads!(critic_grad::NamedTuple, layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, SeparateFeatures})
+    if haskey(critic_grad, :critic_head)
+        fmap(critic_grad.critic_head) do x
+            if x isa AbstractArray
+                x .= zero(eltype(x))
+            end
+            return x
+        end
+    end
+    if haskey(critic_grad, :critic_feature_extractor)
+        fmap(critic_grad.critic_feature_extractor) do x
+            if x isa AbstractArray
+                x .= zero(eltype(x))
+            end
+            return x
+        end
     end
     return nothing
 end
