@@ -91,7 +91,7 @@ function sac_ent_coef_loss(
     _, log_probs_pi, layer_st = action_log_prob(layer, data.observations, layer_ps, layer_st; rng)
     target_entropy = data.target_entropy
     loss = -(log_ent_coef * @ignore_derivatives(log_probs_pi .+ target_entropy |> mean))
-    return loss, st, Dict()
+    return loss, st, NamedTuple()
 end
 
 function sac_actor_loss(
@@ -104,7 +104,7 @@ function sac_actor_loss(
     q_values, st = predict_values(layer, obs, actions_pi, ps, st)
     min_q_values = minimum(q_values, dims = 1) |> vec
     loss = mean(ent_coef .* log_probs_pi - min_q_values)
-    return loss, st, Dict()
+    return loss, st, NamedTuple()
 end
 
 function sac_critic_loss(
@@ -145,7 +145,7 @@ function sac_critic_loss(
     #TODO: type stability here?
     critic_loss = T(0.5) * sum(mean((current_q .- target_q_values) .^ 2) for current_q in eachrow(current_q_values))
 
-    stats = Dict("mean_q_values" => mean(current_q_values))
+    stats = (mean_q_values = mean(current_q_values),)
     return critic_loss, new_st, stats
 end
 
@@ -311,7 +311,7 @@ end
     update!(agent, alg::SAC, batch_data; ad_type)
 
 Perform a single SAC gradient update step (entropy, critic, actor, targets) and update agent state.
-Returns a Dict of useful scalars from this step.
+Returns a NamedTuple of useful scalars from this step.
 """
 function update!(
         agent::Agent{<:ContinuousActorCriticLayer, <:SAC, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any},
@@ -396,13 +396,13 @@ function update!(
     T = eltype(alg.learning_rate)
     total_grad_norm = sqrt(nested_norm(critic_grad, T)^2 + nested_norm(actor_loss_grad, T)^2)
     add_gradient_update!(agent)
-    return Dict(
-        "actor_loss" => actor_loss,
-        "critic_loss" => critic_loss,
-        "entropy_loss" => ent_loss,
-        "mean_q_values" => critic_stats["mean_q_values"],
-        "entropy_coefficient" => current_ent_coef,
-        "grad_norm" => total_grad_norm
+    return (
+        actor_loss = actor_loss,
+        critic_loss = critic_loss,
+        entropy_loss = ent_loss,
+        mean_q_values = critic_stats.mean_q_values,
+        entropy_coefficient = current_ent_coef,
+        grad_norm = total_grad_norm,
     )
 end
 
@@ -517,15 +517,15 @@ function train!(
 
         @timeit to "gradient_updates" for (i, batch_data) in enumerate(data_loader)
             stats_step = update!(agent, alg, batch_data; ad_type)
-            if stats_step["entropy_loss"] !== nothing
-                push!(training_stats.entropy_losses, stats_step["entropy_loss"])
+            if stats_step.entropy_loss !== nothing
+                push!(training_stats.entropy_losses, stats_step.entropy_loss)
             end
-            push!(training_stats.critic_losses, stats_step["critic_loss"])
-            push!(training_stats.actor_losses, stats_step["actor_loss"])
-            push!(training_stats.q_values, stats_step["mean_q_values"])
-            push!(training_stats.entropy_coefficients, stats_step["entropy_coefficient"])
+            push!(training_stats.critic_losses, stats_step.critic_loss)
+            push!(training_stats.actor_losses, stats_step.actor_loss)
+            push!(training_stats.q_values, stats_step.mean_q_values)
+            push!(training_stats.entropy_coefficients, stats_step.entropy_coefficient)
             push!(training_stats.learning_rates, alg.learning_rate)
-            push!(training_stats.grad_norms, stats_step["grad_norm"])
+            push!(training_stats.grad_norms, stats_step.grad_norm)
             gradient_updates_performed += 1
         end
 

@@ -207,7 +207,7 @@ function train!(
                 grads, loss_val, stats, train_state = @timeit to "compute_gradients" Lux.Training.compute_gradients(ad_type, alg, batch_data, train_state)
 
                 if epoch == 1 && i_batch == 1
-                    mean_ratio = stats["ratio"]
+                    mean_ratio = stats.ratio
                     isapprox(mean_ratio - one(mean_ratio), zero(mean_ratio), atol = eps(typeof(mean_ratio))) || @warn "ratios is not 1.0, iter $i, epoch $epoch, batch $i_batch, $mean_ratio"
                 end
                 @assert !nested_has_nan(grads) "gradient contains nan, iter $i, epoch $epoch, batch $i_batch"
@@ -232,19 +232,19 @@ function train!(
                 end
                 # @info grads
                 # KL divergence check
-                if !isnothing(alg.target_kl) && stats["approx_kl_div"] > T(1.5) * alg.target_kl
+                if !isnothing(alg.target_kl) && stats.approx_kl_div > T(1.5) * alg.target_kl
                     continue_training = false
                     break
                 end
                 @timeit to "apply_gradients" Lux.Training.apply_gradients!(train_state, grads)
 
                 add_gradient_update!(agent)
-                push!(entropy, stats["entropy"])
-                push!(entropy_losses, stats["entropy_loss"])
-                push!(policy_losses, stats["policy_loss"])
-                push!(value_losses, stats["value_loss"])
-                push!(approx_kl_divs, stats["approx_kl_div"])
-                push!(clip_fractions, stats["clip_fraction"])
+                push!(entropy, stats.entropy)
+                push!(entropy_losses, stats.entropy_loss)
+                push!(policy_losses, stats.policy_loss)
+                push!(value_losses, stats.value_loss)
+                push!(approx_kl_divs, stats.approx_kl_div)
+                push!(clip_fractions, stats.clip_fraction)
                 push!(losses, loss_val)
             end
             if !continue_training
@@ -298,17 +298,17 @@ function train!(
     end
     agent.train_state = train_state
 
-    learn_stats = Dict(
-        "entropy_losses" => total_entropy_losses,
-        "policy_losses" => total_policy_losses,
-        "value_losses" => total_value_losses,
-        "approx_kl_divs" => total_approx_kl_divs,
-        "clip_fractions" => total_clip_fractions,
-        "losses" => total_losses,
-        "explained_variances" => total_explained_variances,
-        "fps" => total_fps,
-        "grad_norms" => total_grad_norms,
-        "learning_rates" => learning_rates
+    learn_stats = (
+        entropy_losses = total_entropy_losses,
+        policy_losses = total_policy_losses,
+        value_losses = total_value_losses,
+        approx_kl_divs = total_approx_kl_divs,
+        clip_fractions = total_clip_fractions,
+        losses = total_losses,
+        explained_variances = total_explained_variances,
+        fps = total_fps,
+        grad_norms = total_grad_norms,
+        learning_rates = learning_rates,
     )
     if !isnothing(callbacks)
         @timeit to "callback: training_end" begin
@@ -392,14 +392,14 @@ function (alg::PPO{T})(policy::AbstractActorCriticLayer, ps, st, batch_data) whe
         log_ratio = log_probs - old_logprobs
         approx_kl_div = mean(exp.(log_ratio) .- 1 .- log_ratio)
 
-        Dict{String, Any}(
-            "policy_loss" => p_loss,
-            "value_loss" => v_loss,
-            "entropy_loss" => ent_loss,
-            "clip_fraction" => clip_fraction,
-            "approx_kl_div" => approx_kl_div,
-            "entropy" => mean(entropy),
-            "ratio" => mean(r)
+        (
+            policy_loss = p_loss,
+            value_loss = v_loss,
+            entropy_loss = ent_loss,
+            clip_fraction = clip_fraction,
+            approx_kl_div = approx_kl_div,
+            entropy = mean(entropy),
+            ratio = mean(r),
         )
     end
 
