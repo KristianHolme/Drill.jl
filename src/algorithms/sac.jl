@@ -187,12 +187,12 @@ function Agent(
 end
 
 
-function copy_critic_parameters(layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCritic, SharedFeatures}, ps::ComponentArray) where {N <: AbstractNoise}
-    return ComponentArray((feature_extractor = copy(ps.feature_extractor), critic_head = copy(ps.critic_head)))
+function copy_critic_parameters(layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCritic, SharedFeatures}, ps::NamedTuple) where {N <: AbstractNoise}
+    return (feature_extractor = deepcopy(ps.feature_extractor), critic_head = deepcopy(ps.critic_head))
 end
 
-function copy_critic_parameters(layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCritic, SeparateFeatures}, ps::ComponentArray) where {N <: AbstractNoise}
-    return ComponentArray((critic_feature_extractor = copy(ps.critic_feature_extractor), critic_head = copy(ps.critic_head)))
+function copy_critic_parameters(layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCritic, SeparateFeatures}, ps::NamedTuple) where {N <: AbstractNoise}
+    return (critic_feature_extractor = deepcopy(ps.critic_feature_extractor), critic_head = deepcopy(ps.critic_head))
 end
 
 function copy_critic_states(layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCritic, SharedFeatures}, st::NamedTuple) where {N <: AbstractNoise}
@@ -204,10 +204,11 @@ function copy_critic_states(layer::ContinuousActorCriticLayer{<:Any, <:Any, N, Q
 end
 
 function init_entropy_coefficient(entropy_coefficient::FixedEntropyCoefficient)
-    return ComponentArray(log_ent_coef = [entropy_coefficient.coef |> log])
+    return (; log_ent_coef = [entropy_coefficient.coef |> log])
 end
+
 function init_entropy_coefficient(entropy_coefficient::AutoEntropyCoefficient)
-    return ComponentArray(log_ent_coef = [entropy_coefficient.initial_value |> log])
+    return (; log_ent_coef = [entropy_coefficient.initial_value |> log])
 end
 
 function predict_actions(

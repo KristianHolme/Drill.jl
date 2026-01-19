@@ -189,8 +189,9 @@ end
     using Random
     using Lux
     using Zygote
-    using ComponentArrays
+    # using ComponentArrays
     using LinearAlgebra
+    using DRiL: nested_all_zero, nested_norm
 
     # Test the complete SAC gradient computation pipeline using real environment data
     # This mimics exactly what happens in the learn! function
@@ -204,12 +205,12 @@ end
         action_space = DRiL.action_space(env)
 
         # Create SAC agent and algorithm
-        policy = ContinuousActorCriticLayer(
+        layer = ContinuousActorCriticLayer(
             obs_space, action_space; hidden_dims = [8, 4],
             critic_type = QCritic()
         )
         alg = SAC(; start_steps = 4, batch_size = 4)
-        agent = Agent(policy, alg; rng = rng, verbose = 0)
+        agent = Agent(layer, alg; rng = rng, verbose = 0)
 
         # Create replay buffer and collect some rollouts
         replay_buffer = ReplayBuffer(obs_space, action_space, 100)
@@ -243,7 +244,7 @@ end
                 # Compute gradients exactly like in learn!
                 ent_grad, ent_loss, _, ent_train_state = Lux.Training.compute_gradients(
                     AutoZygote(),
-                    (model, ps, st, data) -> DRiL.sac_ent_coef_loss(alg, policy, ps, st, data),
+                    (model, ps, st, data) -> DRiL.sac_ent_coef_loss(alg, layer, ps, st, data),
                     ent_data,
                     ent_train_state
                 )
@@ -280,7 +281,7 @@ end
             # Compute gradients exactly like in learn!
             critic_grad, critic_loss, critic_stats, train_state = Lux.Training.compute_gradients(
                 AutoZygote(),
-                (model, ps, st, data) -> DRiL.sac_critic_loss(alg, policy, ps, st, data),
+                (model, ps, st, data) -> DRiL.sac_critic_loss(alg, layer, ps, st, data),
                 critic_data,
                 train_state
             )
@@ -288,15 +289,15 @@ end
             # Verify gradient computation succeeded
             @test !isnothing(critic_grad)
             @test haskey(critic_grad, :critic_head)
-            @test !all(iszero, critic_grad.critic_head)
+            @test !nested_all_zero(critic_grad.critic_head)
             @test isfinite(critic_loss)
             @test critic_loss isa Float32
             @test critic_loss > 0  # MSE loss should be positive
 
 
             # Verify gradient magnitudes are reasonable
-            critic_grad_norm = norm(critic_grad.critic_head)
-            actor_grad_norm = norm(critic_grad.actor_head)
+            critic_grad_norm = nested_norm(critic_grad.critic_head, Float32)
+            actor_grad_norm = nested_norm(critic_grad.actor_head, Float32)
             @test actor_grad_norm < 1.0f-10
             @test critic_grad_norm > 1.0f-10  # Should have meaningful gradients
             @test critic_grad_norm < 1000.0  # But not exploding
@@ -319,17 +320,17 @@ end
             # Compute gradients exactly like in learn!
             actor_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
                 AutoZygote(),
-                (model, ps, st, data) -> DRiL.sac_actor_loss(alg, policy, ps, st, data),
+                (model, ps, st, data) -> DRiL.sac_actor_loss(alg, layer, ps, st, data),
                 actor_data,
                 train_state
             )
-            DRiL.zero_critic_grads!(actor_grad, policy)
+            DRiL.zero_critic_grads!(actor_grad, layer)
 
             # Verify gradient computation succeeded
             @test !isnothing(actor_grad)
             @test haskey(actor_grad, :actor_head)
-            @test !all(iszero, actor_grad.actor_head)
-            @test all(iszero, actor_grad.critic_head)
+            @test !nested_all_zero(actor_grad.actor_head)
+            @test nested_all_zero(actor_grad.critic_head)
             @test isfinite(actor_loss)
             @test actor_loss isa Float32
 
@@ -338,8 +339,8 @@ end
             @test isfinite(actor_loss)
 
             # Verify gradient magnitudes are reasonable
-            actor_grad_norm = norm(actor_grad.actor_head)
-            critic_grad_norm = norm(actor_grad.critic_head)
+            actor_grad_norm = nested_norm(actor_grad.actor_head, Float32)
+            critic_grad_norm = nested_norm(actor_grad.critic_head, Float32)
             @test actor_grad_norm > 1.0f-10  # Should have meaningful gradients
             @test actor_grad_norm < 1000.0  # But not exploding
             @test critic_grad_norm < 1.0f-10

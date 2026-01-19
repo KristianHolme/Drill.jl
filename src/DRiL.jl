@@ -5,6 +5,7 @@ using Base.Threads
 using ChainRulesCore
 using ComponentArrays
 using DataStructures
+using Functors: fmap
 using LinearAlgebra
 using Logging
 using Lux
@@ -81,7 +82,7 @@ export MonitorWrapperEnv, EpisodeStats, is_wrapper, unwrap, unwrap_all
 export MultiAgentParallelEnv
 
 include("deployment/deployment_policy.jl")
-export extract_policy, DeploymentPolicy, NormalizedDeploymentPolicy, RandomPolicy, ZeroPolicy
+export extract_policy, NeuralPolicy, NormWrapperPolicy, RandomPolicy, ConstantPolicy
 
 include("utils/utils.jl")
 export collect_trajectory
