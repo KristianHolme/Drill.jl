@@ -137,3 +137,21 @@ dp = extract_policy(agent)
 # Predict env-ready actions
 env_actions = predict(dp, batch_of_obs; deterministic=true)
 ```
+
+## Benchmarking (AirspeedVelocity.jl)
+
+Benchmarks live in `benchmark/benchmarks.jl` and are used by the CI workflow
+`.github/workflows/benchmarks.yml`.
+
+Run locally:
+
+```bash
+julia -e 'using Pkg; Pkg.add("AirspeedVelocity")'
+mkdir -p benchmark_results
+benchpkg \
+  --path . \
+  --rev dirty,main \
+  --script benchmark/benchmarks.jl \
+  --output-dir benchmark_results \
+  --add https://github.com/KristianHolme/ClassicControlEnvironments.jl,Zygote
+```
