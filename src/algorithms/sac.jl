@@ -113,7 +113,7 @@ function sac_critic_loss(
     )
     obs, actions, rewards, terminated, _, next_obs = data.observations, data.actions, data.rewards, data.terminated, data.truncated, data.next_observations
     gamma = alg.gamma
-    ent_coef = data.log_ent_coef[1] |> exp
+    ent_coef = exp(first(data.log_ent_coef.log_ent_coef))
     target_ps = data.target_ps
     target_st = data.target_st
 
