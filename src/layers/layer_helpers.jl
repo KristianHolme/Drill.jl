@@ -11,10 +11,16 @@ function (init::OrthogonalInitializer{T})(rng::AbstractRNG, out_dims::Int, in_di
 end
 
 function get_feature_extractor(O::Box)
+    if ndims(O) == 1
+        return Lux.NoOpLayer()
+    end
     return Lux.FlattenLayer()
 end
 
 function get_feature_extractor(O::Discrete)
+    if ndims(O) == 1
+        return Lux.NoOpLayer()
+    end
     return Lux.FlattenLayer()
 end
 
