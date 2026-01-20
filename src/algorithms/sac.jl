@@ -80,6 +80,7 @@ function SACLayer(
     )
 end
 
+#TODO: not needed anymore
 function sac_ent_coef_loss(
         ::SAC,
         layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic}, ps, st, data;
@@ -326,17 +327,24 @@ function update!(
     if alg.ent_coef isa AutoEntropyCoefficient
         target_entropy = get_target_entropy(alg.ent_coef, action_space(layer))
         ent_train_state = agent.aux.ent_train_state
-        ent_data = (
-            observations = batch_data.observations,
-            layer_ps = train_state.parameters,
-            layer_st = train_state.states,
-            target_entropy = target_entropy,
-            target_ps = agent.aux.Q_target_parameters,
-            target_st = agent.aux.Q_target_states,
+        # Compute the constant term outside autodiff to avoid differentiating through
+        # sampling/logpdf and the actor network (important for Enzyme).
+        _, log_probs_pi, _ = action_log_prob(
+            layer,
+            batch_data.observations,
+            train_state.parameters,
+            train_state.states;
+            rng = agent.rng,
         )
+        c = mean(log_probs_pi .+ target_entropy)
+        ent_data = (; c)
         ent_grad, ent_loss_val, _, ent_train_state = Lux.Training.compute_gradients(
             ad_type,
-            (model, ps, st, data) -> sac_ent_coef_loss(alg, layer, ps, st, data; rng = agent.rng),
+            (model, ps, st, data) -> begin
+                log_ent_coef = first(ps.log_ent_coef)
+                loss = -(log_ent_coef * data.c)
+                return loss, st, NamedTuple()
+            end,
             ent_data,
             ent_train_state
         )
