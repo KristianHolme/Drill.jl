@@ -1,6 +1,5 @@
 # Integration tests for different AD backends
-
-@testitem "PPO training with different AD backends" tags = [:ppo, :ad_backends] setup = [SharedTestSetup] begin
+@testsnippet ADBackends begin
     using Random
     using Lux: AutoZygote, AutoEnzyme
     using Zygote
@@ -14,8 +13,11 @@
         ("Zygote", AutoZygote()),
         ("Enzyme", AutoEnzyme()),
         ("Enzyme (with runtime activity)", AutoEnzyme(; mode = set_runtime_activity(Reverse))),
+        ("Mooncake", AutoMooncake()),
     ]
+end
 
+@testitem "PPO training with different AD backends" tags = [:ppo, :ad_backends] setup = [SharedTestSetup, ADBackends] begin
     for (name, ad_backend) in backends
         @testset "$name" begin
             policy = ActorCriticLayer(obs_space, action_space; hidden_dims = [16, 16])
@@ -29,21 +31,7 @@
     end
 end
 
-@testitem "SAC training with different AD backends" tags = [:sac, :ad_backends] setup = [SharedTestSetup] begin
-    using Random
-    using Lux: AutoZygote, AutoEnzyme
-    using Zygote
-    using Enzyme
-
-    env = BroadcastedParallelEnv([SharedTestSetup.CustomEnv(8) for _ in 1:2])
-    obs_space = DRiL.observation_space(env)
-    action_space = DRiL.action_space(env)
-
-    backends = [
-        ("Zygote", AutoZygote()),
-        ("Enzyme", AutoEnzyme()),
-    ]
-
+@testitem "SAC training with different AD backends" tags = [:sac, :ad_backends] setup = [SharedTestSetup, ADBackends] begin
     for (name, ad_backend) in backends
         @testset "$name" begin
             policy = ContinuousActorCriticLayer(obs_space, action_space; hidden_dims = [16, 16], critic_type = QCritic())
