@@ -13,6 +13,7 @@
     backends = [
         ("Zygote", AutoZygote()),
         ("Enzyme", AutoEnzyme()),
+        ("Enzyme (with runtime activity)", AutoEnzyme(; mode = set_runtime_activity(Reverse))),
     ]
 
     for (name, ad_backend) in backends
