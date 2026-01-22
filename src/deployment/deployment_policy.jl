@@ -25,7 +25,7 @@ end
 
 function (np::NeuralPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = Random.default_rng())
     single_obs = false
-    if obs in observation_space(np.layer) #single observation, make into vector
+    if size(obs) == size(observation_space(np.layer)) #single observation, make into vector
         obs = [obs]
         single_obs = true
     end
@@ -57,7 +57,7 @@ end
 
 function (nwp::NormWrapperPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = Random.default_rng())
     single_obs = false
-    if obs in observation_space(nwp.policy.layer) #single observation, make into vector
+    if size(obs) == size(observation_space(nwp.policy.layer)) #single observation, make into vector
         single_obs = true
         obs = [obs]
     end
