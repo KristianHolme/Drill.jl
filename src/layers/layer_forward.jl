@@ -4,6 +4,12 @@ function (layer::ContinuousActorCriticLayer)(obs::AbstractArray, ps, st)
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
     action_means, st = get_actions_from_features(layer, actor_feats, ps, st)
     values, st = get_values_from_features(layer, critic_feats, ps, st)
+    #=
+    batch_log_std = ...
+    actions = sample_actions(layer, action_means, batch_log_std)
+    log_probs = logpdf(layer, actions, action_means, batch_log_std)
+    return actions, vec(values), log_probs, st
+    =#
     log_std = ps.log_std
     ds = get_distributions(layer, action_means, log_std)
     #random sample, as this is called during rollout collection
@@ -19,6 +25,12 @@ function (layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCritic, <:Any, <:A
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
     action_means, st = get_actions_from_features(layer, actor_feats, ps, st)
     values, st = get_values_from_features(layer, critic_feats, actions, ps, st)
+    #=
+    batch_log_std =
+    actions = sample_actions(layer, action_means, batch_log_std)
+    log_probs = logpdf(layer, actions, action_means, batch_log_std)
+    return actions, values, log_probs, st
+    =#
     log_std = ps.log_std
     ds = get_distributions(layer, action_means, log_std)
     #random sample, as this is called during rollout collection
@@ -31,6 +43,11 @@ function (layer::DiscreteActorCriticLayer)(obs::AbstractArray, ps, st)
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
     action_logits, st = get_actions_from_features(layer, actor_feats, ps, st)  # For discrete, these are logits
     values, st = get_values_from_features(layer, critic_feats, ps, st)
+    #=
+    actions = sample_actions(layer, action_logits)
+    log_probs = logpdf(layer, actions, action_logits)
+    return actions, values, log_probs, st
+    =#
     ds = get_distributions(layer, action_logits)
     #random sample, as this is called during rollout collection
     actions = rand.(ds)
