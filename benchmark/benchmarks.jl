@@ -11,6 +11,7 @@ include("bench_utils.jl")
 using .BenchUtils
 
 const SUITE = BenchmarkGroup()
+SUITE[:samples] = BenchUtils.DEFAULT_SAMPLES
 
 rollouts = BenchmarkGroup()
 SUITE["rollouts"] = rollouts
@@ -19,13 +20,13 @@ rollouts["rollout_buffer"] = @benchmarkable begin
     DRiL.collect_rollout!(buffer, agent, alg, env)
 end setup = begin
     env, agent, alg, buffer = BenchUtils.setup_rollout_collection()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 rollouts["replay_buffer"] = @benchmarkable begin
     DRiL.collect_rollout!(buffer, agent, alg, env, n_steps)
 end setup = begin
     env, agent, alg, buffer, n_steps = BenchUtils.setup_replay_collection()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 training = BenchmarkGroup()
 SUITE["training"] = training
@@ -34,13 +35,13 @@ training["ppo_cartpole"] = @benchmarkable begin
     train!(agent, env, alg, max_steps)
 end setup = begin
     env, agent, alg, max_steps = BenchUtils.setup_training_ppo()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 training["sac_pendulum"] = @benchmarkable begin
     train!(agent, env, alg, max_steps)
 end setup = begin
     env, agent, alg, max_steps = BenchUtils.setup_training_sac()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers = BenchmarkGroup()
 SUITE["wrappers"] = wrappers
@@ -49,49 +50,49 @@ wrappers["broadcasted_act"] = @benchmarkable begin
     act!(env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers["monitor_act"] = @benchmarkable begin
     act!(monitor_env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers["normalize_act"] = @benchmarkable begin
     act!(normalize_env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers["broadcasted_reset"] = @benchmarkable begin
     reset!(env)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers["monitor_reset"] = @benchmarkable begin
     reset!(monitor_env)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers["normalize_reset"] = @benchmarkable begin
     reset!(normalize_env)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers["multithreaded_act"] = @benchmarkable begin
     act!(threaded_env, actions)
 end setup = begin
     threaded_env, actions = BenchUtils.setup_threaded_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers["multithreaded_reset"] = @benchmarkable begin
     reset!(threaded_env)
 end setup = begin
     threaded_env, actions = BenchUtils.setup_threaded_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 const ENABLE_AD_BACKEND_BENCHES = false
 if ENABLE_AD_BACKEND_BENCHES
@@ -112,7 +113,7 @@ if ENABLE_AD_BACKEND_BENCHES
             Lux.Training.compute_gradients(ad_backend, alg, batch_data, train_state)
         end setup = begin
             alg, batch_data, train_state = BenchUtils.setup_ppo_gradient_data()
-        end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+        end
     end
 
     for (name, ad_backend) in ad_backend_types
@@ -168,6 +169,6 @@ if ENABLE_AD_BACKEND_BENCHES
         end setup = begin
             layer, alg, batch_data, train_state, ent_train_state, target_ps, target_st, rng =
                 BenchUtils.setup_sac_gradient_data()
-        end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+        end
     end
 end
