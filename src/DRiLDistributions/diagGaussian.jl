@@ -45,3 +45,46 @@ end
 function mode(d::DiagGaussian)
     return d.mean
 end
+
+# =============================================================================
+# Batched DiagGaussian (empty struct for dispatch)
+# =============================================================================
+
+struct BatchedDiagGaussian <: AbstractContinuousDistribution
+end
+
+function Random.rand(rng::AbstractRNG, ::BatchedDiagGaussian, mean::AbstractArray{T}, log_std::AbstractArray{T}) where {T}
+    noise = randn(rng, T, size(mean))
+    return mean .+ exp.(log_std) .* noise
+end
+
+function mode(::BatchedDiagGaussian, mean::AbstractArray)
+    return mean
+end
+
+"""
+Batch sum over all dimensions except the last one, return 1×batch_size array.
+"""
+function _dsum(x::AbstractArray{T, N}, dims) where {T, N}
+    dims_drop = dims[1:(end - 1)]
+    return dropdims(sum(x; dims = dims), dims = dims_drop)
+end
+
+function logpdf(::BatchedDiagGaussian, x::AbstractArray{T, N}, mean::AbstractArray{T, N}, log_std::AbstractArray{T, N}) where {T, N}
+    k = prod(size(mean)[1:(end - 1)])
+    non_batch_dims = ntuple(i -> i, N - 1)
+    log_std_sum = _dsum(log_std, non_batch_dims)
+    diff = x - mean
+    var_inv = exp.(-T(2) * log_std)
+    diff_squared_sum = _dsum(abs2.(diff) .* var_inv, non_batch_dims)
+    results = -T(0.5) * (T(2) * log_std_sum .+ diff_squared_sum .+ k * T(log2π))
+    return results
+end
+
+function entropy(::BatchedDiagGaussian, mean::AbstractArray{T, N}, log_std::AbstractArray{T, N}) where {T, N}
+    k = prod(size(mean)[1:(end - 1)])
+    non_batch_dims = ntuple(i -> i, N - 1)
+    log_std_sum = _dsum(log_std, non_batch_dims)
+    results = T(0.5) * (T(k) * T(1 + log2π)) .+ log_std_sum
+    return results
+end

@@ -55,7 +55,8 @@ function collect_trajectories(
             processed_actions = actions  # already in env space
         else
             # Get raw actions - will dispatch to agent-specific methods that support raw parameter
-            actions = predict_actions_raw(agent, observations)
+            actions_batched = predict_actions_raw(agent, observations)
+            actions = actions_batched isa AbstractVector ? collect(actions_batched) : collect(eachslice(actions_batched, dims = ndims(actions_batched)))
             adapter = agent.action_adapter
             processed_actions = to_env.(Ref(adapter), actions, Ref(act_space))
         end

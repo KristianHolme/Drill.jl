@@ -25,12 +25,11 @@ function get_action_and_values(
     train_state = agent.train_state
     ps = train_state.parameters
     st = train_state.states
-    # Convert observations vector to batched matrix for policy
     batched_obs = batch(observations, observation_space(layer))
-    #FIXME: type instability here, is policy not known??
-    actions, values, logprobs, st = layer(batched_obs, ps, st)
+    actions_batched, values, logprobs, st = layer(batched_obs, ps, st)
     @reset train_state.states = st
     agent.train_state = train_state
+    actions = _actions_to_vector(actions_batched)
     return actions, values, logprobs
 end
 
@@ -93,15 +92,22 @@ function predict_actions(
     train_state = agent.train_state
     ps = train_state.parameters
     st = train_state.states
-    # Convert observations vector to batched matrix for policy
     batched_obs = batch(observations, observation_space(layer))
-    actions, st = predict_actions(layer, batched_obs, ps, st; deterministic = deterministic, rng = rng)
+    actions_batched, st = predict_actions(layer, batched_obs, ps, st; deterministic = deterministic, rng = rng)
     @reset train_state.states = st
     agent.train_state = train_state
-    # Convert policy-space actions to env-space using the agent's adapter
+    actions_vec = _actions_to_vector(actions_batched)
     adapter = agent.action_adapter
-    actions = to_env.(Ref(adapter), actions, Ref(action_space(layer)))
+    actions = to_env.(Ref(adapter), actions_vec, Ref(action_space(layer)))
     return actions
+end
+
+function _actions_to_vector(actions::AbstractVector)
+    return collect(actions)
+end
+
+function _actions_to_vector(actions::AbstractArray)
+    return collect(eachslice(actions, dims = ndims(actions)))
 end
 
 # Abstract methods for all agents

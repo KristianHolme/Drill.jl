@@ -48,5 +48,6 @@ end
 
 # Run all tests
 # @run_package_tests
-# Run only tests with :ad_backends tag
-@run_package_tests filter = ti -> :ad_backends ∉ ti.tags
+# Run only tests without :ad_backends tag
+# @run_package_tests filter = ti -> :ad_backends ∉ ti.tags
+@run_package_tests filter = ti -> :ad_backends ∈ ti.tags

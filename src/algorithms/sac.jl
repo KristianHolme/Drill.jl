@@ -225,7 +225,8 @@ function predict_actions(
     ps = train_state.parameters
     st = train_state.states
     batched_obs = batch(observations, observation_space(layer))
-    actions, st = predict_actions(layer, batched_obs, ps, st; deterministic, rng)
+    actions_batched, st = predict_actions(layer, batched_obs, ps, st; deterministic, rng)
+    actions = actions_batched isa AbstractVector ? collect(actions_batched) : collect(eachslice(actions_batched, dims = ndims(actions_batched)))
     @reset train_state.states = st
     agent.train_state = train_state
     if raw

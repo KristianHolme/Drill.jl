@@ -116,12 +116,13 @@ end
     batched_obs = stack([obs])
     actions, values, log_probs, _ = policy(batched_obs, params, states)
 
-    # Test that actions are valid indices (1-based for internal use)
+    # Test that actions are valid integer actions in action space
     @test actions[1] isa Integer
-    @test 0 <= actions[1] <= action_space.n - 1
+    @test actions[1] ∈ action_space
 
     # Evaluate the same actions
-    eval_values, eval_log_probs, entropy, _ = DRiL.evaluate_actions(policy, batched_obs, actions, params, states)
+    actions_onehot = DRiL.discrete_to_onehotbatch(actions, action_space)
+    eval_values, eval_log_probs, entropy, _ = DRiL.evaluate_actions(policy, batched_obs, actions_onehot, params, states)
 
     # Values should match
     @test eval_values ≈ values atol = 1.0e-6
@@ -136,7 +137,8 @@ end
     batch_obs = Float32[0.5 -0.2; -0.3 0.7]
     batch_actions, batch_values, batch_log_probs, _ = policy(batch_obs, params, states)
 
-    eval_batch_values, eval_batch_log_probs, batch_entropy, _ = DRiL.evaluate_actions(policy, batch_obs, batch_actions, params, states)
+    batch_actions_onehot = DRiL.discrete_to_onehotbatch(batch_actions, action_space)
+    eval_batch_values, eval_batch_log_probs, batch_entropy, _ = DRiL.evaluate_actions(policy, batch_obs, batch_actions_onehot, params, states)
 
     @test length(eval_batch_values) == 2
     @test length(eval_batch_log_probs) == 2
@@ -145,6 +147,7 @@ end
     @test all(eval_batch_log_probs .≈ batch_log_probs)
 end
 
+#TODO remove, dont do any offset indexing anymore
 @testitem "DiscreteActorCriticLayer indexing consistency" tags = [:policies, :discrete, :indexing] setup = [SharedTestSetup] begin
     using Random
     using Lux
@@ -167,7 +170,7 @@ end
         obs = Float32[0.5, -0.3]
         batched_obs = stack([obs])
 
-        # Test that policy actions (before processing) are in 1-based indexing
+        # Test that policy actions are valid integers in action space
         actions, _, _, _ = policy(batched_obs, params, states)
         @test actions[1] ∈ action_space
 
@@ -175,8 +178,9 @@ end
         processed_actions, _ = DRiL.predict_actions(policy, batched_obs, params, states)
         @test processed_actions[1] ∈ action_space
 
-        # Test that evaluation works with stored actions (1-based)
-        eval_values, eval_log_probs, entropy, _ = DRiL.evaluate_actions(policy, batched_obs, actions, params, states)
+        # Test that evaluation works with onehot-converted actions
+        actions_onehot = DRiL.discrete_to_onehotbatch(actions, action_space)
+        eval_values, eval_log_probs, entropy, _ = DRiL.evaluate_actions(policy, batched_obs, actions_onehot, params, states)
         @test length(eval_log_probs) == 1
         @test length(entropy) == 1
         @test eval_log_probs[1] isa Float32
@@ -220,14 +224,15 @@ end
     continuous_vals, _ = predict_values(continuous_policy, batched_obs, continuous_params, continuous_states)
 
     # Test evaluate_actions
-    discrete_eval_values, discrete_eval_log_probs, discrete_entropy, _ = DRiL.evaluate_actions(discrete_policy, batched_obs, discrete_actions, discrete_params, discrete_states)
-    continuous_eval_values, continuous_eval_log_probs, continuous_entropy, _ = DRiL.evaluate_actions(continuous_policy, batched_obs, stack(continuous_actions), continuous_params, continuous_states)
+    discrete_actions_onehot = DRiL.discrete_to_onehotbatch(discrete_actions, discrete_action_space)
+    discrete_eval_values, discrete_eval_log_probs, discrete_entropy, _ = DRiL.evaluate_actions(discrete_policy, batched_obs, discrete_actions_onehot, discrete_params, discrete_states)
+    continuous_eval_values, continuous_eval_log_probs, continuous_entropy, _ = DRiL.evaluate_actions(continuous_policy, batched_obs, continuous_actions, continuous_params, continuous_states)
 
     # Test that outputs have expected types and shapes
     @test discrete_actions isa Vector{<:Integer}
-    @test continuous_actions isa Vector{<:Vector{<:Real}}
+    @test continuous_actions isa AbstractArray{<:Real}
     @test discrete_pred isa Vector{<:Integer}
-    @test continuous_pred isa Vector{<:Vector{<:Real}}
+    @test continuous_pred isa AbstractArray{<:Real}
     @test discrete_vals isa Vector{<:Real}
     @test continuous_vals isa Vector{<:Real}
     @test length(discrete_eval_log_probs) == 1
@@ -303,6 +308,6 @@ end
     @test all(mock_values[1, :] .!= mock_values[2, :]) #test that the two networks are different
 
     actions, log_probs, st = action_log_prob(policy, mock_obs, ps, st)
-    @test size(actions) == (10,)
+    @test size(actions) == (1, 10)
 
 end

@@ -5,6 +5,7 @@ authors = ["Kristian Holme <holme.kristian@gmail.com>"]
 
 [deps]
 Accessors = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
+OneHotArrays = "0b1bfda6-eb8a-41d2-88d8-f5af5cad476f"
 ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 ComponentArrays = "b0b7db55-cfe3-40fc-9ded-d10e2dbeff66"
 DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
@@ -37,6 +38,7 @@ DRiL_WandbExt = ["Wandb"]
 
 [compat]
 Accessors = "0.1"
+OneHotArrays = "0.2"
 ChainRulesCore = "1"
 ComponentArrays = "0.15"
 DataStructures = "0.18.22, 0.19"

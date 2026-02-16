@@ -101,15 +101,18 @@ end
         p = rand(Float32, N)
         p = p ./ sum(p)
 
-        d = DRiLDistributions.Categorical(p)
+        d = DRiLDistributions.BatchedCategorical()
 
         dist_d = Distributions.Categorical(p)
 
-        custom_logpdf = DRiLDistributions.logpdf(d, 1)
+        probs = reshape(p, :, 1)
+        x = zeros(Float32, N, 1)
+        x[1, 1] = 1.0f0
+        custom_logpdf = DRiLDistributions.logpdf(d, x, probs)[1]
         dist_logpdf = Distributions.logpdf(dist_d, 1)
         push!(same_outputs, custom_logpdf ≈ dist_logpdf)
 
-        custom_entropy = DRiLDistributions.entropy(d)
+        custom_entropy = DRiLDistributions.entropy(d, probs)[1]
         dist_entropy = Distributions.entropy(dist_d)
         push!(same_outputs, custom_entropy ≈ dist_entropy)
     end
