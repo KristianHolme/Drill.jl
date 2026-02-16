@@ -1,9 +1,10 @@
 # Integration tests for different AD backends
 @testsnippet ADBackends begin
     using Random
-    using Lux: AutoZygote, AutoEnzyme
+    using Lux: AutoZygote, AutoEnzyme, AutoMooncake
     using Zygote
     using Enzyme
+    using Mooncake
 
     env = BroadcastedParallelEnv([SharedTestSetup.CustomEnv(8) for _ in 1:2])
     obs_space = DRiL.observation_space(env)

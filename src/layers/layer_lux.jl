@@ -7,7 +7,7 @@ function Lux.initialparameters(rng::AbstractRNG, policy::ContinuousActorCriticLa
         actor_head = Lux.initialparameters(rng, policy.actor_head),
         critic_head = Lux.initialparameters(rng, policy.critic_head),
         log_std = policy.log_std_init *
-            ones(typeof(policy.log_std_init), size(policy.action_space)),
+            ones(typeof(policy.log_std_init), size(policy.action_space)..., 1),
     )
     params = merge(feats_params, head_params)
     return params
@@ -22,7 +22,7 @@ function Lux.initialparameters(rng::AbstractRNG, policy::ContinuousActorCriticLa
         actor_head = Lux.initialparameters(rng, policy.actor_head),
         critic_head = Lux.initialparameters(rng, policy.critic_head),
         log_std = policy.log_std_init *
-            ones(typeof(policy.log_std_init), size(policy.action_space)),
+            ones(typeof(policy.log_std_init), size(policy.action_space)..., 1),
     )
     params = merge(feats_params, head_params)
     return params

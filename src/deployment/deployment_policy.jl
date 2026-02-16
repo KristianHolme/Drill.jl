@@ -30,8 +30,9 @@ function (np::NeuralPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = 
         single_obs = true
     end
     obs_batch = batch(obs, observation_space(np.layer))
-    actions, _ = predict_actions(np.layer, obs_batch, np.params, np.states; deterministic = deterministic, rng = rng)
-    env_actions = to_env.(Ref(np.adapter), actions, Ref(np.action_space))
+    actions_batched, _ = predict_actions(np.layer, obs_batch, np.params, np.states; deterministic, rng)
+    actions_vec = actions_batched isa AbstractVector ? collect(actions_batched) : collect(eachslice(actions_batched, dims = ndims(actions_batched)))
+    env_actions = to_env.(Ref(np.adapter), actions_vec, Ref(np.action_space))
     if single_obs
         return env_actions[1]
     else

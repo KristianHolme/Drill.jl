@@ -185,9 +185,10 @@ function train!(
             end
         end
 
+        train_actions = prepare_training_actions(roll_buffer.actions, action_space(env))
         data_loader = DataLoader(
             (
-                roll_buffer.observations, roll_buffer.actions,
+                roll_buffer.observations, train_actions,
                 roll_buffer.advantages, roll_buffer.returns,
                 roll_buffer.logprobs, roll_buffer.values,
             ),
@@ -420,9 +421,16 @@ function process_action(action, action_space::Box{T}, ::PPO) where {T}
     return action
 end
 
-# Helper function to process actions: convert from 1-based indexing to action space range
+# Helper function to process actions: validate integer discrete actions
 function process_action(action::Integer, action_space::Discrete, ::PPO)
-    # Make sure its in valid range
-    @assert action_space.start ≤ action ≤ action_space.start + action_space.n - 1
+    @assert action in action_space "Action $(action) is out of bounds for Discrete($(action_space.n), $(action_space.start))"
     return action
+end
+
+function prepare_training_actions(actions::AbstractArray, action_space::Box)
+    return actions
+end
+
+function prepare_training_actions(actions::AbstractArray{<:Integer}, action_space::Discrete)
+    return discrete_to_onehotbatch(actions, action_space)
 end

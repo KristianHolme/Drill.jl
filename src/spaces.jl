@@ -142,16 +142,16 @@ end
 """
     Discrete{T <: Integer} <: AbstractSpace
 
-A discrete space representing a finite set of actions.
+A discrete space representing a finite set of integer actions.
 
 # Fields
 - `n::T`: Number of discrete actions
-- `start::T`: Starting index (default: 1 for Julia convention)
+- `start::T`: Lowest action value
 
 # Example
 ```julia
-space = Discrete(4)  # Actions: 1, 2, 3, 4
-space = Discrete(4, 0)  # Actions: 0, 1, 2, 3 (Gym convention)
+space = Discrete(4)     # Actions: 1, 2, 3, 4
+space = Discrete(4, 0)  # Actions: 0, 1, 2, 3
 ```
 """
 struct Discrete{T <: Integer} <: AbstractSpace
@@ -164,48 +164,31 @@ struct Discrete{T <: Integer} <: AbstractSpace
 end
 
 Base.ndims(::Discrete) = 1
-# Discrete spaces are 1-dimensional even though they are
-#single values, to work with batch dim
-Base.eltype(::Discrete{T}) where {T} = T
+
+Base.eltype(::Discrete{T}) where {T <: Integer} = T
 
 function Base.isequal(disc1::Discrete, disc2::Discrete)
     return disc1.n == disc2.n && disc1.start == disc2.start
 end
 
-# Extend Random.rand for Discrete spaces
 """
     rand([rng], space::Discrete)
 
-Sample a random value from the discrete space.
-
-Returns an integer in the range [start, start + n - 1].
-
-# Examples
-```julia
-space = Discrete(5, 1)  # Values 1, 2, 3, 4, 5
-sample = rand(space)    # Returns a random integer from 1 to 5
-
-space = Discrete(3)     # Values 0, 1, 2 (default start=0)
-sample = rand(space)    # Returns 0, 1, or 2
-```
+Sample an integer action in `space.start:(space.start + space.n - 1)`.
 """
 function Random.rand(rng::AbstractRNG, space::Discrete)
     return rand(rng, space.start:(space.start + space.n - 1))
 end
 
-# Default RNG version
 Random.rand(space::Discrete) = rand(Random.default_rng(), space)
 
-# Multiple samples version
 """
     rand([rng], space::Discrete, n::Integer)
 
-Sample `n` random values from the discrete space.
-
-Returns a vector of integers, each in the range [start, start + n - 1].
+Sample `n` integer actions from the discrete space.
 """
 function Random.rand(rng::AbstractRNG, space::Discrete, n::Integer)
-    return [rand(rng, space) for _ in 1:n]
+    return rand(rng, space.start:(space.start + space.n - 1), n)
 end
 
 Random.rand(space::Discrete, n::Integer) = rand(Random.default_rng(), space, n)
@@ -213,40 +196,38 @@ Random.rand(space::Discrete, n::Integer) = rand(Random.default_rng(), space, n)
 """
     sample in space::Discrete
 
-Check if a sample is within the discrete space.
-
-# Examples
-```julia
-space = Discrete(5, 1)  # Values 1, 2, 3, 4, 5
-3 in space              # Returns true
-0 in space              # Returns false
-6 in space              # Returns false
-
-# Can also use ∈ symbol
-@test action ∈ action_space
-```
+Check if an integer sample is within the discrete action range.
 """
-function Base.in(sample, space::Discrete)
-    # Must be an integer
-    if !isa(sample, Integer)
-        return false
-    end
-
-    # Check if within valid range
-    return space.start <= sample <= space.start + space.n - 1
+function Base.in(sample::Integer, space::Discrete)
+    return space.start <= sample <= (space.start + space.n - 1)
 end
 
-
-# Handle case where action might be in an array (for consistency with Box spaces)
 function process_action(
-        action::AbstractArray{<:Integer}, action_space::Discrete,
-        alg::AbstractAlgorithm
+        action::Integer,
+        action_space::Discrete,
+        alg::AbstractAlgorithm,
     )
-    return process_action.(action, Ref(action_space), Ref(alg))
+    @assert action in action_space "Action $(action) is out of bounds for Discrete($(action_space.n), $(action_space.start))"
+    return action
 end
 
+function process_action(
+        actions::AbstractVector{<:Integer},
+        action_space::Discrete,
+        alg::AbstractAlgorithm,
+    )
+    return process_action.(actions, Ref(action_space), Ref(alg))
+end
 
-Base.size(space::Discrete) = (1,)
+function process_action(
+        actions::AbstractMatrix{<:Integer},
+        action_space::Discrete,
+        alg::AbstractAlgorithm,
+    )
+    return process_action.(actions, Ref(action_space), Ref(alg))
+end
+
+Base.size(::Discrete) = (1,)
 Base.size(space::Box) = space.shape
 
 """
@@ -257,4 +238,27 @@ Batch an array of observations or actions.
 function batch end
 
 batch(x::AbstractArray, space::Box) = stack(x)
-batch(x::AbstractVector, space::Discrete) = reshape(x, 1, :)
+
+function batch(x::AbstractVector{<:Integer}, space::Discrete)
+    x_int = convert(Vector{eltype(space)}, collect(x))
+    return reshape(x_int, 1, :)
+end
+
+function batch(x::AbstractMatrix{<:Integer}, space::Discrete)
+    return x
+end
+
+function discrete_to_onehotbatch(actions::AbstractArray{<:Integer}, space::Discrete)
+    flat_actions = vec(actions)
+    indices = map(flat_actions) do action
+        idx = action - space.start + 1
+        @assert 1 <= idx <= space.n "Action $(action) is out of bounds for Discrete($(space.n), $(space.start))"
+        return idx
+    end
+    return OneHotArrays.onehotbatch(indices, 1:space.n)
+end
+
+function onehotbatch_to_discrete(actions::AbstractMatrix, space::Discrete)
+    idx = argmax(actions; dims = 1)
+    return [space.start + idx[i][1] - 1 for i in eachindex(idx)]
+end

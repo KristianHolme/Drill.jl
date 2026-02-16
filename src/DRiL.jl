@@ -21,6 +21,7 @@ using StatsBase: sample
 using TimerOutputs
 using FileIO
 using JLD2
+using OneHotArrays
 
 include("DRiLDistributions/DRiLDistributions.jl")
 @reexport using .DRiLDistributions

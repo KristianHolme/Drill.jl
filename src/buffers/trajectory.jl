@@ -3,8 +3,8 @@
 function Trajectory{T}(observation_space::AbstractSpace, action_space::AbstractSpace) where {T <: AbstractFloat}
     obs_type = typeof(rand(observation_space))
     action_type = typeof(rand(action_space))
-    observations = Array{obs_type}[]
-    actions = Array{action_type}[]
+    observations = obs_type[]
+    actions = action_type[]
     rewards = T[]
     logprobs = T[]
     values = T[]

@@ -181,9 +181,10 @@ end
     # Test rollout collection
     DRiL.collect_rollout!(roll_buffer, agent, alg, env)
 
-    # Check that actions are stored as 1-based indices (raw policy output)
+    # Check that actions are stored as integer actions in a 1 x total_steps tensor
     actions = roll_buffer.actions
-    @test all(map(a -> a ∈ DRiL.action_space(env), actions))
+    @test size(actions) == (1, n_steps * n_envs)
+    @test all(a -> a ∈ DRiL.action_space(env), vec(actions))
     @test eltype(actions) <: Integer
 
     # Check observations are valid
@@ -206,7 +207,8 @@ end
     # Test action evaluation consistency
     ps = agent.train_state.parameters
     st = agent.train_state.states
-    eval_values, eval_logprobs, entropy, _ = DRiL.evaluate_actions(policy, obs, actions, ps, st)
+    onehot_actions = DRiL.discrete_to_onehotbatch(actions, DRiL.action_space(env))
+    eval_values, eval_logprobs, entropy, _ = DRiL.evaluate_actions(policy, obs, onehot_actions, ps, st)
 
     @test isapprox(vec(values), vec(eval_values); atol = 1.0e-5, rtol = 1.0e-5)
     @test isapprox(vec(logprobs), vec(eval_logprobs); atol = 1.0e-5, rtol = 1.0e-5)
@@ -239,10 +241,10 @@ end
     DRiL.collect_rollout!(discrete_buffer, discrete_agent, alg, discrete_env)
     DRiL.collect_rollout!(continuous_buffer, continuous_agent, alg, continuous_env)
 
-    # Test discrete actions are integers
+    # Test discrete actions are stored as integers
     discrete_actions = discrete_buffer.actions
     @test eltype(discrete_actions) <: Integer
-    @test all(map(a -> a ∈ DRiL.action_space(discrete_env), discrete_actions))
+    @test all(a -> a ∈ DRiL.action_space(discrete_env), vec(discrete_actions))
 
     # Test continuous actions are floats
     continuous_actions = continuous_buffer.actions
@@ -261,8 +263,9 @@ end
     continuous_st = continuous_agent.train_state.states
 
     # Discrete evaluation
+    discrete_onehot_actions = DRiL.discrete_to_onehotbatch(discrete_buffer.actions, DRiL.action_space(discrete_env))
     discrete_eval_values, discrete_eval_logprobs, discrete_entropy, _ = DRiL.evaluate_actions(
-        discrete_policy, discrete_buffer.observations, discrete_buffer.actions, discrete_ps, discrete_st
+        discrete_policy, discrete_buffer.observations, discrete_onehot_actions, discrete_ps, discrete_st
     )
 
     # Continuous evaluation
