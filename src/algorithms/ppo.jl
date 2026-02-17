@@ -22,21 +22,121 @@ agent = Agent(model, ppo)
 train!(agent, env, ppo, 100_000)
 ```
 """
-@kwdef struct PPO{T <: AbstractFloat} <: OnPolicyAlgorithm
-    gamma::T = 0.99f0
-    gae_lambda::T = 0.95f0
-    clip_range::T = 0.2f0
-    clip_range_vf::Union{T, Nothing} = nothing
-    ent_coef::T = 0.0f0
-    vf_coef::T = 0.5f0
-    max_grad_norm::T = 0.5f0
-    target_kl::Union{T, Nothing} = nothing
-    normalize_advantage::Bool = true
-    # Agent parameters moved from ActorCriticAgent
-    n_steps::Int = 2048
-    batch_size::Int = 64
-    epochs::Int = 10
-    learning_rate::T = 3.0f-4
+abstract type AbstractAdvantageStrategy end
+struct NormalizeAdvantages <: AbstractAdvantageStrategy end
+struct RawAdvantages <: AbstractAdvantageStrategy end
+
+abstract type AbstractClipVFStrategy{T <: AbstractFloat} end
+struct ClipVF{T <: AbstractFloat} <: AbstractClipVFStrategy{T}
+    value::T
+end
+struct NoClipVF{T <: AbstractFloat} <: AbstractClipVFStrategy{T} end
+
+abstract type AbstractKLTargetStrategy{T <: AbstractFloat} end
+struct KLTarget{T <: AbstractFloat} <: AbstractKLTargetStrategy{T}
+    value::T
+end
+struct NoKLTarget{T <: AbstractFloat} <: AbstractKLTargetStrategy{T} end
+
+struct PPO{
+        T <: AbstractFloat,
+        AS <: AbstractAdvantageStrategy,
+        CVS <: AbstractClipVFStrategy{T},
+        KLS <: AbstractKLTargetStrategy{T},
+    } <: OnPolicyAlgorithm
+    gamma::T
+    gae_lambda::T
+    clip_range::T
+    ent_coef::T
+    vf_coef::T
+    max_grad_norm::T
+    advantage_strategy::AS
+    clip_vf_strategy::CVS
+    target_kl_strategy::KLS
+    n_steps::Int
+    batch_size::Int
+    epochs::Int
+    learning_rate::T
+end
+
+function Base.convert(::Type{AbstractAdvantageStrategy}, x::Bool)
+    if x
+        return NormalizeAdvantages()
+    end
+    return RawAdvantages()
+end
+
+function Base.convert(::Type{AbstractClipVFStrategy{T}}, ::Nothing) where {T <: AbstractFloat}
+    return NoClipVF{T}()
+end
+function Base.convert(::Type{AbstractClipVFStrategy{T}}, x::Real) where {T <: AbstractFloat}
+    return ClipVF{T}(T(x))
+end
+
+function Base.convert(::Type{AbstractKLTargetStrategy{T}}, ::Nothing) where {T <: AbstractFloat}
+    return NoKLTarget{T}()
+end
+function Base.convert(::Type{AbstractKLTargetStrategy{T}}, x::Real) where {T <: AbstractFloat}
+    return KLTarget{T}(T(x))
+end
+
+normalize_advantage(::PPO{<:Any, NormalizeAdvantages}) = true
+normalize_advantage(::PPO{<:Any, RawAdvantages}) = false
+
+clip_range_vf(::PPO{<:Any, <:Any, <:NoClipVF}) = nothing
+function clip_range_vf(alg::PPO{<:Any, <:Any, <:ClipVF})
+    return alg.clip_vf_strategy.value
+end
+
+target_kl(::PPO{<:Any, <:Any, <:Any, <:NoKLTarget}) = nothing
+function target_kl(alg::PPO{<:Any, <:Any, <:Any, <:KLTarget})
+    return alg.target_kl_strategy.value
+end
+
+function PPO(;
+        gamma::Real = 0.99f0,
+        gae_lambda::Real = 0.95f0,
+        clip_range::Real = 0.2f0,
+        clip_range_vf = nothing,
+        ent_coef::Real = 0.0f0,
+        vf_coef::Real = 0.5f0,
+        max_grad_norm::Real = 0.5f0,
+        target_kl = nothing,
+        normalize_advantage::Bool = true,
+        n_steps::Int = 2048,
+        batch_size::Int = 64,
+        epochs::Int = 10,
+        learning_rate::Real = 3.0f-4
+    )
+    T = promote_type(
+        typeof(float(gamma)),
+        typeof(float(gae_lambda)),
+        typeof(float(clip_range)),
+        typeof(float(ent_coef)),
+        typeof(float(vf_coef)),
+        typeof(float(max_grad_norm)),
+        typeof(float(learning_rate)),
+        isnothing(clip_range_vf) ? Float32 : typeof(float(clip_range_vf)),
+        isnothing(target_kl) ? Float32 : typeof(float(target_kl)),
+    )
+    advantage_strategy = convert(AbstractAdvantageStrategy, normalize_advantage)
+    clip_vf_strategy = convert(AbstractClipVFStrategy{T}, clip_range_vf)
+    target_kl_strategy = convert(AbstractKLTargetStrategy{T}, target_kl)
+    return PPO{T, typeof(advantage_strategy), typeof(clip_vf_strategy), typeof(target_kl_strategy)}(
+        T(gamma),
+        T(gae_lambda),
+        T(clip_range),
+        T(ent_coef),
+        T(vf_coef),
+        T(max_grad_norm),
+        advantage_strategy,
+        clip_vf_strategy,
+        target_kl_strategy,
+        n_steps,
+        batch_size,
+        epochs,
+        T(learning_rate),
+    )
 end
 
 function Agent(
@@ -205,6 +305,7 @@ function train!(
         grad_norms = Float32[]
         @timeit to "epoch loop" for epoch in 1:alg.epochs
             @timeit to "batch loop" for (i_batch, batch_data) in enumerate(data_loader)
+                batch_data = maybe_normalize_batch_data(batch_data, alg.advantage_strategy)
                 grads, loss_val, stats, train_state = @timeit to "compute_gradients" Lux.Training.compute_gradients(ad_type, alg, batch_data, train_state)
 
                 if epoch == 1 && i_batch == 1
@@ -233,7 +334,8 @@ function train!(
                 end
                 # @info grads
                 # KL divergence check
-                if !isnothing(alg.target_kl) && stats.approx_kl_div > T(1.5) * alg.target_kl
+                kl_threshold = target_kl(alg)
+                if !isnothing(kl_threshold) && stats.approx_kl_div > T(1.5) * kl_threshold
                     continue_training = false
                     break
                 end
@@ -356,11 +458,39 @@ function normalize!(values::Vector{T}) where {T}
     return nothing
 end
 
-function maybe_normalize!(advantages::Vector{T}, alg::PPO{T}) where {T}
-    if alg.normalize_advantage
-        normalize!(advantages)
-    end
-    return nothing
+function maybe_normalize!(advantages::Vector{T}, ::NormalizeAdvantages) where {T}
+    normalize!(advantages)
+    return advantages
+end
+function maybe_normalize!(advantages::Vector{T}, ::RawAdvantages) where {T}
+    return advantages
+end
+
+function maybe_normalize_batch_data(batch_data, strategy::AbstractAdvantageStrategy)
+    advantages = maybe_normalize!(copy(batch_data[3]), strategy)
+    return (
+        batch_data[1],
+        batch_data[2],
+        advantages,
+        batch_data[4],
+        batch_data[5],
+        batch_data[6],
+    )
+end
+
+function maybe_clip_range(
+        old_values::Vector{T},
+        values::Vector{T},
+        ::NoClipVF{T},
+    ) where {T}
+    return values
+end
+function maybe_clip_range(
+        old_values::Vector{T},
+        values::Vector{T},
+        strategy::ClipVF{T},
+    ) where {T}
+    return clip_range(old_values, values, strategy.value)
 end
 
 function (alg::PPO{T})(layer::AbstractActorCriticLayer, ps, st, batch_data) where {T}
@@ -371,12 +501,8 @@ function (alg::PPO{T})(layer::AbstractActorCriticLayer, ps, st, batch_data) wher
     old_logprobs = batch_data[5]
     old_values = batch_data[6]
 
-    # advantages = @ignore_derivatives alg.normalize_advantage ? normalize(advantages) : advantages
-    #TODO: do we need to ignore derivatives here?
-    @ignore_derivatives maybe_normalize!(advantages, alg)
-
     values, log_probs, entropy, st = evaluate_actions(layer, observations, actions, ps, st)
-    values = !isnothing(alg.clip_range_vf) ? clip_range(old_values, values, alg.clip_range_vf::T) : values
+    values = maybe_clip_range(old_values, values, alg.clip_vf_strategy)
 
     r = exp.(log_probs - old_logprobs)
     ratio_clipped = clamp.(r, 1 - alg.clip_range, 1 + alg.clip_range)
@@ -386,14 +512,13 @@ function (alg::PPO{T})(layer::AbstractActorCriticLayer, ps, st, batch_data) wher
     v_loss = mean((values .- returns) .^ 2)
     loss = p_loss + alg.ent_coef * ent_loss + alg.vf_coef * v_loss
 
-    stats = @ignore_derivatives begin
-        # Calculate statistics
-        clip_fraction = mean(r .!= ratio_clipped)
-        #approx kl div
-        log_ratio = log_probs - old_logprobs
-        approx_kl_div = mean(exp.(log_ratio) .- 1 .- log_ratio)
+    # Calculate statistics
+    clip_fraction = mean(r .!= ratio_clipped)
+    #approx kl div
+    log_ratio = log_probs - old_logprobs
+    approx_kl_div = mean(exp.(log_ratio) .- 1 .- log_ratio)
 
-        (
+     stats =   (;
             policy_loss = p_loss,
             value_loss = v_loss,
             entropy_loss = ent_loss,
@@ -402,7 +527,6 @@ function (alg::PPO{T})(layer::AbstractActorCriticLayer, ps, st, batch_data) wher
             entropy = mean(entropy),
             ratio = mean(r),
         )
-    end
 
     return loss, st, stats
 end
