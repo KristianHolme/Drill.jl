@@ -11,7 +11,6 @@ include("bench_utils.jl")
 using .BenchUtils
 
 const SUITE = BenchmarkGroup()
-SUITE[:samples] = BenchUtils.DEFAULT_SAMPLES
 
 rollouts = BenchmarkGroup()
 SUITE["rollouts"] = rollouts
@@ -94,12 +93,13 @@ end setup = begin
     threaded_env, actions = BenchUtils.setup_threaded_envs()
 end
 
-const ENABLE_AD_BACKEND_BENCHES = false
+const ENABLE_AD_BACKEND_BENCHES = true
 if ENABLE_AD_BACKEND_BENCHES
     ad_backends = BenchmarkGroup()
     SUITE["ad_backends"] = ad_backends
 
-    ad_backends["ppo"] = BenchmarkGroup()
+    ad_backends["ppo_discrete"] = BenchmarkGroup()
+    ad_backends["ppo_continuous"] = BenchmarkGroup()
     ad_backends["sac"] = BenchmarkGroup()
 
     ad_backend_types = [
@@ -109,10 +109,18 @@ if ENABLE_AD_BACKEND_BENCHES
     ]
 
     for (name, ad_backend) in ad_backend_types
-        ad_backends["ppo"][name] = @benchmarkable begin
-            Lux.Training.compute_gradients(ad_backend, alg, batch_data, train_state)
+        ad_backends["ppo_discrete"][name] = @benchmarkable begin
+            Lux.Training.compute_gradients($ad_backend, alg, batch_data, train_state)
         end setup = begin
-            alg, batch_data, train_state = BenchUtils.setup_ppo_gradient_data()
+            alg, batch_data, train_state = BenchUtils.setup_ppo_gradient_data_discrete()
+        end
+    end
+
+    for (name, ad_backend) in ad_backend_types
+        ad_backends["ppo_continuous"][name] = @benchmarkable begin
+            Lux.Training.compute_gradients($ad_backend, alg, batch_data, train_state)
+        end setup = begin
+            alg, batch_data, train_state = BenchUtils.setup_ppo_gradient_data_continuous()
         end
     end
 
@@ -129,31 +137,40 @@ if ENABLE_AD_BACKEND_BENCHES
                     target_st = target_st,
                 )
                 _, _, _, ent_train_state = Lux.Training.compute_gradients(
-                    ad_backend,
+                    $ad_backend,
                     (model, ps, st, data) -> DRiL.sac_ent_coef_loss(alg, layer, ps, st, data; rng = rng),
                     ent_data,
                     ent_train_state,
                 )
             end
+            target_q_values = DRiL.compute_target_q_values(
+                alg,
+                layer,
+                train_state.parameters,
+                train_state.states,
+                (
+                    rewards = batch_data.rewards,
+                    next_observations = batch_data.next_observations,
+                    terminated = batch_data.terminated,
+                    log_ent_coef = ent_train_state.parameters,
+                    target_ps = target_ps,
+                    target_st = target_st,
+                );
+                rng = rng,
+            )
             critic_data = (
                 observations = batch_data.observations,
                 actions = batch_data.actions,
-                rewards = batch_data.rewards,
-                terminated = batch_data.terminated,
-                truncated = batch_data.truncated,
-                next_observations = batch_data.next_observations,
-                log_ent_coef = ent_train_state.parameters,
-                target_ps = target_ps,
-                target_st = target_st,
+                target_q_values = target_q_values,
             )
             _, _, _, train_state = Lux.Training.compute_gradients(
-                ad_backend,
+                $ad_backend,
                 (model, ps, st, data) -> DRiL.sac_critic_loss(alg, layer, ps, st, data; rng = rng),
                 critic_data,
                 train_state,
             )
             Lux.Training.compute_gradients(
-                ad_backend,
+                $ad_backend,
                 (model, ps, st, data) -> DRiL.sac_actor_loss(alg, layer, ps, st, data; rng = rng),
                 (
                     observations = batch_data.observations,
