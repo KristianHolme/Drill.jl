@@ -108,43 +108,45 @@ function sac_actor_loss(
     return loss, st, NamedTuple()
 end
 
+function compute_target_q_values(
+        alg::SAC,
+        layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic},
+        ps,
+        st,
+        data;
+        rng::AbstractRNG = Random.default_rng()
+    )
+    next_obs = data.next_observations
+    ent_coef = exp(first(data.log_ent_coef.log_ent_coef))
+
+    next_actions, next_log_probs, st = action_log_prob(layer, next_obs, ps, st; rng)
+    ps_with_target = merge_params(ps, data.target_ps)
+    st_with_target = merge(st, data.target_st)
+    next_q_vals, _ = predict_values(layer, next_obs, next_actions, ps_with_target, st_with_target)
+    min_next_q = vec(minimum(next_q_vals, dims = 1))
+
+    T = eltype(min_next_q)
+    mask = T.(.!data.terminated)
+    next_q_vals_with_entropy = min_next_q .- ent_coef .* next_log_probs
+    target_q_values = data.rewards .+ alg.gamma .* mask .* next_q_vals_with_entropy
+    return target_q_values
+end
+
 function sac_critic_loss(
         alg::SAC, layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic}, ps, st, data;
         rng::AbstractRNG = Random.default_rng()
     )
-    obs, actions, rewards, terminated, _, next_obs = data.observations, data.actions, data.rewards, data.terminated, data.truncated, data.next_observations
-    gamma = alg.gamma
-    ent_coef = exp(first(data.log_ent_coef.log_ent_coef))
-    target_ps = data.target_ps
-    target_st = data.target_st
+    obs = data.observations
+    actions = data.actions
+    target_q_values = data.target_q_values
 
     # Current Q-values
     current_q_values, new_st = predict_values(layer, obs, actions, ps, st)
 
-    # Target Q-values (no gradients)
-    obs_dims = ndims(obs)
-    next_obs = selectdim(next_obs, obs_dims, .!terminated)
-    @assert !any(isnan, next_obs) "Next observations contain NaNs"
-    target_q_values = @ignore_derivatives begin
-        next_actions, next_log_probs, st = action_log_prob(layer, next_obs, ps, st; rng)
-        #replace critic ps and st with target
-        ps_with_target = merge_params(ps, target_ps)
-        st_with_target = merge(st, target_st)
-        next_q_vals, _ = predict_values(layer, next_obs, next_actions, ps_with_target, st_with_target)
-        min_next_q = minimum(next_q_vals, dims = 1) |> vec
-
-        # Add entropy term
-        next_q_vals_with_entropy = min_next_q .- ent_coef .* next_log_probs
-        target_q_vals = copy(rewards)
-        # Bellman target
-        target_q_vals[.!terminated] .+= gamma .* next_q_vals_with_entropy
-        target_q_vals
-    end
-
     # Critic loss (sum over all Q-networks)
     T = eltype(current_q_values)
-    #TODO: type stability here?
-    critic_loss = T(0.5) * sum(mean((current_q .- target_q_values) .^ 2) for current_q in eachrow(current_q_values))
+    δ = current_q_values .- reshape(target_q_values, 1, :)
+    critic_loss = T(0.5) * sum(mean(abs2, δ; dims = 2))
 
     stats = (mean_q_values = mean(current_q_values),)
     return critic_loss, new_st, stats
@@ -355,16 +357,24 @@ function update!(
     end
 
     # Critic update
+    target_q_values = compute_target_q_values(
+        alg,
+        layer,
+        train_state.parameters,
+        train_state.states,
+        (
+            next_observations = batch_data.next_observations,
+            terminated = batch_data.terminated,
+            log_ent_coef = agent.aux.ent_train_state.parameters,
+            target_ps = agent.aux.Q_target_parameters,
+            target_st = agent.aux.Q_target_states,
+        );
+        rng = agent.rng,
+    )
     critic_data = (
         observations = batch_data.observations,
         actions = batch_data.actions,
-        rewards = batch_data.rewards,
-        terminated = batch_data.terminated,
-        truncated = batch_data.truncated,
-        next_observations = batch_data.next_observations,
-        log_ent_coef = agent.aux.ent_train_state.parameters,
-        target_ps = agent.aux.Q_target_parameters,
-        target_st = agent.aux.Q_target_states,
+        target_q_values = target_q_values,
     )
     critic_grad, critic_loss, critic_stats, train_state = Lux.Training.compute_gradients(
         ad_type,
