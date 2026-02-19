@@ -368,7 +368,7 @@
         act_space::Discrete
     end
     DRiL.reset!(env::RandomDiscreteEnv) = nothing
-    DRiL.act!(env::RandomDiscreteEnv, action::AbstractArray) = randn(Float32)
+    DRiL.act!(env::RandomDiscreteEnv, action) = randn(Float32)
     DRiL.observe(env::RandomDiscreteEnv) = rand(env.obs_space)
     DRiL.observation_space(env::RandomDiscreteEnv) = env.obs_space
     DRiL.action_space(env::RandomDiscreteEnv) = env.act_space
