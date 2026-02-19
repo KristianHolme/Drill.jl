@@ -20,7 +20,7 @@
         ("Zygote", AutoZygote()),
         ("Enzyme", AutoEnzyme()),
         ("Enzyme (with runtime activity)", AutoEnzyme(; mode = set_runtime_activity(Reverse))),
-        ("Mooncake", AutoMooncake()),
+        # ("Mooncake", AutoMooncake()),
     ]
 end
 
