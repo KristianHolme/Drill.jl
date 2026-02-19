@@ -89,18 +89,75 @@ function get_actor_head(
     return chain
 end
 
+function get_q_mlp_tuple_input(
+        latent_dim::Int, action_dim::Int, hidden_dims::Vector{Int},
+        activation::Function, bias_init, hidden_init, output_init
+    )
+    # First layer: Parallel(connection, Dense_f, Dense_a) on (feats, actions).
+    # connection(a, b) = activation.(a .+ b). Dense_f has bias, Dense_a has zero bias (vcat equivalence).
+    connection(a, b) = activation.(a .+ b)
+    zeros_bias = (rng, bias_len) -> zeros(Float32, bias_len)
+    if isempty(hidden_dims)
+        first_layer = Lux.Parallel(
+            connection,
+            Lux.Dense(
+                latent_dim, 1; init_weight = output_init,
+                init_bias = bias_init
+            ),
+            Lux.Dense(
+                action_dim, 1; init_weight = output_init,
+                init_bias = zeros_bias
+            ),
+        )
+        return Lux.Chain(first_layer)
+    end
+    out_dim = hidden_dims[1]
+    first_layer = Lux.Parallel(
+        connection,
+        Lux.Dense(
+            latent_dim, out_dim, identity;
+            init_weight = hidden_init, init_bias = bias_init
+        ),
+        Lux.Dense(
+            action_dim, out_dim, identity;
+            init_weight = hidden_init, init_bias = zeros_bias
+        ),
+    )
+    rest_layers = []
+    for i in 2:length(hidden_dims)
+        push!(
+            rest_layers,
+            Lux.Dense(
+                hidden_dims[i - 1], hidden_dims[i], activation;
+                init_weight = hidden_init, init_bias = bias_init
+            ),
+        )
+    end
+    push!(
+        rest_layers,
+        Lux.Dense(
+            hidden_dims[end], 1; init_weight = output_init,
+            init_bias = bias_init
+        ),
+    )
+    return Lux.Chain(first_layer, Lux.Chain(rest_layers...))
+end
 
 function get_critic_head(
         latent_dim::Int, action_space::Box, hidden_dims::Vector{Int},
         activation::Function, bias_init, hidden_init, output_init, critic_type::QCritic
     )
     action_dim = size(action_space) |> prod
-    mlp = get_mlp(
-        latent_dim + action_dim, 1, hidden_dims, activation, bias_init, hidden_init,
-        output_init
-    )
-    net = Lux.Parallel(vcat, [mlp for _ in 1:critic_type.n_critics]...)
-    return net
+    chains = [
+        get_q_mlp_tuple_input(
+            latent_dim, action_dim, hidden_dims, activation, bias_init,
+            hidden_init, output_init
+        ) for _ in 1:critic_type.n_critics
+    ]
+    if length(chains) == 1
+        return chains[1]
+    end
+    return Lux.BranchLayer(chains...; fusion = vcat)
 end
 
 function get_critic_head(
