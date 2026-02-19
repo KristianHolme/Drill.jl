@@ -90,10 +90,7 @@ function get_values_from_features(layer::ContinuousActorCriticLayer{<:Any, <:Any
     if ndims(actions) == 1
         actions = batch(actions, action_space(layer))
     end
-    inputs = vcat(feats, actions)
-    # Use function barrier to isolate type instability
-    #TODO: runtime dispatch
-    values, critic_st = layer.critic_head(inputs, ps.critic_head, st.critic_head)
+    values, critic_st = layer.critic_head((feats, actions), ps.critic_head, st.critic_head)
     st = merge(st, (; critic_head = critic_st))
     return values, st
 end
