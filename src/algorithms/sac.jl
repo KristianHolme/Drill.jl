@@ -80,20 +80,6 @@ function SACLayer(
     )
 end
 
-#TODO: not needed anymore
-function sac_ent_coef_loss(
-        ::SAC,
-        layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic}, ps, st, data;
-        rng::AbstractRNG = Random.default_rng()
-    )
-    log_ent_coef = first(ps.log_ent_coef)
-    layer_ps = data.layer_ps
-    layer_st = data.layer_st
-    _, log_probs_pi, layer_st = action_log_prob(layer, data.observations, layer_ps, layer_st; rng)
-    target_entropy = data.target_entropy
-    loss = -(log_ent_coef * @ignore_derivatives(log_probs_pi .+ target_entropy |> mean))
-    return loss, st, NamedTuple()
-end
 
 function sac_actor_loss(
         ::SAC, layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic},
@@ -366,6 +352,7 @@ function update!(
             next_observations = batch_data.next_observations,
             terminated = batch_data.terminated,
             log_ent_coef = agent.aux.ent_train_state.parameters,
+            rewards = batch_data.rewards,
             target_ps = agent.aux.Q_target_parameters,
             target_st = agent.aux.Q_target_states,
         );
@@ -387,11 +374,6 @@ function update!(
     # Actor update
     actor_data = (
         observations = batch_data.observations,
-        actions = batch_data.actions,
-        rewards = batch_data.rewards,
-        terminated = batch_data.terminated,
-        truncated = batch_data.truncated,
-        next_observations = batch_data.next_observations,
         log_ent_coef = agent.aux.ent_train_state.parameters,
     )
     actor_loss_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
