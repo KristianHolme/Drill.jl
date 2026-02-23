@@ -34,7 +34,7 @@ number_of_envs(monitor_env::MonitorWrapperEnv{E, T}) where {E, T} = number_of_en
 Random.seed!(monitor_env::MonitorWrapperEnv{E, T}, seed::Integer) where {E, T} = Random.seed!(monitor_env.env, seed)
 
 function reset!(monitor_env::MonitorWrapperEnv{E, T}) where {E, T}
-    DRiL.reset!(monitor_env.env)
+    Drill.reset!(monitor_env.env)
     #dont count the current episodes to the stats, since they are manually stopped
     monitor_env.current_episode_lengths .= 0
     monitor_env.current_episode_returns .= 0

@@ -1,4 +1,4 @@
-name = "DRiL"
+name = "Drill"
 uuid = "49b37b9d-a8e6-4364-9144-4677bcb8a7f0"
 version = "0.0.1"
 authors = ["Kristian Holme <holme.kristian@gmail.com>"]
@@ -31,9 +31,9 @@ TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 Wandb = "ad70616a-06c9-5745-b1f1-6a5f42545108"
 
 [extensions]
-DRiL_DearDiaryExt = ["DearDiary"]
-DRiL_TensorBoardLoggerExt = ["TensorBoardLogger"]
-DRiL_WandbExt = ["Wandb"]
+Drill_DearDiaryExt = ["DearDiary"]
+Drill_TensorBoardLoggerExt = ["TensorBoardLogger"]
+Drill_WandbExt = ["Wandb"]
 
 [compat]
 Accessors = "0.1"

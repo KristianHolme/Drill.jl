@@ -1,15 +1,15 @@
 # Drill.jl
 
-[![Build Status](https://github.com/KristianHolme/DRiL.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/KristianHolme/DRiL.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Build Status](https://github.com/KristianHolme/Drill.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/KristianHolme/Drill.jl/actions/workflows/CI.yml?query=branch%3Amain)
 [![Aqua](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
 [![code style: runic](https://img.shields.io/badge/code_style-%E1%9A%B1%E1%9A%A2%E1%9A%BE%E1%9B%81%E1%9A%B2-black)](https://github.com/fredrikekre/Runic.jl)
-[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://KristianHolme.github.io/DRiL.jl/dev)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://KristianHolme.github.io/Drill.jl/dev)
 
 **Deep ReInforcement Learning** - A (aspirationally) high-performance Julia package for deep reinforcement learning algorithms.
 
 ## Overview
 
-DRiL.jl is a prototype DRL package, aiming to be fast, flexible, and easy to use.
+Drill.jl is a prototype DRL package, aiming to be fast, flexible, and easy to use.
 
 ## Main Features
 
@@ -25,14 +25,14 @@ DRiL.jl is a prototype DRL package, aiming to be fast, flexible, and easy to use
 - SAC (Soft Actor-Critic)
 
 ## Core Components
-The DRiL.jl package is built around the following core components: **Environments**, **Layers**, **Agents**, and **Algorithms**.
+The Drill.jl package is built around the following core components: **Environments**, **Layers**, **Agents**, and **Algorithms**.
 The environment is the system we are interested in controlling, the layer is the training-time actor–critic network used for control, the agent manages training, and the algorithm specifies the training procedure and loss.
 
 ## Installation
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/KristianHolme/DRiL.jl")
+Pkg.add(url="https://github.com/KristianHolme/Drill.jl")
 ```
 
 ## Quick Start Example
@@ -40,7 +40,7 @@ Pkg.add(url="https://github.com/KristianHolme/DRiL.jl")
 Here's a complete example training a PPO agent on the CartPole environment:
 
 ```julia
-using DRiL
+using Drill
 using Pkg
 Pkg.add(url="https://github.com/KristianHolme/ClassicControlEnvironments.jl")
 using ClassicControlEnvironments
@@ -87,7 +87,7 @@ print_timer(to)
 
 ### Custom Environments
 
-Implement the DRiL environment interface:
+Implement the Drill environment interface:
 
 ```julia
 struct MyEnv <: AbstractEnv
@@ -95,13 +95,13 @@ struct MyEnv <: AbstractEnv
 end
 
 # Required methods
-DRiL.reset!(env::MyEnv) = # Reset environment
-DRiL.act!(env::MyEnv, action) = # Take action, return reward  
-DRiL.observe(env::MyEnv) = # Return current observation
-DRiL.terminated(env::MyEnv) = # Check if episode is done
-DRiL.truncated(env::MyEnv) = # Check if episode is truncated
-DRiL.action_space(env::MyEnv) = # Return action space
-DRiL.observation_space(env::MyEnv) = # Return observation space
+Drill.reset!(env::MyEnv) = # Reset environment
+Drill.act!(env::MyEnv, action) = # Take action, return reward  
+Drill.observe(env::MyEnv) = # Return current observation
+Drill.terminated(env::MyEnv) = # Check if episode is done
+Drill.truncated(env::MyEnv) = # Check if episode is truncated
+Drill.action_space(env::MyEnv) = # Return action space
+Drill.observation_space(env::MyEnv) = # Return observation space
 ```
 
 ### Environment Wrappers

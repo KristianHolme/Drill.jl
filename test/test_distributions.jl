@@ -2,7 +2,7 @@
     using Random
     using Distributions
     using LinearAlgebra
-    using DRiL.DRiLDistributions
+    using Drill.DrillDistributions
 
 
     shapes = [(1,), (1, 1), (2,), (2, 3), (2, 3, 1), (2, 3, 4)]
@@ -25,11 +25,11 @@
 
             flat_x = vec(x)
 
-            custom_logpdf = DRiLDistributions.logpdf(d, x)
+            custom_logpdf = DrillDistributions.logpdf(d, x)
             dist_logpdf = Distributions.logpdf(mvn, flat_x)
             push!(same_outputs, custom_logpdf ≈ dist_logpdf)
 
-            custom_entropy = DRiLDistributions.entropy(d)
+            custom_entropy = DrillDistributions.entropy(d)
             dist_entropy = Distributions.entropy(mvn)
             push!(same_outputs, custom_entropy ≈ dist_entropy)
         end
@@ -40,14 +40,14 @@ end
 
 @testitem "SquashedDiagGaussian epsilon keyword types" begin
     using Random
-    using DRiL.DRiLDistributions
+    using Drill.DrillDistributions
 
     make_triplet(::Type{T}) where {T <: AbstractFloat} = (rand(T, 2, 3), rand(T, 2, 3), rand(T, 2, 3))
 
     function check_ok_with_eps(::Type{T}) where {T <: AbstractFloat}
         mean, log_std, x = make_triplet(T)
         d = SquashedDiagGaussian(mean, log_std, T(1.0e-6))
-        y = DRiLDistributions.logpdf(d, x)
+        y = DrillDistributions.logpdf(d, x)
         @test y isa T
         @test d.epsilon isa T
         true
@@ -68,14 +68,14 @@ end
 
 @testitem "SquashedDiagGaussian constructor and logpdf types" begin
     using Random
-    using DRiL.DRiLDistributions
+    using Drill.DrillDistributions
 
     make_triplet(::Type{T}) where {T <: AbstractFloat} = (rand(T, 2, 3), rand(T, 2, 3), rand(T, 2, 3))
 
     function check_ok_and_type(::Type{T}) where {T <: AbstractFloat}
         mean, log_std, x = make_triplet(T)
         d = SquashedDiagGaussian(mean, log_std)
-        y = DRiLDistributions.logpdf(d, x)
+        y = DrillDistributions.logpdf(d, x)
         @test y isa T
         true
     end
@@ -101,15 +101,15 @@ end
         p = rand(Float32, N)
         p = p ./ sum(p)
 
-        d = DRiLDistributions.Categorical(p)
+        d = DrillDistributions.Categorical(p)
 
         dist_d = Distributions.Categorical(p)
 
-        custom_logpdf = DRiLDistributions.logpdf(d, 1)
+        custom_logpdf = DrillDistributions.logpdf(d, 1)
         dist_logpdf = Distributions.logpdf(dist_d, 1)
         push!(same_outputs, custom_logpdf ≈ dist_logpdf)
 
-        custom_entropy = DRiLDistributions.entropy(d)
+        custom_entropy = DrillDistributions.entropy(d)
         dist_entropy = Distributions.entropy(dist_d)
         push!(same_outputs, custom_entropy ≈ dist_entropy)
     end
@@ -127,7 +127,7 @@ end
     @test_throws MethodError DiagGaussian([1.0], [2.0f0])
 
     d = DiagGaussian([1.0f0], [2.0f0])
-    @test_throws MethodError DRiLDistributions.logpdf(d, [1.0])
+    @test_throws MethodError DrillDistributions.logpdf(d, [1.0])
 
 
     mean_batch = rand(Float32, 2, 2, 7)
@@ -137,16 +137,16 @@ end
 
     @test begin
         ds = DiagGaussian.(eachslice(mean_batch, dims = ndims(mean_batch)), eachslice(std_batch, dims = ndims(std_batch)))
-        entropies = DRiLDistributions.entropy.(ds)
-        logpdfs = DRiLDistributions.logpdf.(ds, eachslice(x_batch, dims = ndims(x_batch)))
+        entropies = DrillDistributions.entropy.(ds)
+        logpdfs = DrillDistributions.logpdf.(ds, eachslice(x_batch, dims = ndims(x_batch)))
         true
     end
 
     single_std = rand(Float32, 2, 2)
     @test begin
         ds = DiagGaussian.(eachslice(mean_batch, dims = ndims(mean_batch)), Ref(single_std))
-        entropies = DRiLDistributions.entropy.(ds)
-        logpdfs = DRiLDistributions.logpdf.(ds, eachslice(x_batch, dims = ndims(x_batch)))
+        entropies = DrillDistributions.entropy.(ds)
+        logpdfs = DrillDistributions.logpdf.(ds, eachslice(x_batch, dims = ndims(x_batch)))
         true
     end
 end

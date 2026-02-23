@@ -1,7 +1,7 @@
 [deps]
-DRiL = "49b37b9d-a8e6-4364-9144-4677bcb8a7f0"
+Drill = "49b37b9d-a8e6-4364-9144-4677bcb8a7f0"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterVitepress = "4710194d-e776-4893-9690-8d956a29c365"
 
 [sources]
-DRiL = {path = ".."}
+Drill = {path = ".."}
