@@ -1,5 +1,5 @@
 using Test
-using DRiL
+using Drill
 using TestItems
 
 
@@ -78,20 +78,20 @@ end
     # Test single observation prediction (with batch dimension)
     obs = Float32[0.5, -0.3]  # Single observation as column vector
     batched_obs = stack([obs])
-    actions, new_states = DRiL.predict_actions(policy, batched_obs, params, states; deterministic = false, rng = rng)
+    actions, new_states = Drill.predict_actions(policy, batched_obs, params, states; deterministic = false, rng = rng)
 
     # Actions should be in environment action space after processing
     @test actions[1] ∈ action_space
     @test actions[1] isa Integer
 
     # Test deterministic prediction
-    actions_det, _ = DRiL.predict_actions(policy, batched_obs, params, states; deterministic = true, rng = rng)
+    actions_det, _ = Drill.predict_actions(policy, batched_obs, params, states; deterministic = true, rng = rng)
     @test actions_det[1] ∈ action_space
     @test actions_det[1] isa Integer
 
     # Test batch prediction
     batch_obs = Float32[0.5 -0.2; -0.3 0.7]  # 2 observations
-    batch_actions, _ = DRiL.predict_actions(policy, batch_obs, params, states; deterministic = false, rng = rng)
+    batch_actions, _ = Drill.predict_actions(policy, batch_obs, params, states; deterministic = false, rng = rng)
 
     @test length(batch_actions) == 2
     @test all(a -> a ∈ action_space, batch_actions)
@@ -121,8 +121,8 @@ end
     @test actions[1] ∈ action_space
 
     # Evaluate the same actions
-    actions_onehot = DRiL.discrete_to_onehotbatch(actions, action_space)
-    eval_values, eval_log_probs, entropy, _ = DRiL.evaluate_actions(policy, batched_obs, actions_onehot, params, states)
+    actions_onehot = Drill.discrete_to_onehotbatch(actions, action_space)
+    eval_values, eval_log_probs, entropy, _ = Drill.evaluate_actions(policy, batched_obs, actions_onehot, params, states)
 
     # Values should match
     @test eval_values ≈ values atol = 1.0e-6
@@ -137,8 +137,8 @@ end
     batch_obs = Float32[0.5 -0.2; -0.3 0.7]
     batch_actions, batch_values, batch_log_probs, _ = policy(batch_obs, params, states)
 
-    batch_actions_onehot = DRiL.discrete_to_onehotbatch(batch_actions, action_space)
-    eval_batch_values, eval_batch_log_probs, batch_entropy, _ = DRiL.evaluate_actions(policy, batch_obs, batch_actions_onehot, params, states)
+    batch_actions_onehot = Drill.discrete_to_onehotbatch(batch_actions, action_space)
+    eval_batch_values, eval_batch_log_probs, batch_entropy, _ = Drill.evaluate_actions(policy, batch_obs, batch_actions_onehot, params, states)
 
     @test length(eval_batch_values) == 2
     @test length(eval_batch_log_probs) == 2
@@ -175,12 +175,12 @@ end
         @test actions[1] ∈ action_space
 
         # Test that predict_actions() returns processed actions in action space range
-        processed_actions, _ = DRiL.predict_actions(policy, batched_obs, params, states)
+        processed_actions, _ = Drill.predict_actions(policy, batched_obs, params, states)
         @test processed_actions[1] ∈ action_space
 
         # Test that evaluation works with onehot-converted actions
-        actions_onehot = DRiL.discrete_to_onehotbatch(actions, action_space)
-        eval_values, eval_log_probs, entropy, _ = DRiL.evaluate_actions(policy, batched_obs, actions_onehot, params, states)
+        actions_onehot = Drill.discrete_to_onehotbatch(actions, action_space)
+        eval_values, eval_log_probs, entropy, _ = Drill.evaluate_actions(policy, batched_obs, actions_onehot, params, states)
         @test length(eval_log_probs) == 1
         @test length(entropy) == 1
         @test eval_log_probs[1] isa Float32
@@ -216,17 +216,17 @@ end
     continuous_actions, continuous_values, continuous_log_probs, _ = continuous_policy(batched_obs, continuous_params, continuous_states)
 
     # Test predict
-    discrete_pred, _ = DRiL.predict_actions(discrete_policy, batched_obs, discrete_params, discrete_states)
-    continuous_pred, _ = DRiL.predict_actions(continuous_policy, batched_obs, continuous_params, continuous_states)
+    discrete_pred, _ = Drill.predict_actions(discrete_policy, batched_obs, discrete_params, discrete_states)
+    continuous_pred, _ = Drill.predict_actions(continuous_policy, batched_obs, continuous_params, continuous_states)
 
     # Test predict_values
     discrete_vals, _ = predict_values(discrete_policy, batched_obs, discrete_params, discrete_states)
     continuous_vals, _ = predict_values(continuous_policy, batched_obs, continuous_params, continuous_states)
 
     # Test evaluate_actions
-    discrete_actions_onehot = DRiL.discrete_to_onehotbatch(discrete_actions, discrete_action_space)
-    discrete_eval_values, discrete_eval_log_probs, discrete_entropy, _ = DRiL.evaluate_actions(discrete_policy, batched_obs, discrete_actions_onehot, discrete_params, discrete_states)
-    continuous_eval_values, continuous_eval_log_probs, continuous_entropy, _ = DRiL.evaluate_actions(continuous_policy, batched_obs, continuous_actions, continuous_params, continuous_states)
+    discrete_actions_onehot = Drill.discrete_to_onehotbatch(discrete_actions, discrete_action_space)
+    discrete_eval_values, discrete_eval_log_probs, discrete_entropy, _ = Drill.evaluate_actions(discrete_policy, batched_obs, discrete_actions_onehot, discrete_params, discrete_states)
+    continuous_eval_values, continuous_eval_log_probs, continuous_entropy, _ = Drill.evaluate_actions(continuous_policy, batched_obs, continuous_actions, continuous_params, continuous_states)
 
     # Test that outputs have expected types and shapes
     @test discrete_actions isa Vector{<:Integer}
@@ -257,7 +257,7 @@ end
     actions, values, log_probs, _ = policy(batched_obs, params, states)
     @test actions[1] == 0
 
-    processed_action, _ = DRiL.predict_actions(policy, batched_obs, params, states)
+    processed_action, _ = Drill.predict_actions(policy, batched_obs, params, states)
     @test processed_action[1] == 0
 
     # Test large action space
@@ -270,7 +270,7 @@ end
     large_actions, _, _, _ = large_policy(batched_obs, large_params, large_states)
     @test large_actions[1] ∈ large_action_space
 
-    large_processed, _ = DRiL.predict_actions(large_policy, batched_obs, large_params, large_states)
+    large_processed, _ = Drill.predict_actions(large_policy, batched_obs, large_params, large_states)
     @test large_processed[1] ∈ large_action_space
 
     # Test negative start action space
@@ -283,7 +283,7 @@ end
     neg_actions, _, _, _ = neg_policy(batched_obs, neg_params, neg_states)
     @test neg_actions[1] ∈ neg_action_space
 
-    neg_processed, _ = DRiL.predict_actions(neg_policy, batched_obs, neg_params, neg_states)
+    neg_processed, _ = Drill.predict_actions(neg_policy, batched_obs, neg_params, neg_states)
     @test neg_processed[1] ∈ neg_action_space
 end
 

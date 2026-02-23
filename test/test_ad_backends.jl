@@ -6,13 +6,13 @@
     using Enzyme
     using Mooncake
 
-    continuous_env = DRiL.BroadcastedParallelEnv([SharedTestSetup.CustomEnv(8) for _ in 1:2])
-    continuous_obs_space = DRiL.observation_space(continuous_env)
-    continuous_action_space = DRiL.action_space(continuous_env)
+    continuous_env = Drill.BroadcastedParallelEnv([SharedTestSetup.CustomEnv(8) for _ in 1:2])
+    continuous_obs_space = Drill.observation_space(continuous_env)
+    continuous_action_space = Drill.action_space(continuous_env)
 
-    discrete_obs_space = DRiL.Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
-    discrete_action_space = DRiL.Discrete(3, 0)
-    discrete_env = DRiL.BroadcastedParallelEnv(
+    discrete_obs_space = Drill.Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
+    discrete_action_space = Drill.Discrete(3, 0)
+    discrete_env = Drill.BroadcastedParallelEnv(
         [SharedTestSetup.RandomDiscreteEnv(discrete_obs_space, discrete_action_space) for _ in 1:2]
     )
 

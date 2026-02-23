@@ -1,31 +1,31 @@
 using TestItems
 
 @testmodule SeedTestSetup begin
-    using DRiL
+    using Drill
     using Random
 
     mutable struct DummyEnv <: AbstractEnv
         rng::Random.AbstractRNG
     end
 
-    DRiL.observation_space(::DummyEnv) = Box(Float32[0.0, 0.0], Float32[1.0, 1.0])
-    DRiL.action_space(::DummyEnv) = Box(Float32[-1.0], Float32[1.0])
-    DRiL.observe(env::DummyEnv) = rand(env.rng, Float32, 2)
-    DRiL.terminated(::DummyEnv) = false
-    DRiL.truncated(::DummyEnv) = false
-    DRiL.act!(::DummyEnv, action) = 0.0f0
-    DRiL.get_info(::DummyEnv) = Dict{String, Any}()
-    DRiL.reset!(::DummyEnv) = nothing
+    Drill.observation_space(::DummyEnv) = Box(Float32[0.0, 0.0], Float32[1.0, 1.0])
+    Drill.action_space(::DummyEnv) = Box(Float32[-1.0], Float32[1.0])
+    Drill.observe(env::DummyEnv) = rand(env.rng, Float32, 2)
+    Drill.terminated(::DummyEnv) = false
+    Drill.truncated(::DummyEnv) = false
+    Drill.act!(::DummyEnv, action) = 0.0f0
+    Drill.get_info(::DummyEnv) = Dict{String, Any}()
+    Drill.reset!(::DummyEnv) = nothing
 
     struct NoRNGEnv <: AbstractEnv end
-    DRiL.observation_space(::NoRNGEnv) = Box(Float32[0.0], Float32[1.0])
-    DRiL.action_space(::NoRNGEnv) = Box(Float32[-1.0], Float32[1.0])
-    DRiL.observe(::NoRNGEnv) = Float32[rand()]
-    DRiL.terminated(::NoRNGEnv) = false
-    DRiL.truncated(::NoRNGEnv) = false
-    DRiL.act!(::NoRNGEnv, action) = 0.0f0
-    DRiL.get_info(::NoRNGEnv) = Dict{String, Any}()
-    DRiL.reset!(::NoRNGEnv) = nothing
+    Drill.observation_space(::NoRNGEnv) = Box(Float32[0.0], Float32[1.0])
+    Drill.action_space(::NoRNGEnv) = Box(Float32[-1.0], Float32[1.0])
+    Drill.observe(::NoRNGEnv) = Float32[rand()]
+    Drill.terminated(::NoRNGEnv) = false
+    Drill.truncated(::NoRNGEnv) = false
+    Drill.act!(::NoRNGEnv, action) = 0.0f0
+    Drill.get_info(::NoRNGEnv) = Dict{String, Any}()
+    Drill.reset!(::NoRNGEnv) = nothing
 end
 
 @testitem "Random.seed! single and wrappers" tags = [:seeding] setup = [SeedTestSetup] begin

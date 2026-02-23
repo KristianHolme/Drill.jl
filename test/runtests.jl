@@ -2,12 +2,12 @@ using TestItemRunner
 
 # Quality assurance tests
 @testitem "Code quality (Aqua.jl)" tags = [:quality] begin
-    using Aqua, DRiL
-    Aqua.test_all(DRiL)
+    using Aqua, Drill
+    Aqua.test_all(Drill)
 end
 
 @testitem "Code linting (JET.jl)" tags = [:quality] begin
-    using JET, DRiL
+    using JET, Drill
 
     """
     Filter out known false positives from JET analysis.
@@ -31,12 +31,12 @@ end
     end
 
     if get(ENV, "JET_STRICT", "") == "1"
-        report = JET.report_package(DRiL; target_modules = (DRiL,), toplevel_logger = nothing)
+        report = JET.report_package(Drill; target_modules = (Drill,), toplevel_logger = nothing)
         filtered_reports = filter_false_positives(JET.get_reports(report))
         @test isempty(filtered_reports)
     else
         # Advisory mode: print report but don't fail CI
-        report = JET.report_package(DRiL; target_modules = (DRiL,), toplevel_logger = nothing)
+        report = JET.report_package(Drill; target_modules = (Drill,), toplevel_logger = nothing)
         filtered_reports = filter_false_positives(JET.get_reports(report))
         if !isempty(filtered_reports)
             println("JET found $(length(filtered_reports)) potential issues:")
