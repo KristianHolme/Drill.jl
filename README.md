@@ -5,8 +5,6 @@
 [![code style: runic](https://img.shields.io/badge/code_style-%E1%9A%B1%E1%9A%A2%E1%9A%BE%E1%9B%81%E1%9A%B2-black)](https://github.com/fredrikekre/Runic.jl)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://KristianHolme.github.io/Drill.jl/dev)
 
-**Deep ReInforcement Learning** - A (aspirationally) high-performance Julia package for deep reinforcement learning algorithms.
-
 ## Overview
 
 Drill.jl is a prototype DRL package, aiming to be fast, flexible, and easy to use.
@@ -128,15 +126,6 @@ model = ActorCriticLayer(
 )
 ```
 
-### Deployment (lightweight policy)
-
-```julia
-# Extract a deployment-time policy (actor-only)
-dp = extract_policy(agent)
-
-# Predict env-ready actions
-env_actions = predict(dp, batch_of_obs; deterministic=true)
-```
 
 ## Benchmarking (AirspeedVelocity.jl)
 
@@ -153,5 +142,5 @@ benchpkg \
   --rev dirty,main \
   --script benchmark/benchmarks.jl \
   --output-dir benchmark_results \
-  --add https://github.com/KristianHolme/ClassicControlEnvironments.jl,Zygote
+  --add https://github.com/KristianHolme/ClassicControlEnvironments.jl,Zygote, Enzyme
 ```
