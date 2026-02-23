@@ -6,8 +6,8 @@
     using Enzyme
 
     env = BroadcastedParallelEnv([SharedTestSetup.CustomEnv(8) for _ in 1:2])
-    obs_space = DRiL.observation_space(env)
-    action_space = DRiL.action_space(env)
+    obs_space = Drill.observation_space(env)
+    action_space = Drill.action_space(env)
 
     backends = [
         ("Zygote", AutoZygote()),

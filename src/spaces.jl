@@ -1,7 +1,7 @@
 """
     AbstractSpace
 
-Abstract base type for all observation and action spaces in DRiL.jl.
+Abstract base type for all observation and action spaces in Drill.jl.
 Concrete subtypes include `Box` (continuous) and `Discrete` (finite actions).
 """
 abstract type AbstractSpace end

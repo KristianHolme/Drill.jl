@@ -1,4 +1,4 @@
-module DRiLDistributions
+module DrillDistributions
 
 using Random
 using ChainRulesCore

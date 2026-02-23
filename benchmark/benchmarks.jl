@@ -1,5 +1,5 @@
 using BenchmarkTools
-using DRiL
+using Drill
 using ClassicControlEnvironments
 using Random
 using Zygote
@@ -16,13 +16,13 @@ rollouts = BenchmarkGroup()
 SUITE["rollouts"] = rollouts
 
 rollouts["rollout_buffer"] = @benchmarkable begin
-    DRiL.collect_rollout!(buffer, agent, alg, env)
+    Drill.collect_rollout!(buffer, agent, alg, env)
 end setup = begin
     env, agent, alg, buffer = BenchUtils.setup_rollout_collection()
 end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
 
 rollouts["replay_buffer"] = @benchmarkable begin
-    DRiL.collect_rollout!(buffer, agent, alg, env, n_steps)
+    Drill.collect_rollout!(buffer, agent, alg, env, n_steps)
 end setup = begin
     env, agent, alg, buffer, n_steps = BenchUtils.setup_replay_collection()
 end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
@@ -118,7 +118,7 @@ if ENABLE_AD_BACKEND_BENCHES
     for (name, ad_backend) in ad_backend_types
         ad_backends["sac"][name] = @benchmarkable begin
             if alg.ent_coef isa AutoEntropyCoefficient
-                target_entropy = DRiL.get_target_entropy(alg.ent_coef, action_space(layer))
+                target_entropy = Drill.get_target_entropy(alg.ent_coef, action_space(layer))
                 ent_data = (
                     observations = batch_data.observations,
                     layer_ps = train_state.parameters,
@@ -129,7 +129,7 @@ if ENABLE_AD_BACKEND_BENCHES
                 )
                 _, _, _, ent_train_state = Lux.Training.compute_gradients(
                     ad_backend,
-                    (model, ps, st, data) -> DRiL.sac_ent_coef_loss(alg, layer, ps, st, data; rng = rng),
+                    (model, ps, st, data) -> Drill.sac_ent_coef_loss(alg, layer, ps, st, data; rng = rng),
                     ent_data,
                     ent_train_state,
                 )
@@ -147,13 +147,13 @@ if ENABLE_AD_BACKEND_BENCHES
             )
             _, _, _, train_state = Lux.Training.compute_gradients(
                 ad_backend,
-                (model, ps, st, data) -> DRiL.sac_critic_loss(alg, layer, ps, st, data; rng = rng),
+                (model, ps, st, data) -> Drill.sac_critic_loss(alg, layer, ps, st, data; rng = rng),
                 critic_data,
                 train_state,
             )
             Lux.Training.compute_gradients(
                 ad_backend,
-                (model, ps, st, data) -> DRiL.sac_actor_loss(alg, layer, ps, st, data; rng = rng),
+                (model, ps, st, data) -> Drill.sac_actor_loss(alg, layer, ps, st, data; rng = rng),
                 (
                     observations = batch_data.observations,
                     actions = batch_data.actions,

@@ -8,12 +8,12 @@
         # ensure all wandb files are placed in a temp directory
         ENV["WANDB_DIR"] = dir
         raw = WandbLogger(; project = "dril_test", name = "unit", mode = "offline", dir = dir)
-        lg = convert(DRiL.AbstractTrainingLogger, raw)
-        DRiL.set_step!(lg, 1)
-        DRiL.log_scalar!(lg, "y", 2.0)
-        DRiL.log_hparams!(lg, Dict("lr" => 0.01, "gamma" => 0.99), ["env/ep_rew_mean"])
-        DRiL.flush!(lg)
-        DRiL.close!(lg)
+        lg = convert(Drill.AbstractTrainingLogger, raw)
+        Drill.set_step!(lg, 1)
+        Drill.log_scalar!(lg, "y", 2.0)
+        Drill.log_hparams!(lg, Dict("lr" => 0.01, "gamma" => 0.99), ["env/ep_rew_mean"])
+        Drill.flush!(lg)
+        Drill.close!(lg)
         @test isdir(dir)
     end
 end

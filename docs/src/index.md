@@ -3,12 +3,12 @@
 layout: home
 
 hero:
-  name: "DRiL.jl"
+  name: "Drill.jl"
   text: "Deep Reinforcement Learning in Julia"
   tagline: Fast, flexible, and easy-to-use deep RL algorithms
   image:
     src: /logo.png
-    alt: DRiL.jl
+    alt: Drill.jl
   actions:
     - theme: brand
       text: Getting Started
@@ -18,7 +18,7 @@ hero:
       link: /api
     - theme: alt
       text: View on GitHub
-      link: https://github.com/KristianHolme/DRiL.jl
+      link: https://github.com/KristianHolme/Drill.jl
 
 features:
   - icon: 🚀
@@ -46,13 +46,13 @@ features:
 <tr><td><strong>SAC</strong> (Soft Actor-Critic)</td><td>Off-policy</td></tr>
 </table>
 
-<h2>How to Install DRiL.jl?</h2>
+<h2>How to Install Drill.jl?</h2>
 </div>
 ```
 
 ```julia
 julia> using Pkg
-julia> Pkg.add(url="https://github.com/KristianHolme/DRiL.jl")
+julia> Pkg.add(url="https://github.com/KristianHolme/Drill.jl")
 ```
 
 ```@raw html
@@ -62,7 +62,7 @@ julia> Pkg.add(url="https://github.com/KristianHolme/DRiL.jl")
 ```
 
 ```julia
-using DRiL
+using Drill
 using Zygote  # Required for automatic differentiation
 using ClassicControlEnvironments
 

@@ -1,6 +1,6 @@
 module BenchUtils
 
-using DRiL
+using Drill
 using ClassicControlEnvironments
 using Random
 
@@ -123,8 +123,8 @@ function setup_ppo_gradient_data(; n_envs::Int = DEFAULT_N_ENVS)
         n_envs,
     )
     reset!(env)
-    DRiL.collect_rollout!(buffer, agent, alg, env)
-    data_loader = DRiL.DataLoader(
+    Drill.collect_rollout!(buffer, agent, alg, env)
+    data_loader = Drill.DataLoader(
         (
             buffer.observations,
             buffer.actions,
@@ -154,8 +154,8 @@ function setup_sac_gradient_data(; n_envs::Int = DEFAULT_N_ENVS, n_steps::Int = 
     n_steps = max(n_steps, cld(alg.batch_size, n_envs))
     buffer = ReplayBuffer(observation_space(env), action_space(env), alg.buffer_capacity)
     reset!(env)
-    DRiL.collect_rollout!(buffer, agent, alg, env, n_steps)
-    data_loader = DRiL.get_data_loader(buffer, alg.batch_size, 1, true, true, agent.rng)
+    Drill.collect_rollout!(buffer, agent, alg, env, n_steps)
+    data_loader = Drill.get_data_loader(buffer, alg.batch_size, 1, true, true, agent.rng)
     batch_data = nothing
     for batch_data_item in data_loader
         batch_data = batch_data_item

@@ -1,14 +1,14 @@
 using Documenter
 using DocumenterVitepress
-using DRiL
+using Drill
 
 makedocs(;
-    sitename = "DRiL.jl",
+    sitename = "Drill.jl",
     authors = "Kristian Holme",
-    modules = [DRiL],
+    modules = [Drill],
     warnonly = true,
     format = DocumenterVitepress.MarkdownVitepress(;
-        repo = "github.com/KristianHolme/DRiL.jl",
+        repo = "github.com/KristianHolme/Drill.jl",
         devbranch = "main",
         devurl = "dev",
     ),
@@ -28,7 +28,7 @@ makedocs(;
 )
 
 DocumenterVitepress.deploydocs(;
-    repo = "github.com/KristianHolme/DRiL.jl.git",
+    repo = "github.com/KristianHolme/Drill.jl.git",
     devbranch = "main",
     push_preview = true,
 )

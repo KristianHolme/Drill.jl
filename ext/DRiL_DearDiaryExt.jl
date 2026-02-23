@@ -1,8 +1,8 @@
-module DRiL_DearDiaryExt
+module Drill_DearDiaryExt
 
-using DRiL
+using Drill
 using DearDiary
-import DRiL: AbstractTrainingLogger, set_step!, increment_step!, log_scalar!, log_metrics!, log_hparams!, flush!, close!
+import Drill: AbstractTrainingLogger, set_step!, increment_step!, log_scalar!, log_metrics!, log_hparams!, flush!, close!
 
 """
     DearDiaryBackend <: AbstractTrainingLogger
@@ -35,7 +35,7 @@ Create a DearDiary logging backend for the given experiment.
 # Example
 ```julia
 using DearDiary
-using DRiL
+using Drill
 
 # Initialize database and create project/experiment
 DearDiary.initialize_database()
@@ -43,7 +43,7 @@ project_id, _ = create_project("My RL Project")
 experiment_id, _ = create_experiment(project_id, DearDiary.IN_PROGRESS, "PPO Training")
 
 # Create the backend
-backend = DRiL.DearDiaryBackend(experiment_id)
+backend = Drill.DearDiaryBackend(experiment_id)
 ```
 """
 function DearDiaryBackend(experiment_id::Integer)
@@ -71,7 +71,7 @@ function ensure_iteration!(lg::DearDiaryBackend)
     return lg.current_iteration_id
 end
 
-function DRiL.set_step!(lg::DearDiaryBackend, s::Integer)
+function Drill.set_step!(lg::DearDiaryBackend, s::Integer)
     if s != lg.current_step
         lg.current_step = s
         # Invalidate current iteration - will create new one on next log
@@ -80,14 +80,14 @@ function DRiL.set_step!(lg::DearDiaryBackend, s::Integer)
     return nothing
 end
 
-function DRiL.increment_step!(lg::DearDiaryBackend, Δ::Integer)
+function Drill.increment_step!(lg::DearDiaryBackend, Δ::Integer)
     lg.current_step += Δ
     # Invalidate current iteration - will create new one on next log
     lg.current_iteration_id = nothing
     return lg.current_step
 end
 
-function DRiL.log_scalar!(lg::DearDiaryBackend, k::AbstractString, v::Real)
+function Drill.log_scalar!(lg::DearDiaryBackend, k::AbstractString, v::Real)
     iteration_id = ensure_iteration!(lg)
     if !isnothing(iteration_id)
         DearDiary.create_metric(iteration_id, string(k), Float64(v))
@@ -95,7 +95,7 @@ function DRiL.log_scalar!(lg::DearDiaryBackend, k::AbstractString, v::Real)
     return nothing
 end
 
-function DRiL.log_metrics!(lg::DearDiaryBackend, kv::AbstractDict{<:AbstractString, <:Any})
+function Drill.log_metrics!(lg::DearDiaryBackend, kv::AbstractDict{<:AbstractString, <:Any})
     iteration_id = ensure_iteration!(lg)
     if isnothing(iteration_id)
         return nothing
@@ -108,7 +108,7 @@ function DRiL.log_metrics!(lg::DearDiaryBackend, kv::AbstractDict{<:AbstractStri
     return nothing
 end
 
-function DRiL.log_hparams!(lg::DearDiaryBackend, hparams::AbstractDict{<:AbstractString, <:Any}, metrics::AbstractVector{<:AbstractString})
+function Drill.log_hparams!(lg::DearDiaryBackend, hparams::AbstractDict{<:AbstractString, <:Any}, metrics::AbstractVector{<:AbstractString})
     # DearDiary stores parameters per iteration, so we create an iteration for hparams
     # and log all hyperparameters there. Only do this once per experiment.
     if lg.hparams_logged
@@ -133,9 +133,9 @@ function DRiL.log_hparams!(lg::DearDiaryBackend, hparams::AbstractDict{<:Abstrac
 end
 
 # DearDiary uses SQLite which handles buffering internally
-DRiL.flush!(::DearDiaryBackend) = nothing
+Drill.flush!(::DearDiaryBackend) = nothing
 
-function DRiL.close!(lg::DearDiaryBackend)
+function Drill.close!(lg::DearDiaryBackend)
     # Mark experiment as completed if desired
     # For now, just reset the backend state
     lg.current_iteration_id = nothing

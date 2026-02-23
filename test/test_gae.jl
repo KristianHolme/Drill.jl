@@ -14,13 +14,13 @@
     env = BroadcastedParallelEnv([SharedTestSetup.CustomEnv(max_steps)])
 
     # Create policy with constant value function
-    policy = SharedTestSetup.ConstantValuePolicy(DRiL.observation_space(env), DRiL.action_space(env), constant_value)
+    policy = SharedTestSetup.ConstantValuePolicy(Drill.observation_space(env), Drill.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
     agent = Agent(policy, alg; verbose = 0)
 
     # Collect rollouts
-    roll_buffer = RolloutBuffer(DRiL.observation_space(env), DRiL.action_space(env), gae_lambda, gamma, max_steps, 1)
-    DRiL.collect_rollout!(roll_buffer, agent, alg, env)
+    roll_buffer = RolloutBuffer(Drill.observation_space(env), Drill.action_space(env), gae_lambda, gamma, max_steps, 1)
+    Drill.collect_rollout!(roll_buffer, agent, alg, env)
 
     # Verify reward pattern
     rewards = roll_buffer.rewards
@@ -87,12 +87,12 @@ end
 
     for (gamma, gae_lambda) in test_cases
         env = BroadcastedParallelEnv([SharedTestSetup.CustomEnv(max_steps)])
-        policy = SharedTestSetup.ConstantValuePolicy(DRiL.observation_space(env), DRiL.action_space(env), constant_value)
+        policy = SharedTestSetup.ConstantValuePolicy(Drill.observation_space(env), Drill.action_space(env), constant_value)
         alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
         agent = Agent(policy, alg; verbose = 0)
 
-        roll_buffer = RolloutBuffer(DRiL.observation_space(env), DRiL.action_space(env), gae_lambda, gamma, max_steps, 1)
-        DRiL.collect_rollout!(roll_buffer, agent, alg, env)
+        roll_buffer = RolloutBuffer(Drill.observation_space(env), Drill.action_space(env), gae_lambda, gamma, max_steps, 1)
+        Drill.collect_rollout!(roll_buffer, agent, alg, env)
 
         rewards = roll_buffer.rewards
         values = roll_buffer.values
@@ -127,13 +127,13 @@ end
     env = BroadcastedParallelEnv([SharedTestSetup.CustomEnv(max_steps)])
 
     # Create policy with constant value function
-    policy = SharedTestSetup.ConstantValuePolicy(DRiL.observation_space(env), DRiL.action_space(env), constant_value)
+    policy = SharedTestSetup.ConstantValuePolicy(Drill.observation_space(env), Drill.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
     agent = Agent(policy, alg; verbose = 0)
 
     # Collect rollouts
-    roll_buffer = RolloutBuffer(DRiL.observation_space(env), DRiL.action_space(env), gae_lambda, gamma, max_steps, 1)
-    DRiL.collect_rollout!(roll_buffer, agent, alg, env)
+    roll_buffer = RolloutBuffer(Drill.observation_space(env), Drill.action_space(env), gae_lambda, gamma, max_steps, 1)
+    Drill.collect_rollout!(roll_buffer, agent, alg, env)
 
     # Verify rewards pattern: should be [0, 0, 0, ..., 0, 1] for each episode
     rewards = roll_buffer.rewards
@@ -187,13 +187,13 @@ end
     env = BroadcastedParallelEnv([SharedTestSetup.CustomEnv(max_steps)])
 
     # Create policy with constant value function
-    policy = SharedTestSetup.ConstantValuePolicy(DRiL.observation_space(env), DRiL.action_space(env), constant_value)
+    policy = SharedTestSetup.ConstantValuePolicy(Drill.observation_space(env), Drill.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = n_total_steps, batch_size = n_total_steps, epochs = 1)
     agent = Agent(policy, alg; verbose = 0)
 
     # Collect rollouts
-    roll_buffer = RolloutBuffer(DRiL.observation_space(env), DRiL.action_space(env), gae_lambda, gamma, n_total_steps, 1)
-    DRiL.collect_rollout!(roll_buffer, agent, alg, env)
+    roll_buffer = RolloutBuffer(Drill.observation_space(env), Drill.action_space(env), gae_lambda, gamma, n_total_steps, 1)
+    Drill.collect_rollout!(roll_buffer, agent, alg, env)
 
     rewards = roll_buffer.rewards
     advantages = roll_buffer.advantages
@@ -232,13 +232,13 @@ end
     env = BroadcastedParallelEnv([SharedTestSetup.InfiniteHorizonEnv()])
 
     # Create policy with constant value function
-    policy = SharedTestSetup.ConstantValuePolicy(DRiL.observation_space(env), DRiL.action_space(env), constant_value)
+    policy = SharedTestSetup.ConstantValuePolicy(Drill.observation_space(env), Drill.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
     agent = Agent(policy, alg; verbose = 0)
 
     # Collect rollouts
-    roll_buffer = RolloutBuffer(DRiL.observation_space(env), DRiL.action_space(env), gae_lambda, gamma, max_steps, 1)
-    DRiL.collect_rollout!(roll_buffer, agent, alg, env)
+    roll_buffer = RolloutBuffer(Drill.observation_space(env), Drill.action_space(env), gae_lambda, gamma, max_steps, 1)
+    Drill.collect_rollout!(roll_buffer, agent, alg, env)
 
     rewards = roll_buffer.rewards
     values = roll_buffer.values
@@ -281,12 +281,12 @@ end
     constant_value = 0.3f0
 
     env = BroadcastedParallelEnv([SharedTestSetup.CustomEnv(max_steps)])
-    policy = SharedTestSetup.ConstantValuePolicy(DRiL.observation_space(env), DRiL.action_space(env), constant_value)
+    policy = SharedTestSetup.ConstantValuePolicy(Drill.observation_space(env), Drill.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
     agent = Agent(policy, alg; verbose = 0)
 
-    roll_buffer = RolloutBuffer(DRiL.observation_space(env), DRiL.action_space(env), gae_lambda, gamma, max_steps, 1)
-    DRiL.collect_rollout!(roll_buffer, agent, alg, env)
+    roll_buffer = RolloutBuffer(Drill.observation_space(env), Drill.action_space(env), gae_lambda, gamma, max_steps, 1)
+    Drill.collect_rollout!(roll_buffer, agent, alg, env)
 
     rewards = roll_buffer.rewards
     values = roll_buffer.values
@@ -303,8 +303,8 @@ end
 
     # Test zero gamma case
     gamma_zero = 0.0f0
-    roll_buffer_zero = RolloutBuffer(DRiL.observation_space(env), DRiL.action_space(env), gae_lambda, gamma_zero, max_steps, 1)
-    DRiL.collect_rollout!(roll_buffer_zero, agent, alg, env)
+    roll_buffer_zero = RolloutBuffer(Drill.observation_space(env), Drill.action_space(env), gae_lambda, gamma_zero, max_steps, 1)
+    Drill.collect_rollout!(roll_buffer_zero, agent, alg, env)
 
     # With gamma=0, advantage should just be immediate reward - value
     @test roll_buffer_zero.advantages[1] ≈ (1.0f0 - constant_value) atol = 1.0e-4
@@ -313,8 +313,8 @@ end
     lambda_zero = 0.0f0
     env_multi = BroadcastedParallelEnv([SharedTestSetup.CustomEnv(3)])  # 3 steps for better testing
     agent_multi = Agent(policy, alg; verbose = 0)
-    roll_buffer_td0 = RolloutBuffer(DRiL.observation_space(env_multi), DRiL.action_space(env_multi), lambda_zero, gamma, 3, 1)
-    DRiL.collect_rollout!(roll_buffer_td0, agent_multi, alg, env_multi)
+    roll_buffer_td0 = RolloutBuffer(Drill.observation_space(env_multi), Drill.action_space(env_multi), lambda_zero, gamma, 3, 1)
+    Drill.collect_rollout!(roll_buffer_td0, agent_multi, alg, env_multi)
 
     # With lambda=0 (TD(0)), GAE reduces to simple TD error
     # Each advantage should be just the immediate TD error without accumulation

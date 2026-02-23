@@ -290,7 +290,7 @@ end
 end
 
 @testitem "Discrete action processing" tags = [:spaces, :discrete, :action_processing] begin
-    using DRiL: process_action
+    using Drill: process_action
     # Test process_action for different discrete spaces
 
     # Test 0-based space (Gymnasium style)
@@ -362,7 +362,7 @@ end
 end
 
 @testitem "Discrete space edge cases" tags = [:spaces, :discrete, :edge_cases] begin
-    using DRiL: process_action
+    using Drill: process_action
     alg = PPO()
 
     # Test single action space

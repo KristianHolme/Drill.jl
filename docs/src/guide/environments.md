@@ -9,13 +9,13 @@ struct MyEnv <: AbstractEnv
     # state fields
 end
 
-DRiL.reset!(env::MyEnv)           # Reset to initial state
-DRiL.act!(env::MyEnv, action)     # Take action, return reward
-DRiL.observe(env::MyEnv)          # Return current observation
-DRiL.terminated(env::MyEnv)       # Terminal state reached?
-DRiL.truncated(env::MyEnv)        # Time limit reached?
-DRiL.action_space(env::MyEnv)     # Return action space
-DRiL.observation_space(env::MyEnv) # Return observation space
+Drill.reset!(env::MyEnv)           # Reset to initial state
+Drill.act!(env::MyEnv, action)     # Take action, return reward
+Drill.observe(env::MyEnv)          # Return current observation
+Drill.terminated(env::MyEnv)       # Terminal state reached?
+Drill.truncated(env::MyEnv)        # Time limit reached?
+Drill.action_space(env::MyEnv)     # Return action space
+Drill.observation_space(env::MyEnv) # Return observation space
 ```
 
 ## Spaces
