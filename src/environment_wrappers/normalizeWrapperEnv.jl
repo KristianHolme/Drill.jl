@@ -96,7 +96,7 @@ function NormalizeWrapperEnv{E, T}(
         clip_obs, clip_reward, gamma, epsilon, old_obs, old_rewards
     )
 end
-DRiL.unwrap(env::NormalizeWrapperEnv) = env.env
+Drill.unwrap(env::NormalizeWrapperEnv) = env.env
 
 # Convenience constructor
 function NormalizeWrapperEnv(env::E; kwargs...) where {E <: AbstractParallelEnv}

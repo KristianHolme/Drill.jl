@@ -1,5 +1,5 @@
 """
-Environment checking utilities for DRiL.
+Environment checking utilities for Drill.
 
 Provides functions to verify that environments correctly implement the required interface
 and respect observation/action space constraints.
@@ -9,7 +9,7 @@ and respect observation/action space constraints.
 """
     check_env(env::AbstractEnv; warn::Bool=true, skip_render_check::Bool=false, verbose::Bool=true)
 
-Check that an environment follows the DRiL interface and respects space constraints.
+Check that an environment follows the Drill interface and respects space constraints.
 
 # Arguments
 - `env::AbstractEnv`: The environment to check

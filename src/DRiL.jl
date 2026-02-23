@@ -1,4 +1,4 @@
-module DRiL
+module Drill
 
 using Accessors
 using Base.Threads
@@ -23,8 +23,8 @@ using FileIO
 using JLD2
 using OneHotArrays
 
-include("DRiLDistributions/DRiLDistributions.jl")
-@reexport using .DRiLDistributions
+include("DrillDistributions/DrillDistributions.jl")
+@reexport using .DrillDistributions
 
 include("interfaces/interfaces.jl")
 export AbstractEnv, AbstractParallelEnv, AbstractAgent, AbstractBuffer, AbstractAlgorithm

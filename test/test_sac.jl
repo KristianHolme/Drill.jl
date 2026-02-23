@@ -19,9 +19,9 @@
             # Test with different batch sizes
             for batch_size in [1, 2, 4, 8]
                 obs = rand(obs_space, batch_size)
-                batch_obs = DRiL.batch(obs, obs_space)
-                actor_feats, critic_feats, st = DRiL.extract_features(policy, batch_obs, ps, st)
-                @test_nowarn DRiL.get_actions_from_features(policy, actor_feats, ps, st)
+                batch_obs = Drill.batch(obs, obs_space)
+                actor_feats, critic_feats, st = Drill.extract_features(policy, batch_obs, ps, st)
+                @test_nowarn Drill.get_actions_from_features(policy, actor_feats, ps, st)
             end
         end
 
@@ -42,7 +42,7 @@
                 # Test with feature matrices that could trigger reshape errors
                 batch_size = 2
                 feats = randn(Float32, 2, batch_size)  # Correct: 2D features for 2D observation space
-                @test_nowarn DRiL.get_actions_from_features(policy, feats, ps, st)
+                @test_nowarn Drill.get_actions_from_features(policy, feats, ps, st)
             end
 
             @testset "Mismatched feature dimensions" begin
@@ -57,11 +57,11 @@
 
                 # Wrong feature dimensions (should be 2D, not 4D)
                 wrong_feats = randn(Float32, 4, batch_size)
-                @test_throws Exception DRiL.get_actions_from_features(policy, wrong_feats, ps, st)
+                @test_throws Exception Drill.get_actions_from_features(policy, wrong_feats, ps, st)
 
                 # Wrong feature dimensions (should be 2D, not 1D)
                 wrong_feats_1d = randn(Float32, 1, batch_size)
-                @test_throws Exception DRiL.get_actions_from_features(policy, wrong_feats_1d, ps, st)
+                @test_throws Exception Drill.get_actions_from_features(policy, wrong_feats_1d, ps, st)
             end
         end
 
@@ -92,7 +92,7 @@
                     # Test with correct feature dimensions
                     batch_size = 2
                     feats = randn(Float32, obs_dim, batch_size)
-                    actions, new_st = @test_nowarn DRiL.get_actions_from_features(policy, feats, ps, st)
+                    actions, new_st = @test_nowarn Drill.get_actions_from_features(policy, feats, ps, st)
 
                     # Verify output dimensions are correct
                     @test size(actions) == (action_dim, batch_size)
@@ -112,7 +112,7 @@
             # Test edge cases that might cause issues
             for batch_size in [1, 2, 3, 4, 5, 8, 16]
                 feats = randn(Float32, 2, batch_size)
-                actions, new_st = @test_nowarn DRiL.get_actions_from_features(policy, feats, ps, st)
+                actions, new_st = @test_nowarn Drill.get_actions_from_features(policy, feats, ps, st)
                 @test size(actions) == (2, batch_size)
             end
         end
@@ -143,7 +143,7 @@
 
                     batch_size = 2
                     feats = randn(Float32, 2, batch_size)
-                    actions, new_st = @test_nowarn DRiL.get_actions_from_features(policy, feats, ps, st)
+                    actions, new_st = @test_nowarn Drill.get_actions_from_features(policy, feats, ps, st)
                     @test size(actions) == (2, batch_size)
                 end
             end
@@ -168,7 +168,7 @@
             feats = randn(Float32, 2, batch_size)  # 2D features for 2D obs space
 
             # This should work without the reshape error
-            actions, new_st = @test_nowarn DRiL.get_actions_from_features(policy, feats, ps, st)
+            actions, new_st = @test_nowarn Drill.get_actions_from_features(policy, feats, ps, st)
             @test size(actions) == (2, batch_size)
 
             # Also test potential problematic feature dimensions that could trigger the reshape error
@@ -176,11 +176,11 @@
 
             # Test with 1D features (wrong) - this should fail gracefully
             wrong_feats_1d = randn(Float32, 1, batch_size)
-            @test_throws Exception DRiL.get_actions_from_features(policy, wrong_feats_1d, ps, st)
+            @test_throws Exception Drill.get_actions_from_features(policy, wrong_feats_1d, ps, st)
 
             # Test with 4D features (wrong) - this should fail gracefully
             wrong_feats_4d = randn(Float32, 4, batch_size)
-            @test_throws Exception DRiL.get_actions_from_features(policy, wrong_feats_4d, ps, st)
+            @test_throws Exception Drill.get_actions_from_features(policy, wrong_feats_4d, ps, st)
         end
     end
 end
@@ -190,7 +190,7 @@ end
     using Zygote
     # using ComponentArrays
     using LinearAlgebra
-    using DRiL: nested_all_zero, nested_norm
+    using Drill: nested_all_zero, nested_norm
 
     # Test the complete SAC gradient computation pipeline using real environment data
     # This mimics exactly what happens in the learn! function
@@ -200,8 +200,8 @@ end
 
         # Create simple test environment and policy
         env = BroadcastedParallelEnv([SharedTestSetup.CustomEnv(8) for _ in 1:2])
-        obs_space = DRiL.observation_space(env)
-        action_space = DRiL.action_space(env)
+        obs_space = Drill.observation_space(env)
+        action_space = Drill.action_space(env)
 
         # Create SAC agent and algorithm
         layer = ContinuousActorCriticLayer(
@@ -216,20 +216,20 @@ end
 
         # Collect initial rollouts (like in learn!)
         n_steps = 4
-        fps, _ = DRiL.collect_rollout!(replay_buffer, agent, alg, env, n_steps)
+        fps, _ = Drill.collect_rollout!(replay_buffer, agent, alg, env, n_steps)
 
         @test fps > 0  # Sanity check that collection worked
         @test length(replay_buffer) > 0  # Buffer should have data
 
         # Get real batch data from replay buffer (like in learn!)
-        data_loader = DRiL.get_data_loader(replay_buffer, alg.batch_size, 1, true, true, rng)
+        data_loader = Drill.get_data_loader(replay_buffer, alg.batch_size, 1, true, true, rng)
         batch_data = first(data_loader)
 
         # Test entropy coefficient loss with real data
         @testset "Entropy coefficient gradient with real data" begin
             if alg.ent_coef isa AutoEntropyCoefficient
                 ent_train_state = agent.aux.ent_train_state
-                target_entropy = DRiL.get_target_entropy(alg.ent_coef, action_space)
+                target_entropy = Drill.get_target_entropy(alg.ent_coef, action_space)
 
                 ent_data = (
                     observations = batch_data.observations,
@@ -243,7 +243,7 @@ end
                 # Compute gradients exactly like in learn!
                 ent_grad, ent_loss, _, ent_train_state = Lux.Training.compute_gradients(
                     AutoZygote(),
-                    (model, ps, st, data) -> DRiL.sac_ent_coef_loss(alg, layer, ps, st, data),
+                    (model, ps, st, data) -> Drill.sac_ent_coef_loss(alg, layer, ps, st, data),
                     ent_data,
                     ent_train_state
                 )
@@ -280,7 +280,7 @@ end
             # Compute gradients exactly like in learn!
             critic_grad, critic_loss, critic_stats, train_state = Lux.Training.compute_gradients(
                 AutoZygote(),
-                (model, ps, st, data) -> DRiL.sac_critic_loss(alg, layer, ps, st, data),
+                (model, ps, st, data) -> Drill.sac_critic_loss(alg, layer, ps, st, data),
                 critic_data,
                 train_state
             )
@@ -319,11 +319,11 @@ end
             # Compute gradients exactly like in learn!
             actor_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
                 AutoZygote(),
-                (model, ps, st, data) -> DRiL.sac_actor_loss(alg, layer, ps, st, data),
+                (model, ps, st, data) -> Drill.sac_actor_loss(alg, layer, ps, st, data),
                 actor_data,
                 train_state
             )
-            DRiL.zero_critic_grads!(actor_grad, layer)
+            Drill.zero_critic_grads!(actor_grad, layer)
 
             # Verify gradient computation succeeded
             @test !isnothing(actor_grad)

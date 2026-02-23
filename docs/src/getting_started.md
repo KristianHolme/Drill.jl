@@ -3,7 +3,7 @@
 ## Quick Example: PPO on CartPole
 
 ```julia
-using DRiL
+using Drill
 using Zygote  # Required for automatic differentiation
 using ClassicControlEnvironments
 
@@ -29,7 +29,7 @@ policy = extract_policy(agent)
 ## Quick Example: SAC on Continuous Control
 
 ```julia
-using DRiL
+using Drill
 using Zygote  # Required for automatic differentiation
 
 # Continuous action environment

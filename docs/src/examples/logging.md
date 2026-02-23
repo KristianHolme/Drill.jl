@@ -1,6 +1,6 @@
 # Logging & Experiment Tracking
 
-DRiL.jl supports three logging backends for tracking your experiments:
+Drill.jl supports three logging backends for tracking your experiments:
 
 - **TensorBoard** - Local logging with web-based visualization
 - **Weights & Biases (W&B)** - Cloud-based experiment tracking with team collaboration features
@@ -26,7 +26,7 @@ Pkg.add("TensorBoardLogger")
 ### Example
 
 ```julia
-using DRiL
+using Drill
 using ClassicControlEnvironments
 using TensorBoardLogger
 using Logging
@@ -52,7 +52,7 @@ for config in configs
     rng = Random.Xoshiro(SEED)
     envs = [CartPoleEnv(; rng = Random.Xoshiro(SEED + i)) for i in 1:N_ENVS]
     env = MonitorWrapperEnv(BroadcastedParallelEnv(envs))
-    DRiL.reset!(env)
+    Drill.reset!(env)
 
     # Create PPO algorithm
     alg = PPO(;
@@ -121,14 +121,14 @@ Wandb.login()  # Enter API key from https://wandb.ai/authorize
 ### Example
 
 ```julia
-using DRiL
+using Drill
 using ClassicControlEnvironments
 using Wandb
 using Random
 using Zygote
 
 # Configuration
-WANDB_PROJECT = "DRiL-Examples"
+WANDB_PROJECT = "Drill-Examples"
 N_ENVS = 4
 TOTAL_TIMESTEPS = 50_000
 SEED = 42
@@ -179,7 +179,7 @@ end
 
 ### Viewing Results
 
-After training, view results at `https://wandb.ai/<username>/DRiL-Examples`
+After training, view results at `https://wandb.ai/<username>/Drill-Examples`
 
 - Compare runs side-by-side
 - Use parallel coordinates for hyperparameter analysis
@@ -204,7 +204,7 @@ Pkg.add("DearDiary")
 ### Example
 
 ```julia
-using DRiL
+using Drill
 using ClassicControlEnvironments
 using DearDiary
 using Random
@@ -220,7 +220,7 @@ SEED = 42
 DearDiary.initialize_database(; file_name = DB_PATH)
 
 # Create a project for your experiments
-project_id, _ = DearDiary.create_project("DRiL Experiments")
+project_id, _ = DearDiary.create_project("Drill Experiments")
 
 # Hyperparameter configs to compare
 configs = [
@@ -235,7 +235,7 @@ for config in configs
     rng = Random.Xoshiro(SEED)
     envs = [CartPoleEnv(; rng = Random.Xoshiro(SEED + i)) for i in 1:N_ENVS]
     env = MonitorWrapperEnv(BroadcastedParallelEnv(envs))
-    DRiL.reset!(env)
+    Drill.reset!(env)
 
     # Create PPO algorithm
     alg = PPO(;
@@ -338,12 +338,12 @@ increment_step!(agent.logger, delta)
 ### Example: Logging Custom Metrics in a Callback
 
 ```julia
-using DRiL
+using Drill
 
 # Define a custom callback that logs additional metrics
 struct CustomMetricsCallback <: AbstractCallback end
 
-function DRiL.on_rollout_end(cb::CustomMetricsCallback, locals::Dict)
+function Drill.on_rollout_end(cb::CustomMetricsCallback, locals::Dict)
     agent = locals["agent"]
     env = locals["env"]
     

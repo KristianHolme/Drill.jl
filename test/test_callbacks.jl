@@ -26,7 +26,7 @@
             :n_steps, :n_envs, :roll_buffer, :iterations, :total_fps, :callbacks,
         ]
     end
-    function DRiL.on_training_start(callback::OnTrainingStartCheckLocalsCallback, locals::Dict)
+    function Drill.on_training_start(callback::OnTrainingStartCheckLocalsCallback, locals::Dict)
         test_keys(locals, callback.keys)
         true
     end
@@ -38,7 +38,7 @@
         ]
         subsequent_keys::Vector{Symbol} = [:agent, :env, :alg, :iterations, :total_steps, :max_steps]
     end
-    function DRiL.on_rollout_start(callback::OnRolloutStartCheckLocalsCallback, locals::Dict)
+    function Drill.on_rollout_start(callback::OnRolloutStartCheckLocalsCallback, locals::Dict)
         test_keys(locals, callback.first_keys)
         if locals[:i] > 1
             test_keys(locals, callback.subsequent_keys)
@@ -68,7 +68,7 @@ end
 
 
     @kwdef struct OnTrainingStartStopEarlyCallback <: AbstractCallback end
-    function DRiL.on_training_start(callback::OnTrainingStartStopEarlyCallback, locals::Dict)
+    function Drill.on_training_start(callback::OnTrainingStartStopEarlyCallback, locals::Dict)
         return false
     end
     agent, env, alg = setup_agent_env_alg()
@@ -81,7 +81,7 @@ end
 
     agent, env, alg = setup_agent_env_alg()
     @kwdef struct OnRolloutStartStopEarlyCallback <: AbstractCallback end
-    function DRiL.on_rollout_start(callback::OnRolloutStartStopEarlyCallback, locals::Dict)
+    function Drill.on_rollout_start(callback::OnRolloutStartStopEarlyCallback, locals::Dict)
         return false
     end
     train!(agent, env, alg, 3000; callbacks = [OnRolloutStartStopEarlyCallback()])
@@ -91,7 +91,7 @@ end
     @kwdef struct OnStepStopEarlyCallback <: AbstractCallback
         threshold::Int = 512
     end
-    function DRiL.on_step(callback::OnStepStopEarlyCallback, locals::Dict)
+    function Drill.on_step(callback::OnStepStopEarlyCallback, locals::Dict)
         continue_training = steps_taken(locals[:agent]) < callback.threshold
         return continue_training
     end
