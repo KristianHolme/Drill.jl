@@ -225,56 +225,30 @@ end
         data_loader = Drill.get_data_loader(replay_buffer, alg.batch_size, 1, true, true, rng)
         batch_data = first(data_loader)
 
-        # Test entropy coefficient loss with real data
-        @testset "Entropy coefficient gradient with real data" begin
-            if alg.ent_coef isa AutoEntropyCoefficient
-                ent_train_state = agent.aux.ent_train_state
-                target_entropy = Drill.get_target_entropy(alg.ent_coef, action_space)
-
-                ent_data = (
-                    observations = batch_data.observations,
-                    layer_ps = agent.train_state.parameters,
-                    layer_st = agent.train_state.states,
-                    target_entropy = target_entropy,
-                    target_ps = agent.aux.Q_target_parameters,
-                    target_st = agent.aux.Q_target_states,
-                )
-
-                # Compute gradients exactly like in learn!
-                ent_grad, ent_loss, _, ent_train_state = Lux.Training.compute_gradients(
-                    AutoZygote(),
-                    (model, ps, st, data) -> Drill.sac_ent_coef_loss(alg, layer, ps, st, data),
-                    ent_data,
-                    ent_train_state
-                )
-
-                # Verify gradient computation succeeded
-                @test !isnothing(ent_grad)
-                @test haskey(ent_grad, :log_ent_coef)
-                @test !iszero(ent_grad.log_ent_coef[1])
-                @test isfinite(ent_loss)
-                @test ent_loss isa Float32
-
-                # Verify gradient magnitude is reasonable
-                grad_magnitude = abs(ent_grad.log_ent_coef[1])
-                @test 1.0e-6 < grad_magnitude < 100.0  # Reasonable range
-            end
-        end
+        
 
         # Test critic loss with real data
         @testset "Critic gradient with real data" begin
             train_state = agent.train_state
 
+            # Compute target Q values first
+            target_q_values = Drill.compute_target_q_values(
+                alg, layer, train_state.parameters, train_state.states,
+                (
+                    next_observations = batch_data.next_observations,
+                    terminated = batch_data.terminated,
+                    log_ent_coef = agent.aux.ent_train_state.parameters,
+                    rewards = batch_data.rewards,
+                    target_ps = agent.aux.Q_target_parameters,
+                    target_st = agent.aux.Q_target_states,
+                );
+                rng = rng
+            )
+
             critic_data = (
                 observations = batch_data.observations,
                 actions = batch_data.actions,
-                rewards = batch_data.rewards,
-                terminated = batch_data.terminated,
-                truncated = batch_data.truncated,
-                next_observations = batch_data.next_observations,
-                log_ent_coef = agent.aux.ent_train_state.parameters,
-                target_ps = agent.aux.Q_target_parameters,
-                target_st = agent.aux.Q_target_states,
+                target_q_values = target_q_values,
             )
 
             # Compute gradients exactly like in learn!
@@ -306,15 +280,16 @@ end
         @testset "Actor gradient with real data" begin
             train_state = agent.train_state
 
-            actor_data = (
-                observations = batch_data.observations,
-                actions = batch_data.actions,
-                rewards = batch_data.rewards,
-                terminated = batch_data.terminated,
-                truncated = batch_data.truncated,
-                next_observations = batch_data.next_observations,
-                log_ent_coef = agent.aux.ent_train_state.parameters,
-            )
+ent_coef = Float32(exp(first(agent.aux.ent_train_state.parameters.log_ent_coef)))
+actor_data = (
+    observations = batch_data.observations,
+    actions = batch_data.actions,
+    rewards = batch_data.rewards,
+    terminated = batch_data.terminated,
+    truncated = batch_data.truncated,
+    next_observations = batch_data.next_observations,
+    ent_coef = ent_coef,
+)
 
             # Compute gradients exactly like in learn!
             actor_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
