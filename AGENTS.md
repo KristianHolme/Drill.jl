@@ -8,6 +8,8 @@ This is a pure Julia package (**Drill.jl** — a Deep Reinforcement Learning lib
 
 - **Julia ≥ 1.10** (installed via `juliaup` at `/home/ubuntu/.juliaup/bin`). Ensure `PATH` includes this directory.
 - **Runic.jl** is installed in the global Julia environment for formatting/lint checks.
+- **Global dev packages**: BenchmarkTools, Cthulhu, Debugger, DocumenterTools, ExplicitImports, GLMakie, Infiltrator, JET, PreferenceTools, ProgressMeter, Revise are installed in the base Julia environment.
+- **Revise auto-loads** via `~/.julia/config/startup.jl` on every Julia startup.
 
 ### Key commands
 
@@ -26,3 +28,4 @@ This is a pure Julia package (**Drill.jl** — a Deep Reinforcement Learning lib
 - **AD backends filter**: By default, `@run_package_tests` filters out `:ad_backends` tagged tests (see `test/runtests.jl`). To run those too, modify the filter.
 - **ClassicControlEnvironments.jl**: Fetched from GitHub as a git dependency in `test/Project.toml`. Requires network access during `Pkg.instantiate()` / `Pkg.test()`.
 - **Wandb extension**: The Wandb test creates a CondaPkg environment under `test/.CondaPkg/` on first run — this is expected and can take extra time.
+- **JETLS language server**: Cannot coexist with Runic in the global env (JuliaSyntax version conflict). Would need a dedicated environment if desired. It is experimental and has a known memory leak requiring periodic restarts.
