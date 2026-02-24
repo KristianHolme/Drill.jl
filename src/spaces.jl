@@ -202,6 +202,8 @@ function Base.in(sample::Integer, space::Discrete)
     return space.start <= sample <= (space.start + space.n - 1)
 end
 
+Base.in(sample, space::Discrete) = false #non integers are not in space
+
 function process_action(
         action::Integer,
         action_space::Discrete,

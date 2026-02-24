@@ -89,6 +89,16 @@ function setup_training_sac(; n_envs::Int = DEFAULT_N_ENVS, max_steps::Int = DEF
     return env, agent, alg, max_steps
 end
 
+# Same workload for device benchmarks (small steps, fixed seed) so CPU vs Reactant are comparable.
+const DEVICE_BENCH_MAX_STEPS = 128
+
+function setup_training_ppo_device(; n_envs::Int = DEFAULT_N_ENVS)
+    env = make_cartpole_env(; n_envs = n_envs)
+    agent, alg = make_ppo_agent(env)
+    reset!(env)
+    return env, agent, alg, DEVICE_BENCH_MAX_STEPS
+end
+
 function setup_wrapper_envs(; n_envs::Int = DEFAULT_N_ENVS)
     base_env = make_cartpole_env(; n_envs = n_envs)
     monitor_env = MonitorWrapperEnv(make_cartpole_env(; n_envs = n_envs))

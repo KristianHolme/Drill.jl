@@ -42,6 +42,38 @@ end setup = begin
     env, agent, alg, max_steps = BenchUtils.setup_training_sac()
 end
 
+# Device benchmarks: compare CPU vs Reactant (when available). Same workload (DEVICE_BENCH_MAX_STEPS).
+# Run with: BenchmarkTools.run(SUITE["devices"]). With Reactant: run Reactant entries; without, only CPU runs.
+devices = BenchmarkGroup()
+SUITE["devices"] = devices
+
+devices["ppo_cpu"] = @benchmarkable begin
+    train!(agent, env, alg, max_steps)
+end setup = begin
+    env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device()
+end
+
+if isdefined(Lux, :reactant_device)
+    devices["ppo_reactant"] = @benchmarkable begin
+        train!(agent, env, alg, max_steps)
+    end setup = begin
+        env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device()
+        agent = agent |> Lux.reactant_device()
+        (env, agent, alg, max_steps)
+    end
+    # Reactant with CPU backend (no GPU): compare compiled Reactant vs plain CPU.
+    devices["ppo_reactant_cpu_backend"] = @benchmarkable begin
+        train!(agent, env, alg, max_steps)
+    end setup = begin
+        if isdefined(Main, :Reactant) && isdefined(Main.Reactant, :set_default_backend)
+            Main.Reactant.set_default_backend("cpu")
+        end
+        env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device()
+        agent = agent |> Lux.reactant_device()
+        (env, agent, alg, max_steps)
+    end
+end
+
 wrappers = BenchmarkGroup()
 SUITE["wrappers"] = wrappers
 
@@ -169,6 +201,7 @@ if ENABLE_AD_BACKEND_BENCHES
                 critic_data,
                 train_state,
             )
+            ent_coef = Float32(exp(first(ent_train_state.parameters.log_ent_coef)))
             Lux.Training.compute_gradients(
                 ad_backend,
                 (model, ps, st, data) -> Drill.sac_actor_loss(alg, layer, ps, st, data; rng = rng),
@@ -179,7 +212,7 @@ if ENABLE_AD_BACKEND_BENCHES
                     terminated = batch_data.terminated,
                     truncated = batch_data.truncated,
                     next_observations = batch_data.next_observations,
-                    log_ent_coef = ent_train_state.parameters,
+                    ent_coef = ent_coef,
                 ),
                 train_state,
             )

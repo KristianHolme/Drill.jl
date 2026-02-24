@@ -1,5 +1,9 @@
 using TestItemRunner
 
+include("test_shared_setup.jl")
+include("test_devices.jl")
+include("test_ad_backends.jl")
+
 # Quality assurance tests
 @testitem "Code quality (Aqua.jl)" tags = [:quality] begin
     using Aqua, Drill
@@ -49,5 +53,6 @@ end
 # Run all tests
 # @run_package_tests
 # Run only tests without :ad_backends tag
-# @run_package_tests filter = ti -> :ad_backends ∉ ti.tags
-@run_package_tests filter = ti -> :ad_backends ∈ ti.tags
+@run_package_tests filter = ti -> :ad_backends ∉ ti.tags && in(:devices, ti.tags)
+# Run device tests (CPU transfer, optional Reactant): @run_package_tests filter = ti -> :devices ∈ ti.tags
+# @run_package_tests filter = ti -> :ad_backends ∈ ti.tags

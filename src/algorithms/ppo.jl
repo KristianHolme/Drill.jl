@@ -145,7 +145,8 @@ function Agent(
         stats_window::Int = 100, #TODO not used
         verbose::Int = 1,
         logger = NoTrainingLogger(),
-        rng::AbstractRNG = Random.default_rng()
+        rng::AbstractRNG = Random.default_rng(),
+        device = nothing
     )
 
     optimizer = make_optimizer(optimizer_type, alg)
@@ -155,10 +156,14 @@ function Agent(
 
 
     logger = convert(AbstractTrainingLogger, logger)
-    return Agent(
+    agent = Agent(
         layer, alg, adapter, train_state, optimizer_type, stats_window,
         logger, verbose, rng, AgentStats(0, 0), NoAux()
     )
+    if device !== nothing
+        return agent |> device
+    end
+    return agent
 end
 
 function make_optimizer(optimizer_type::Type{<:Optimisers.Adam}, alg::PPO)
@@ -294,6 +299,7 @@ function train!(
             ),
             batchsize = alg.batch_size, shuffle = true, parallel = true, rng = agent.rng
         )
+        dev = get_device(agent.train_state.parameters)
         continue_training = true
         entropy_losses = Float32[]
         entropy = Float32[]
@@ -304,7 +310,8 @@ function train!(
         clip_fractions = Float32[]
         grad_norms = Float32[]
         @timeit to "epoch loop" for epoch in 1:alg.epochs
-            @timeit to "batch loop" for (i_batch, batch_data) in enumerate(data_loader)
+            data_iter = dev !== nothing ? dev(data_loader) : data_loader
+            @timeit to "batch loop" for (i_batch, batch_data) in enumerate(data_iter)
                 batch_data = maybe_normalize_batch_data(batch_data, alg.advantage_strategy)
                 grads, loss_val, stats, train_state = @timeit to "compute_gradients" Lux.Training.compute_gradients(ad_type, alg, batch_data, train_state)
 

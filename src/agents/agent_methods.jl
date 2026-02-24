@@ -26,6 +26,10 @@ function get_action_and_values(
     ps = train_state.parameters
     st = train_state.states
     batched_obs = batch(observations, observation_space(layer))
+    dev = get_device(ps)
+    if dev !== nothing
+        batched_obs = batched_obs |> dev
+    end
     actions_batched, values, logprobs, st = layer(batched_obs, ps, st)
     @reset train_state.states = st
     agent.train_state = train_state
@@ -56,6 +60,10 @@ function predict_values(
     st = train_state.states
     # Convert observations vector to batched matrix for policy
     batched_obs = batch(observations, observation_space(layer))
+    dev = get_device(ps)
+    if dev !== nothing
+        batched_obs = batched_obs |> dev
+    end
     values, st = predict_values(layer, batched_obs, ps, st)
     @reset train_state.states = st
     agent.train_state = train_state
@@ -93,6 +101,10 @@ function predict_actions(
     ps = train_state.parameters
     st = train_state.states
     batched_obs = batch(observations, observation_space(layer))
+    dev = get_device(ps)
+    if dev !== nothing
+        batched_obs = batched_obs |> dev
+    end
     actions_batched, st = predict_actions(layer, batched_obs, ps, st; deterministic = deterministic, rng = rng)
     @reset train_state.states = st
     agent.train_state = train_state
@@ -124,7 +136,7 @@ function make_optimizer(optimizer_type::Type{<:Optimisers.AbstractRule}, alg::Ab
 end
 
 
-# Implementation for unified Agent
+# Implementation for unified Agent (always save from CPU)
 function save_policy_params_and_state(
         agent::Agent{<:AbstractActorCriticLayer, ALG, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any},
         path::AbstractString;
@@ -132,12 +144,13 @@ function save_policy_params_and_state(
     ) where {ALG <: AbstractAlgorithm}
     file_path = endswith(path, suffix) ? path : path * suffix
     @info "Saving policy, parameters, and state to $file_path"
+    agent_cpu = agent |> cpu_device()
     save(
         file_path, Dict(
-            "layer" => agent.layer,
-            "parameters" => agent.train_state.parameters,
-            "states" => agent.train_state.states,
-            "aux" => agent.aux
+            "layer" => agent_cpu.layer,
+            "parameters" => agent_cpu.train_state.parameters,
+            "states" => agent_cpu.train_state.states,
+            "aux" => agent_cpu.aux
         )
     )
     return file_path

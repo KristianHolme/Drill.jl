@@ -90,3 +90,22 @@ policy = extract_policy(agent)
 actions = predict(policy, observations; deterministic=true)
 ```
 
+## Device support (CPU / GPU)
+
+Agents and policies are created on CPU by default. Use the same API as for data: pipe to a device to get a copy on that device. Drill moves data automatically during training and inference; you only choose where the agent (or policy) lives.
+
+```julia
+using Lux  # or MLDataDevices: cpu_device, gpu_device
+
+# Move agent to GPU for training
+agent = agent |> gpu_device()
+
+# Or pass the device at construction (convenience)
+agent = Agent(model, ppo; device = gpu_device())
+
+# Deploy on CPU: extract policy then move to CPU
+policy = extract_policy(agent) |> cpu_device()
+```
+
+**Performance:** For best performance, Lux recommends **Enzyme** for differentiation and **Reactant** for GPU/accelerator execution. With Reactant loaded, use `agent |> Lux.reactant_device()` to run on the Reactant device. See [Lux's documentation](https://lux.csail.mit.edu/stable/) on compiling models and GPU management for details.
+
