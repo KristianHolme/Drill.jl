@@ -8,6 +8,12 @@ struct NeuralPolicy{L, AD, S} <: AbstractPolicy
     adapter::AD
 end
 
+function Adapt.adapt_structure(to::MLDataDevices.AbstractDevice, np::NeuralPolicy)
+    new_params = to(np.params)
+    new_states = to(np.states)
+    return NeuralPolicy(np.layer, new_params, new_states, np.action_space, np.adapter)
+end
+
 """
     extract_policy(agent) -> NeuralPolicy
 
@@ -30,6 +36,10 @@ function (np::NeuralPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = 
         single_obs = true
     end
     obs_batch = batch(obs, observation_space(np.layer))
+    dev = get_device(np.params)
+    if dev !== nothing
+        obs_batch = obs_batch |> dev
+    end
     actions_batched, _ = predict_actions(np.layer, obs_batch, np.params, np.states; deterministic, rng)
     actions_vec = actions_batched isa AbstractVector ? collect(actions_batched) : collect(eachslice(actions_batched, dims = ndims(actions_batched)))
     env_actions = to_env.(Ref(np.adapter), actions_vec, Ref(np.action_space))

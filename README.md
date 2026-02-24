@@ -115,6 +115,10 @@ env = MonitorWrapperEnv(env)
 env = ScalingWrapperEnv(env)
 ```
 
+### Device support (CPU / GPU)
+
+Agents are on CPU by default. Use `agent |> gpu_device()` or the constructor kwarg `device = gpu_device()` to train on GPU. Same API for policies: `extract_policy(agent) |> cpu_device()` for CPU deployment. Drill moves data in training and inference automatically. For best performance, use **Enzyme** with **Reactant** (see Lux docs); with Reactant loaded, `agent |> Lux.reactant_device()` runs on the Reactant device.
+
 ### Custom Layer Architectures
 
 ```julia

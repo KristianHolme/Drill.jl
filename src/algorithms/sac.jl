@@ -85,7 +85,7 @@ function sac_actor_loss(
         ::SAC, layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic},
         ps, st, data; rng::AbstractRNG = Random.default_rng()
     )
-    ent_coef = exp(first(data.log_ent_coef.log_ent_coef))
+    ent_coef = data.ent_coef
     actions_pi, log_probs_pi, st = action_log_prob(layer, data.observations, ps, st; rng)
     q_values, st = predict_values(layer, data.observations, actions_pi, ps, st)
     min_q_values = minimum(q_values, dims = 1) |> vec
@@ -151,7 +151,8 @@ function Agent(
         logger = NoTrainingLogger(),
         stats_window::Int = 100,
         rng::AbstractRNG = Random.default_rng(),
-        verbose::Int = 1
+        verbose::Int = 1,
+        device = nothing
     )
     ps, st = Lux.setup(rng, layer)
     optimizer = make_optimizer(optimizer_type, alg)
@@ -168,10 +169,14 @@ function Agent(
     aux = QAux(Q_target_parameters, Q_target_states, ent_train_state)
 
     logger = convert(AbstractTrainingLogger, logger)
-    return Agent(
+    agent = Agent(
         layer, alg, adapter, train_state, optimizer_type, stats_window, logger, verbose, rng,
         AgentStats(0, 0), aux
     )
+    if device !== nothing
+        return agent |> device
+    end
+    return agent
 end
 
 
@@ -370,17 +375,18 @@ function update!(
     )
     train_state = Lux.Training.apply_gradients(train_state, critic_grad)
 
-    # Actor update
-    actor_data = (
-        observations = batch_data.observations,
-        log_ent_coef = agent.aux.ent_train_state.parameters,
-    )
-    actor_loss_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
-        ad_type,
-        (model, ps, st, data) -> sac_actor_loss(alg, layer, ps, st, data; rng = agent.rng),
-        actor_data,
-        train_state
-    )
+# Actor update
+ent_coef = Float32(exp(first(agent.aux.ent_train_state.parameters.log_ent_coef)))
+actor_data = (
+    observations = batch_data.observations,
+    ent_coef = ent_coef,
+)
+actor_loss_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
+    ad_type,
+    (model, ps, st, data) -> sac_actor_loss(alg, layer, ps, st, data; rng = agent.rng),
+    actor_data,
+    train_state
+)
     zero_critic_grads!(actor_loss_grad, layer)
     train_state = Lux.Training.apply_gradients(train_state, actor_loss_grad)
 
@@ -404,6 +410,27 @@ function update!(
         entropy_coefficient = current_ent_coef,
         grad_norm = total_grad_norm,
     )
+end
+
+function load_policy_params_and_state!(
+        agent::Agent{<:ContinuousActorCriticLayer, <:SAC, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:QAux},
+        alg::SAC,
+        path::AbstractString;
+        suffix::String = ".jld2"
+    )
+    file_path = endswith(path, suffix) ? path : path * suffix
+    @info "Loading policy, parameters, and state from $file_path"
+    data = load(file_path)
+    new_layer = data["layer"]
+    new_parameters = data["parameters"]
+    new_states = data["states"]
+    new_aux = data["aux"]
+    new_optimizer = make_optimizer(agent.optimizer_type, alg)
+    new_train_state = Lux.Training.TrainState(new_layer, new_parameters, new_states, new_optimizer)
+    agent.layer = new_layer
+    agent.train_state = new_train_state
+    agent.aux = new_aux
+    return agent
 end
 
 function train!(
@@ -514,8 +541,10 @@ function train!(
         # Perform gradient updates
         n_updates = get_gradient_steps(alg, alg.train_freq, n_envs)
         data_loader = get_data_loader(replay_buffer, alg.batch_size, n_updates, true, true, agent.rng)
+        dev = get_device(agent.train_state.parameters)
+        data_iter = dev !== nothing ? dev(data_loader) : data_loader
 
-        @timeit to "gradient_updates" for (i, batch_data) in enumerate(data_loader)
+        @timeit to "gradient_updates" for (i, batch_data) in enumerate(data_iter)
             stats_step = update!(agent, alg, batch_data; ad_type)
             if stats_step.entropy_loss !== nothing
                 push!(training_stats.entropy_losses, stats_step.entropy_loss)

@@ -1,6 +1,7 @@
 module Drill
 
 using Accessors
+using Adapt
 using Base.Threads
 using ChainRulesCore
 using ComponentArrays
@@ -10,6 +11,7 @@ using LinearAlgebra
 using Logging
 using Lux
 using LoopVectorization
+using MLDataDevices: get_device, AbstractDevice, cpu_device
 using MLUtils
 using Octavian
 using Optimisers
