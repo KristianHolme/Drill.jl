@@ -3,6 +3,8 @@ test/Manifest.toml
 logs/
 notes
 .CondaPkg
+.condapkg/
+.condapkg-ci/
 
 # Documentation build artifacts
 docs/build/
