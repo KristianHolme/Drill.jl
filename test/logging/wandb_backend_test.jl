@@ -1,4 +1,4 @@
-@testitem "Wandb logger converts and logs offline without error" begin
+@testitem "Wandb logger converts and logs offline without error" tags = [:logging, :wandb] begin
     using Wandb
     # Force offline; silence auth; provide dummy key for non-interactive runs
     ENV["WANDB_MODE"] = "offline"

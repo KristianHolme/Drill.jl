@@ -1,5 +1,30 @@
 using TestItemRunner
 
+# Use a shared CondaPkg environment for Wandb tests unless explicitly overridden.
+if !haskey(ENV, "JULIA_CONDAPKG_ENV")
+    ENV["JULIA_CONDAPKG_ENV"] = "@drill-wandb-tests"
+end
+
+const DRILL_TEST_GROUP = lowercase(get(ENV, "DRILL_TEST_GROUP", "all"))
+
+function include_test_item(ti)
+    if :ad_backends in ti.tags
+        return false
+    elseif DRILL_TEST_GROUP == "all"
+        return true
+    elseif DRILL_TEST_GROUP == "core"
+        return :quality ∉ ti.tags
+    elseif DRILL_TEST_GROUP == "quality"
+        return :quality in ti.tags
+    elseif DRILL_TEST_GROUP == "fast"
+        return :quality ∉ ti.tags && :wandb ∉ ti.tags
+    elseif DRILL_TEST_GROUP == "wandb"
+        return :wandb in ti.tags
+    end
+
+    throw(ArgumentError("Unknown DRILL_TEST_GROUP=\"$DRILL_TEST_GROUP\". Supported values: all, core, quality, fast, wandb"))
+end
+
 # Quality assurance tests
 @testitem "Code quality (Aqua.jl)" tags = [:quality] begin
     using Aqua, Drill
@@ -46,7 +71,5 @@ end
     end
 end
 
-# Run all tests
-# @run_package_tests
-# Run only tests with :ad_backends tag
-@run_package_tests filter = ti -> :ad_backends ∉ ti.tags
+# Run selected test group.
+@run_package_tests filter = include_test_item

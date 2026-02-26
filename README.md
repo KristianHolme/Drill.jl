@@ -33,6 +33,31 @@ using Pkg
 Pkg.add(url="https://github.com/KristianHolme/Drill.jl")
 ```
 
+## Testing
+
+Run the full test suite:
+
+```bash
+julia --project=test test/runtests.jl
+```
+
+`test/runtests.jl` supports `DRILL_TEST_GROUP` for faster iteration loops:
+
+- `all` (default): all tests except `:ad_backends`
+- `core`: skips `:quality` tests (Aqua/JET)
+- `quality`: runs only `:quality` tests
+- `fast`: skips both `:quality` and `:wandb` tests
+- `wandb`: runs only tests tagged `:wandb`
+
+Example:
+
+```bash
+DRILL_TEST_GROUP=fast julia --project=test test/runtests.jl
+```
+
+Wandb tests use a shared CondaPkg environment by default (`@drill-wandb-tests`) to avoid
+recreating the Python environment on every run. Override with `JULIA_CONDAPKG_ENV` if needed.
+
 ## Quick Start Example
 
 Here's a complete example training a PPO agent on the CartPole environment:
