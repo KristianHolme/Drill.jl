@@ -40,14 +40,14 @@ jobs:
       - name: Restore CondaPkg environment cache (Wandb)
         uses: actions/cache@v4
         with:
-          path: .CondaPkg
-          key: condapkg-${{ runner.os }}-${{ matrix.arch }}-julia-${{ matrix.version }}-${{ hashFiles('Project.toml', 'test/Project.toml') }}
+          path: .condapkg-ci
+          key: condapkg-v2-${{ runner.os }}-${{ matrix.arch }}-julia-${{ matrix.version }}-${{ hashFiles('Project.toml', 'test/Project.toml') }}
           restore-keys: |
-            condapkg-${{ runner.os }}-${{ matrix.arch }}-julia-${{ matrix.version }}-
-            condapkg-${{ runner.os }}-${{ matrix.arch }}-
+            condapkg-v2-${{ runner.os }}-${{ matrix.arch }}-julia-${{ matrix.version }}-
+            condapkg-v2-${{ runner.os }}-${{ matrix.arch }}-
       - uses: julia-actions/julia-buildpkg@v1
       - uses: julia-actions/julia-runtest@v1
         with:
           coverage: 'false'
         env:
-          JULIA_CONDAPKG_ENV: ${{ github.workspace }}/.CondaPkg
+          JULIA_CONDAPKG_ENV: ${{ github.workspace }}/.condapkg-ci/wandb

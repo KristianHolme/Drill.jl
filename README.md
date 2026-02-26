@@ -61,8 +61,11 @@ runs reuse the same Conda/Python environment across sessions. For a project-loca
 instead, set:
 
 ```bash
-JULIA_CONDAPKG_ENV="$PWD/.CondaPkg" julia --project=. -e 'using Pkg; Pkg.test()'
+JULIA_CONDAPKG_ENV="$PWD/.condapkg/wandb" julia --project=. -e 'using Pkg; Pkg.test()'
 ```
+
+Avoid using a path containing `.CondaPkg` for `JULIA_CONDAPKG_ENV`, since CondaPkg reserves
+that name for project-local environments.
 
 ## Quick Start Example
 
