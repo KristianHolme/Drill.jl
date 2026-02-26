@@ -35,28 +35,34 @@ Pkg.add(url="https://github.com/KristianHolme/Drill.jl")
 
 ## Testing
 
-Run the full test suite:
+Run tests from the package project:
 
 ```bash
-julia --project=test test/runtests.jl
+julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
-`test/runtests.jl` supports `DRILL_TEST_GROUP` for faster iteration loops:
+Tag filtering is controlled with environment variables:
 
-- `all` (default): all tests except `:ad_backends`
-- `core`: skips `:quality` tests (Aqua/JET)
-- `quality`: runs only `:quality` tests
-- `fast`: skips both `:quality` and `:wandb` tests
-- `wandb`: runs only tests tagged `:wandb`
+- `DRILL_TEST_TAG_WHITELIST`: if non-empty, only tests with at least one listed tag run.
+- `DRILL_TEST_TAG_BLACKLIST`: tests with any listed tag are skipped.
+- Entries can be comma or whitespace separated (`quality,wandb` or `quality wandb`), and may include a leading `:`.
+- `:ad_backends` is always blacklisted by default.
+- If a tag appears in both lists, a warning is emitted and the blacklist takes precedence.
 
-Example:
+Examples:
 
 ```bash
-DRILL_TEST_GROUP=fast julia --project=test test/runtests.jl
+DRILL_TEST_TAG_WHITELIST=quality julia --project=. -e 'using Pkg; Pkg.test()'
+DRILL_TEST_TAG_BLACKLIST="quality,wandb" julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
-Wandb tests use a shared CondaPkg environment by default (`@drill-wandb-tests`) to avoid
-recreating the Python environment on every run. Override with `JULIA_CONDAPKG_ENV` if needed.
+Wandb tests use a shared CondaPkg environment by default (`@drill-wandb-tests`), so local
+runs reuse the same Conda/Python environment across sessions. For a project-local cache
+instead, set:
+
+```bash
+JULIA_CONDAPKG_ENV="$PWD/.CondaPkg" julia --project=. -e 'using Pkg; Pkg.test()'
+```
 
 ## Quick Start Example
 

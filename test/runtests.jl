@@ -5,24 +5,52 @@ if !haskey(ENV, "JULIA_CONDAPKG_ENV")
     ENV["JULIA_CONDAPKG_ENV"] = "@drill-wandb-tests"
 end
 
-const DRILL_TEST_GROUP = lowercase(get(ENV, "DRILL_TEST_GROUP", "all"))
-
-function include_test_item(ti)
-    if :ad_backends in ti.tags
-        return false
-    elseif DRILL_TEST_GROUP == "all"
-        return true
-    elseif DRILL_TEST_GROUP == "core"
-        return :quality ∉ ti.tags
-    elseif DRILL_TEST_GROUP == "quality"
-        return :quality in ti.tags
-    elseif DRILL_TEST_GROUP == "fast"
-        return :quality ∉ ti.tags && :wandb ∉ ti.tags
-    elseif DRILL_TEST_GROUP == "wandb"
-        return :wandb in ti.tags
+function parse_tag_list(var_name::AbstractString)
+    raw = strip(get(ENV, var_name, ""))
+    if isempty(raw)
+        return Set{Symbol}()
     end
 
-    throw(ArgumentError("Unknown DRILL_TEST_GROUP=\"$DRILL_TEST_GROUP\". Supported values: all, core, quality, fast, wandb"))
+    tags = Set{Symbol}()
+    for token in split(raw, r"[,\s]+")
+        cleaned = strip(token)
+        if isempty(cleaned)
+            continue
+        end
+        if startswith(cleaned, ":")
+            cleaned = cleaned[2:end]
+        end
+        push!(tags, Symbol(cleaned))
+    end
+    return tags
+end
+
+function contains_any(tags, selected_tags::Set{Symbol})
+    for tag in tags
+        if tag in selected_tags
+            return true
+        end
+    end
+    return false
+end
+
+const TEST_TAG_WHITELIST = parse_tag_list("DRILL_TEST_TAG_WHITELIST")
+const TEST_TAG_BLACKLIST = union(Set{Symbol}([:ad_backends]), parse_tag_list("DRILL_TEST_TAG_BLACKLIST"))
+const TAG_LIST_OVERLAP = intersect(TEST_TAG_WHITELIST, TEST_TAG_BLACKLIST)
+
+if !isempty(TAG_LIST_OVERLAP)
+    overlap_tags = join(sort!(string.(collect(TAG_LIST_OVERLAP))), ", ")
+    @warn "Tags are present in both DRILL_TEST_TAG_WHITELIST and DRILL_TEST_TAG_BLACKLIST: $overlap_tags. Blacklist takes precedence."
+end
+
+function include_test_item(ti)
+    if contains_any(ti.tags, TEST_TAG_BLACKLIST)
+        return false
+    end
+    if isempty(TEST_TAG_WHITELIST)
+        return true
+    end
+    return contains_any(ti.tags, TEST_TAG_WHITELIST)
 end
 
 # Quality assurance tests
@@ -71,5 +99,5 @@ end
     end
 end
 
-# Run selected test group.
+# Run tests selected by tag whitelist/blacklist.
 @run_package_tests filter = include_test_item
