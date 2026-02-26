@@ -33,6 +33,40 @@ using Pkg
 Pkg.add(url="https://github.com/KristianHolme/Drill.jl")
 ```
 
+## Testing
+
+Run tests from the package project:
+
+```bash
+julia --project=. -e 'using Pkg; Pkg.test()'
+```
+
+Tag filtering is controlled with environment variables:
+
+- `DRILL_TEST_TAG_WHITELIST`: if non-empty, only tests with at least one listed tag run.
+- `DRILL_TEST_TAG_BLACKLIST`: tests with any listed tag are skipped.
+- Entries can be comma or whitespace separated (`quality,wandb` or `quality wandb`), and may include a leading `:`.
+- `:ad_backends` is always blacklisted by default.
+- If a tag appears in both lists, a warning is emitted and the blacklist takes precedence.
+
+Examples:
+
+```bash
+DRILL_TEST_TAG_WHITELIST=quality julia --project=. -e 'using Pkg; Pkg.test()'
+DRILL_TEST_TAG_BLACKLIST="quality,wandb" julia --project=. -e 'using Pkg; Pkg.test()'
+```
+
+Wandb tests use a shared CondaPkg environment by default (`@drill-wandb-tests`), so local
+runs reuse the same Conda/Python environment across sessions. For a project-local cache
+instead, set:
+
+```bash
+JULIA_CONDAPKG_ENV="$PWD/.condapkg/wandb" julia --project=. -e 'using Pkg; Pkg.test()'
+```
+
+Avoid using a path containing `.CondaPkg` for `JULIA_CONDAPKG_ENV`, since CondaPkg reserves
+that name for project-local environments.
+
 ## Quick Start Example
 
 Here's a complete example training a PPO agent on the CartPole environment:
