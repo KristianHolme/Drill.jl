@@ -144,6 +144,32 @@ function (alg::SAC)(::ContinuousActorCriticLayer, ps, st, batch_data)
     error("SAC algorithm object should not be called directly. Use specific loss functions instead.")
 end
 
+struct SACEntropyObjective end
+
+function (::SACEntropyObjective)(model, ps, st, data)
+    log_ent_coef = first(ps.log_ent_coef)
+    loss = -(log_ent_coef * data.c)
+    return loss, st, NamedTuple()
+end
+
+struct SACCriticObjective{A, R}
+    alg::A
+    rng::R
+end
+
+function (objective::SACCriticObjective)(model, ps, st, data)
+    return sac_critic_loss(objective.alg, model, ps, st, data; rng = objective.rng)
+end
+
+struct SACActorObjective{A, R}
+    alg::A
+    rng::R
+end
+
+function (objective::SACActorObjective)(model, ps, st, data)
+    return sac_actor_loss(objective.alg, model, ps, st, data; rng = objective.rng)
+end
+
 function Agent(
         layer::ContinuousActorCriticLayer,
         alg::SAC;
@@ -152,9 +178,11 @@ function Agent(
         stats_window::Int = 100,
         rng::AbstractRNG = Random.default_rng(),
         verbose::Int = 1,
-        device = nothing
+        device = cpu_device()
     )
     ps, st = Lux.setup(rng, layer)
+    ps = device(ps)
+    st = device(st)
     optimizer = make_optimizer(optimizer_type, alg)
     train_state = Lux.Training.TrainState(layer, ps, st, optimizer)
     Q_target_parameters = copy_critic_parameters(layer, ps)
@@ -162,6 +190,7 @@ function Agent(
 
     # Always initialize entropy coefficient train state
     ent_coef_params = init_entropy_coefficient(alg.ent_coef)
+    ent_coef_params = device(ent_coef_params)
     ent_optimizer = make_optimizer(optimizer_type, alg)
     ent_train_state = Lux.Training.TrainState(layer, ent_coef_params, NamedTuple(), ent_optimizer)
 
@@ -171,11 +200,8 @@ function Agent(
     logger = convert(AbstractTrainingLogger, logger)
     agent = Agent(
         layer, alg, adapter, train_state, optimizer_type, stats_window, logger, verbose, rng,
-        AgentStats(0, 0), aux
+        AgentStats(0, 0), aux, nothing
     )
-    if device !== nothing
-        return agent |> device
-    end
     return agent
 end
 
@@ -215,9 +241,19 @@ function predict_actions(
     train_state = agent.train_state
     layer = agent.layer
     ps = train_state.parameters
-    st = train_state.states
+    st = rollout_inference_state(train_state.states)
     batched_obs = batch(observations, observation_space(layer))
-    actions_batched, st = predict_actions(layer, batched_obs, ps, st; deterministic, rng)
+    dev = current_device(ps)
+    batched_obs = batched_obs |> dev
+    actions_batched, st = execute_rollout_predict_actions(
+        dev,
+        agent,
+        batched_obs,
+        ps,
+        st;
+        deterministic,
+        rng,
+    )
     actions = actions_batched isa AbstractVector ? collect(actions_batched) : collect(eachslice(actions_batched, dims = ndims(actions_batched)))
     @reset train_state.states = st
     agent.train_state = train_state
@@ -315,6 +351,9 @@ function update!(
     )
     layer = agent.layer
     train_state = agent.train_state
+    entropy_objective = SACEntropyObjective()
+    critic_objective = SACCriticObjective(alg, agent.rng)
+    actor_objective = SACActorObjective(alg, agent.rng)
     # Entropy coefficient update if enabled
     ent_loss = nothing
     if alg.ent_coef isa AutoEntropyCoefficient
@@ -333,11 +372,7 @@ function update!(
         ent_data = (; c)
         ent_grad, ent_loss_val, _, ent_train_state = Lux.Training.compute_gradients(
             ad_type,
-            (model, ps, st, data) -> begin
-                log_ent_coef = first(ps.log_ent_coef)
-                loss = -(log_ent_coef * data.c)
-                return loss, st, NamedTuple()
-            end,
+            entropy_objective,
             ent_data,
             ent_train_state
         )
@@ -369,7 +404,7 @@ function update!(
     )
     critic_grad, critic_loss, critic_stats, train_state = Lux.Training.compute_gradients(
         ad_type,
-        (model, ps, st, data) -> sac_critic_loss(alg, layer, ps, st, data; rng = agent.rng),
+        critic_objective,
         critic_data,
         train_state
     )
@@ -383,7 +418,7 @@ actor_data = (
 )
 actor_loss_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
     ad_type,
-    (model, ps, st, data) -> sac_actor_loss(alg, layer, ps, st, data; rng = agent.rng),
+    actor_objective,
     actor_data,
     train_state
 )
@@ -421,15 +456,22 @@ function load_policy_params_and_state!(
     file_path = endswith(path, suffix) ? path : path * suffix
     @info "Loading policy, parameters, and state from $file_path"
     data = load(file_path)
+    dev = get_device(agent.train_state.parameters)
     new_layer = data["layer"]
     new_parameters = data["parameters"]
     new_states = data["states"]
     new_aux = data["aux"]
+    if dev !== nothing
+        new_parameters = dev(new_parameters)
+        new_states = dev(new_states)
+        new_aux = Adapt.adapt(dev, new_aux)
+    end
     new_optimizer = make_optimizer(agent.optimizer_type, alg)
     new_train_state = Lux.Training.TrainState(new_layer, new_parameters, new_states, new_optimizer)
     agent.layer = new_layer
     agent.train_state = new_train_state
     agent.aux = new_aux
+    invalidate_cache!(agent)
     return agent
 end
 

@@ -1,11 +1,10 @@
 # Forward pass implementations for actor-critic layers
 
-function (layer::ContinuousActorCriticLayer)(obs::AbstractArray, ps, st)
+function (layer::ContinuousActorCriticLayer)(obs::AbstractArray, ps, st; rng::AbstractRNG = Random.default_rng())
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
     action_means, st = get_actions_from_features(layer, actor_feats, ps, st)
     values, st = get_values_from_features(layer, critic_feats, ps, st)
     d = _distribution_type(layer)
-    rng = Random.default_rng()
     actions = rand(rng, d, action_means, ps.log_std)
     log_probs = logpdf(d, actions, action_means, ps.log_std)
     return actions, vec(values), vec(log_probs), st
@@ -13,25 +12,24 @@ end
 
 function (layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCritic, <:Any, <:Any, <:Any, <:Any})(
         obs::AbstractArray,
-        actions::AbstractArray, ps, st
+        actions::AbstractArray, ps, st;
+        rng::AbstractRNG = Random.default_rng()
     ) where {N <: AbstractNoise}
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
     action_means, st = get_actions_from_features(layer, actor_feats, ps, st)
     values, st = get_values_from_features(layer, critic_feats, actions, ps, st)
     d = _distribution_type(layer)
-    rng = Random.default_rng()
     actions = rand(rng, d, action_means, ps.log_std)
     log_probs = logpdf(d, actions, action_means, ps.log_std)
     return actions, values, vec(log_probs), st
 end
 
-function (layer::DiscreteActorCriticLayer)(obs::AbstractArray, ps, st)
+function (layer::DiscreteActorCriticLayer)(obs::AbstractArray, ps, st; rng::AbstractRNG = Random.default_rng())
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
     action_logits, st = get_actions_from_features(layer, actor_feats, ps, st)
     values, st = get_values_from_features(layer, critic_feats, ps, st)
     probs = Lux.softmax(action_logits)
     d = BatchedCategorical()
-    rng = Random.default_rng()
     actions_onehot = rand(rng, d, probs)
     actions = onehotbatch_to_discrete(actions_onehot, action_space(layer))
     log_probs = logpdf(d, actions_onehot, probs)
@@ -74,7 +72,7 @@ end
 
 function get_actions_from_features(layer::AbstractActorCriticLayer, feats::AbstractArray, ps, st)
     # Use function barrier to isolate type instability
-    actions, actor_st = layer.actor_head(copy(feats), ps.actor_head, st.actor_head)
+    actions, actor_st = layer.actor_head(feats, ps.actor_head, st.actor_head)
     st = merge(st, (; actor_head = actor_st))
     return actions, st
 end

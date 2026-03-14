@@ -146,11 +146,13 @@ function Agent(
         verbose::Int = 1,
         logger = NoTrainingLogger(),
         rng::AbstractRNG = Random.default_rng(),
-        device = nothing
+        device = cpu_device()
     )
 
     optimizer = make_optimizer(optimizer_type, alg)
     ps, st = Lux.setup(rng, layer)
+    ps = device(ps)
+    st = device(st)
     train_state = Lux.Training.TrainState(layer, ps, st, optimizer)
     adapter = action_adapter(alg, action_space(layer))
 
@@ -158,11 +160,8 @@ function Agent(
     logger = convert(AbstractTrainingLogger, logger)
     agent = Agent(
         layer, alg, adapter, train_state, optimizer_type, stats_window,
-        logger, verbose, rng, AgentStats(0, 0), NoAux()
+        logger, verbose, rng, AgentStats(0, 0), NoAux(), nothing
     )
-    if device !== nothing
-        return agent |> device
-    end
     return agent
 end
 
@@ -188,13 +187,19 @@ function load_policy_params_and_state!(
     file_path = endswith(path, suffix) ? path : path * suffix
     @info "Loading policy, parameters, and state from $file_path"
     data = load(file_path)
+    dev = get_device(agent.train_state.parameters)
     new_layer = data["layer"]
     new_parameters = data["parameters"]
     new_states = data["states"]
+    if dev !== nothing
+        new_parameters = dev(new_parameters)
+        new_states = dev(new_states)
+    end
     new_optimizer = make_optimizer(agent.optimizer_type, alg)
     new_train_state = Lux.Training.TrainState(new_layer, new_parameters, new_states, new_optimizer)
     agent.layer = new_layer
     agent.train_state = new_train_state
+    invalidate_cache!(agent)
     return agent
 end
 
@@ -317,7 +322,7 @@ function train!(
 
                 if epoch == 1 && i_batch == 1
                     mean_ratio = stats.ratio
-                    isapprox(mean_ratio - one(mean_ratio), zero(mean_ratio), atol = eps(typeof(mean_ratio))) || @warn "ratios is not 1.0, iter $i, epoch $epoch, batch $i_batch, $mean_ratio"
+                    isapprox(mean_ratio - one(mean_ratio), zero(mean_ratio), atol = eps(T)) || @warn "ratios is not 1.0, iter $i, epoch $epoch, batch $i_batch, $mean_ratio"
                 end
                 @assert !nested_has_nan(grads) "gradient contains nan, iter $i, epoch $epoch, batch $i_batch"
                 @assert !nested_has_inf(grads) "gradient not finite, iter $i, epoch $epoch, batch $i_batch"
@@ -434,7 +439,7 @@ function train!(
     return learn_stats, to
 end
 
-function normalize(advantages::Vector{T}) where {T}
+function normalize(advantages::AbstractVector{T}) where {T}
     mean_adv = mean(advantages)
     std_adv = std(advantages)
     epsilon = T(1.0e-8)
@@ -442,7 +447,7 @@ function normalize(advantages::Vector{T}) where {T}
     return norm_advantages
 end
 
-function clip_range!(values::Vector{T}, old_values::Vector{T}, clip_range::T) where {T}
+function clip_range!(values, old_values, clip_range)
     for i in eachindex(values)
         diff = values[i] - old_values[i]
         clipped_diff = clamp(diff, -clip_range, clip_range)
@@ -451,13 +456,13 @@ function clip_range!(values::Vector{T}, old_values::Vector{T}, clip_range::T) wh
     return nothing
 end
 
-function clip_range(old_values::Vector{T}, values::Vector{T}, clip_range::T) where {T}
+function clip_range(old_values, values, clip_range)
     return old_values .+ clamp(values .- old_values, -clip_range, clip_range)
 end
 
 
 #TODO: vectorize this?
-function normalize!(values::Vector{T}) where {T}
+function normalize!(values::AbstractVector{T}) where {T}
     mean_values = mean(values)
     std_values = std(values)
     epsilon = T(1.0e-8)
@@ -465,11 +470,11 @@ function normalize!(values::Vector{T}) where {T}
     return nothing
 end
 
-function maybe_normalize!(advantages::Vector{T}, ::NormalizeAdvantages) where {T}
+function maybe_normalize!(advantages::AbstractVector{T}, ::NormalizeAdvantages) where {T}
     normalize!(advantages)
     return advantages
 end
-function maybe_normalize!(advantages::Vector{T}, ::RawAdvantages) where {T}
+function maybe_normalize!(advantages::AbstractVector{T}, ::RawAdvantages) where {T}
     return advantages
 end
 
@@ -485,25 +490,17 @@ function maybe_normalize_batch_data(batch_data, strategy::AbstractAdvantageStrat
     )
 end
 
-function maybe_clip_range(
-        old_values::Vector{T},
-        values::Vector{T},
-        ::NoClipVF{T},
-    ) where {T}
+function maybe_clip_range(old_values, values, ::NoClipVF)
     return values
 end
-function maybe_clip_range(
-        old_values::Vector{T},
-        values::Vector{T},
-        strategy::ClipVF{T},
-    ) where {T}
+function maybe_clip_range(old_values, values, strategy::ClipVF)
     return clip_range(old_values, values, strategy.value)
 end
 
 function (alg::PPO{T})(layer::AbstractActorCriticLayer, ps, st, batch_data) where {T}
     observations = batch_data[1]
     actions = batch_data[2]
-    advantages::Vector{T} = batch_data[3]
+    advantages = batch_data[3]
     returns = batch_data[4]
     old_logprobs = batch_data[5]
     old_values = batch_data[6]
