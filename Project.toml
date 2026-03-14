@@ -30,11 +30,13 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [weakdeps]
 DearDiary = "bcf306fc-d39d-4f25-b732-26abcc96baf2"
+Reactant = "3c362404-f566-11ee-1572-e11a4b42c853"
 TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 Wandb = "ad70616a-06c9-5745-b1f1-6a5f42545108"
 
 [extensions]
 Drill_DearDiaryExt = ["DearDiary"]
+Drill_ReactantExt = ["Reactant"]
 Drill_TensorBoardLoggerExt = ["TensorBoardLogger"]
 Drill_WandbExt = ["Wandb"]
 
@@ -59,6 +61,7 @@ Octavian = "0.3"
 Optimisers = "0.4"
 ProgressMeter = "1"
 Random = "1"
+Reactant = "0.2"
 Reexport = "1"
 Statistics = "1"
 StatsBase = "0.34"

@@ -26,7 +26,13 @@ function predict_actions(layer::DiscreteActorCriticLayer, obs::AbstractArray, ps
     return actions, st
 end
 
-function evaluate_actions(layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any, <:Any, <:Any}, obs::AbstractArray{T}, actions::AbstractArray{T}, ps, st) where {T <: Real}
+function evaluate_actions(
+        layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any, <:Any, <:Any},
+        obs::AbstractArray,
+        actions::AbstractArray,
+        ps,
+        st,
+    )
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
     new_action_means, st = get_actions_from_features(layer, actor_feats, ps, st)
     values, st = get_values_from_features(layer, critic_feats, ps, st)

@@ -4,8 +4,9 @@
 function Adapt.adapt_structure(to::MLDataDevices.AbstractDevice, agent::Agent)
     new_train_state = Adapt.adapt(to, agent.train_state)
     new_aux = Adapt.adapt(to, agent.aux)
-    agent = @set agent.train_state = new_train_state
-    agent = @set agent.aux = new_aux
+    agent.train_state = new_train_state
+    agent.aux = new_aux
+    agent.cache = nothing
     return agent
 end
 

@@ -24,13 +24,19 @@ function get_action_and_values(
     layer = agent.layer
     train_state = agent.train_state
     ps = train_state.parameters
-    st = train_state.states
+    st = rollout_inference_state(train_state.states)
     batched_obs = batch(observations, observation_space(layer))
-    dev = get_device(ps)
-    if dev !== nothing
-        batched_obs = batched_obs |> dev
-    end
-    actions_batched, values, logprobs, st = layer(batched_obs, ps, st)
+    dev = current_device(ps)
+    batched_obs = batched_obs |> dev
+    batched_obs = canonicalize_device_batch(dev, batched_obs)
+    actions_batched, values, logprobs, st = execute_rollout_action_values(
+        dev,
+        agent,
+        batched_obs,
+        ps,
+        st,
+        agent.rng,
+    )
     @reset train_state.states = st
     agent.train_state = train_state
     actions = _actions_to_vector(actions_batched)
@@ -57,14 +63,19 @@ function predict_values(
     layer = agent.layer
     train_state = agent.train_state
     ps = train_state.parameters
-    st = train_state.states
+    st = rollout_inference_state(train_state.states)
     # Convert observations vector to batched matrix for policy
     batched_obs = batch(observations, observation_space(layer))
-    dev = get_device(ps)
-    if dev !== nothing
-        batched_obs = batched_obs |> dev
-    end
-    values, st = predict_values(layer, batched_obs, ps, st)
+    dev = current_device(ps)
+    batched_obs = batched_obs |> dev
+    batched_obs = canonicalize_device_batch(dev, batched_obs)
+    values, st = execute_rollout_predict_values(
+        dev,
+        agent,
+        batched_obs,
+        ps,
+        st,
+    )
     @reset train_state.states = st
     agent.train_state = train_state
     return values
@@ -99,13 +110,20 @@ function predict_actions(
     layer = agent.layer
     train_state = agent.train_state
     ps = train_state.parameters
-    st = train_state.states
+    st = rollout_inference_state(train_state.states)
     batched_obs = batch(observations, observation_space(layer))
-    dev = get_device(ps)
-    if dev !== nothing
-        batched_obs = batched_obs |> dev
-    end
-    actions_batched, st = predict_actions(layer, batched_obs, ps, st; deterministic = deterministic, rng = rng)
+    dev = current_device(ps)
+    batched_obs = batched_obs |> dev
+    batched_obs = canonicalize_device_batch(dev, batched_obs)
+    actions_batched, st = execute_rollout_predict_actions(
+        dev,
+        agent,
+        batched_obs,
+        ps,
+        st;
+        deterministic,
+        rng,
+    )
     @reset train_state.states = st
     agent.train_state = train_state
     actions_vec = _actions_to_vector(actions_batched)
