@@ -8,14 +8,14 @@ using Random
     end
     TestScalingEnv() = TestScalingEnv(Random.Xoshiro(42))
 
-    Drill.observation_space(::TestScalingEnv) = Box(Float32[10.0, 20.0], Float32[50.0, 80.0])
-    Drill.action_space(::TestScalingEnv) = Box(Float32[2.0, -5.0], Float32[8.0, 15.0])
-    Drill.observe(env::TestScalingEnv) = Float32[30.0, 50.0]
-    Drill.terminated(::TestScalingEnv) = false
-    Drill.truncated(::TestScalingEnv) = false
-    Drill.act!(::TestScalingEnv, action) = 1.0f0
-    Drill.get_info(::TestScalingEnv) = Dict("test" => "info")
-    Drill.reset!(::TestScalingEnv) = nothing
+    DrillInterface.observation_space(::TestScalingEnv) = Box(Float32[10.0, 20.0], Float32[50.0, 80.0])
+    DrillInterface.action_space(::TestScalingEnv) = Box(Float32[2.0, -5.0], Float32[8.0, 15.0])
+    DrillInterface.observe(env::TestScalingEnv) = Float32[30.0, 50.0]
+    DrillInterface.terminated(::TestScalingEnv) = false
+    DrillInterface.truncated(::TestScalingEnv) = false
+    DrillInterface.act!(::TestScalingEnv, action) = 1.0f0
+    DrillInterface.get_info(::TestScalingEnv) = Dict("test" => "info")
+    DrillInterface.reset!(::TestScalingEnv) = nothing
 
     base_env = TestScalingEnv()
     scaled_env = ScalingWrapperEnv(base_env)
@@ -40,14 +40,14 @@ end
         obs_value::Vector{Float32}
     end
 
-    Drill.observation_space(::ObsTestEnv) = Box(Float32[0.0, -10.0, 5.0], Float32[10.0, 10.0, 25.0])
-    Drill.action_space(::ObsTestEnv) = Box(Float32[-1.0], Float32[1.0])
-    Drill.observe(env::ObsTestEnv) = env.obs_value
-    Drill.terminated(::ObsTestEnv) = false
-    Drill.truncated(::ObsTestEnv) = false
-    Drill.act!(::ObsTestEnv, action) = 0.0f0
-    Drill.get_info(::ObsTestEnv) = Dict()
-    Drill.reset!(::ObsTestEnv) = nothing
+    DrillInterface.observation_space(::ObsTestEnv) = Box(Float32[0.0, -10.0, 5.0], Float32[10.0, 10.0, 25.0])
+    DrillInterface.action_space(::ObsTestEnv) = Box(Float32[-1.0], Float32[1.0])
+    DrillInterface.observe(env::ObsTestEnv) = env.obs_value
+    DrillInterface.terminated(::ObsTestEnv) = false
+    DrillInterface.truncated(::ObsTestEnv) = false
+    DrillInterface.act!(::ObsTestEnv, action) = 0.0f0
+    DrillInterface.get_info(::ObsTestEnv) = Dict()
+    DrillInterface.reset!(::ObsTestEnv) = nothing
 
     base_env = ObsTestEnv(Float32[5.0, 0.0, 15.0])
     scaled_env = ScalingWrapperEnv(base_env)
@@ -72,17 +72,17 @@ end
     end
     ActionTestEnv() = ActionTestEnv(Float32[])
 
-    Drill.observation_space(::ActionTestEnv) = Box(Float32[-1.0], Float32[1.0])
-    Drill.action_space(::ActionTestEnv) = Box(Float32[2.0, -5.0, 0.0], Float32[8.0, 15.0, 10.0])
-    Drill.observe(::ActionTestEnv) = Float32[0.0]
-    Drill.terminated(::ActionTestEnv) = false
-    Drill.truncated(::ActionTestEnv) = false
-    function Drill.act!(env::ActionTestEnv, action)
+    DrillInterface.observation_space(::ActionTestEnv) = Box(Float32[-1.0], Float32[1.0])
+    DrillInterface.action_space(::ActionTestEnv) = Box(Float32[2.0, -5.0, 0.0], Float32[8.0, 15.0, 10.0])
+    DrillInterface.observe(::ActionTestEnv) = Float32[0.0]
+    DrillInterface.terminated(::ActionTestEnv) = false
+    DrillInterface.truncated(::ActionTestEnv) = false
+    function DrillInterface.act!(env::ActionTestEnv, action)
         env.last_action = copy(action)
         return 1.0f0
     end
-    Drill.get_info(::ActionTestEnv) = Dict()
-    Drill.reset!(::ActionTestEnv) = nothing
+    DrillInterface.get_info(::ActionTestEnv) = Dict()
+    DrillInterface.reset!(::ActionTestEnv) = nothing
 
     base_env = ActionTestEnv()
     scaled_env = ScalingWrapperEnv(base_env)
@@ -113,14 +113,14 @@ end
     end
     ForwardingTestEnv() = ForwardingTestEnv(false, false, Dict("key" => "value"), false)
 
-    Drill.observation_space(::ForwardingTestEnv) = Box(Float32[0.0], Float32[1.0])
-    Drill.action_space(::ForwardingTestEnv) = Box(Float32[0.0], Float32[1.0])
-    Drill.observe(::ForwardingTestEnv) = Float32[0.5]
-    Drill.terminated(env::ForwardingTestEnv) = env._terminated
-    Drill.truncated(env::ForwardingTestEnv) = env._truncated
-    Drill.act!(::ForwardingTestEnv, action) = 1.0f0
-    Drill.get_info(env::ForwardingTestEnv) = env._info
-    function Drill.reset!(env::ForwardingTestEnv)
+    DrillInterface.observation_space(::ForwardingTestEnv) = Box(Float32[0.0], Float32[1.0])
+    DrillInterface.action_space(::ForwardingTestEnv) = Box(Float32[0.0], Float32[1.0])
+    DrillInterface.observe(::ForwardingTestEnv) = Float32[0.5]
+    DrillInterface.terminated(env::ForwardingTestEnv) = env._terminated
+    DrillInterface.truncated(env::ForwardingTestEnv) = env._truncated
+    DrillInterface.act!(::ForwardingTestEnv, action) = 1.0f0
+    DrillInterface.get_info(env::ForwardingTestEnv) = env._info
+    function DrillInterface.reset!(env::ForwardingTestEnv)
         env.reset_called = true
         nothing
     end
@@ -147,14 +147,14 @@ end
 @testset "ScalingWrapperEnv edge cases" begin
     struct EdgeCaseEnv <: AbstractEnv end
 
-    Drill.observation_space(::EdgeCaseEnv) = Box(Float32[0.0, -1.0], Float32[0.0, -1.0])
-    Drill.action_space(::EdgeCaseEnv) = Box(Float32[5.0], Float32[5.0])
-    Drill.observe(::EdgeCaseEnv) = Float32[0.0, -1.0]
-    Drill.terminated(::EdgeCaseEnv) = false
-    Drill.truncated(::EdgeCaseEnv) = false
-    Drill.act!(::EdgeCaseEnv, action) = 0.0f0
-    Drill.get_info(::EdgeCaseEnv) = Dict()
-    Drill.reset!(::EdgeCaseEnv) = nothing
+    DrillInterface.observation_space(::EdgeCaseEnv) = Box(Float32[0.0, -1.0], Float32[0.0, -1.0])
+    DrillInterface.action_space(::EdgeCaseEnv) = Box(Float32[5.0], Float32[5.0])
+    DrillInterface.observe(::EdgeCaseEnv) = Float32[0.0, -1.0]
+    DrillInterface.terminated(::EdgeCaseEnv) = false
+    DrillInterface.truncated(::EdgeCaseEnv) = false
+    DrillInterface.act!(::EdgeCaseEnv, action) = 0.0f0
+    DrillInterface.get_info(::EdgeCaseEnv) = Dict()
+    DrillInterface.reset!(::EdgeCaseEnv) = nothing
 
     base_env = EdgeCaseEnv()
     scaled_env = ScalingWrapperEnv(base_env)
@@ -170,14 +170,14 @@ end
 @testset "ScalingWrapperEnv large ranges" begin
     struct LargeRangeEnv <: AbstractEnv end
 
-    Drill.observation_space(::LargeRangeEnv) = Box(Float32[-1000.0, -500.0], Float32[2000.0, 1500.0])
-    Drill.action_space(::LargeRangeEnv) = Box(Float32[-100.0], Float32[300.0])
-    Drill.observe(::LargeRangeEnv) = Float32[500.0, 500.0]
-    Drill.terminated(::LargeRangeEnv) = false
-    Drill.truncated(::LargeRangeEnv) = false
-    Drill.act!(::LargeRangeEnv, action) = action[1]
-    Drill.get_info(::LargeRangeEnv) = Dict()
-    Drill.reset!(::LargeRangeEnv) = nothing
+    DrillInterface.observation_space(::LargeRangeEnv) = Box(Float32[-1000.0, -500.0], Float32[2000.0, 1500.0])
+    DrillInterface.action_space(::LargeRangeEnv) = Box(Float32[-100.0], Float32[300.0])
+    DrillInterface.observe(::LargeRangeEnv) = Float32[500.0, 500.0]
+    DrillInterface.terminated(::LargeRangeEnv) = false
+    DrillInterface.truncated(::LargeRangeEnv) = false
+    DrillInterface.act!(::LargeRangeEnv, action) = action[1]
+    DrillInterface.get_info(::LargeRangeEnv) = Dict()
+    DrillInterface.reset!(::LargeRangeEnv) = nothing
 
     base_env = LargeRangeEnv()
     scaled_env = ScalingWrapperEnv(base_env)
@@ -197,17 +197,17 @@ end
     end
     MultiDimEnv() = MultiDimEnv(Float32[])
 
-    Drill.observation_space(::MultiDimEnv) = Box(Float32[0.0 5.0; 10.0 15.0; 20.0 25.0], Float32[4.0 9.0; 14.0 19.0; 24.0 29.0])
-    Drill.action_space(::MultiDimEnv) = Box(Float32[1.0 3.0; 2.0 4.0], Float32[2.0 6.0; 5.0 8.0])
-    Drill.observe(::MultiDimEnv) = Float32[2.0 7.0; 12.0 17.0; 22.0 27.0]
-    Drill.terminated(::MultiDimEnv) = false
-    Drill.truncated(::MultiDimEnv) = false
-    function Drill.act!(env::MultiDimEnv, action)
+    DrillInterface.observation_space(::MultiDimEnv) = Box(Float32[0.0 5.0; 10.0 15.0; 20.0 25.0], Float32[4.0 9.0; 14.0 19.0; 24.0 29.0])
+    DrillInterface.action_space(::MultiDimEnv) = Box(Float32[1.0 3.0; 2.0 4.0], Float32[2.0 6.0; 5.0 8.0])
+    DrillInterface.observe(::MultiDimEnv) = Float32[2.0 7.0; 12.0 17.0; 22.0 27.0]
+    DrillInterface.terminated(::MultiDimEnv) = false
+    DrillInterface.truncated(::MultiDimEnv) = false
+    function DrillInterface.act!(env::MultiDimEnv, action)
         env.last_action = copy(action)
         return 1.0f0
     end
-    Drill.get_info(::MultiDimEnv) = Dict()
-    Drill.reset!(::MultiDimEnv) = nothing
+    DrillInterface.get_info(::MultiDimEnv) = Dict()
+    DrillInterface.reset!(::MultiDimEnv) = nothing
 
     base_env = MultiDimEnv()
     scaled_env = ScalingWrapperEnv(base_env)
@@ -231,17 +231,17 @@ end
     end
     SeededTestEnv() = SeededTestEnv(Random.Xoshiro(1234), 0)
 
-    Drill.observation_space(::SeededTestEnv) = Box(Float32[0.0], Float32[10.0])
-    Drill.action_space(::SeededTestEnv) = Box(Float32[0.0], Float32[1.0])
-    function Drill.observe(env::SeededTestEnv)
+    DrillInterface.observation_space(::SeededTestEnv) = Box(Float32[0.0], Float32[10.0])
+    DrillInterface.action_space(::SeededTestEnv) = Box(Float32[0.0], Float32[1.0])
+    function DrillInterface.observe(env::SeededTestEnv)
         env.obs_counter += 1
         return Float32[rand(env.rng) * 10.0]
     end
-    Drill.terminated(::SeededTestEnv) = false
-    Drill.truncated(::SeededTestEnv) = false
-    Drill.act!(::SeededTestEnv, action) = 0.0f0
-    Drill.get_info(::SeededTestEnv) = Dict()
-    Drill.reset!(::SeededTestEnv) = nothing
+    DrillInterface.terminated(::SeededTestEnv) = false
+    DrillInterface.truncated(::SeededTestEnv) = false
+    DrillInterface.act!(::SeededTestEnv, action) = 0.0f0
+    DrillInterface.get_info(::SeededTestEnv) = Dict()
+    DrillInterface.reset!(::SeededTestEnv) = nothing
 
     base_env = SeededTestEnv()
     scaled_env = ScalingWrapperEnv(base_env)
@@ -272,18 +272,18 @@ end
     end
     IntegrationTestEnv() = IntegrationTestEnv(0.0f0, 0, 10, Random.Xoshiro(123))
 
-    Drill.observation_space(::IntegrationTestEnv) = Box(Float32[-5.0], Float32[15.0])
-    Drill.action_space(::IntegrationTestEnv) = Box(Float32[-2.0], Float32[2.0])
-    Drill.observe(env::IntegrationTestEnv) = Float32[env.state]
-    Drill.terminated(env::IntegrationTestEnv) = env.step_count >= env.max_steps
-    Drill.truncated(::IntegrationTestEnv) = false
-    function Drill.act!(env::IntegrationTestEnv, action)
+    DrillInterface.observation_space(::IntegrationTestEnv) = Box(Float32[-5.0], Float32[15.0])
+    DrillInterface.action_space(::IntegrationTestEnv) = Box(Float32[-2.0], Float32[2.0])
+    DrillInterface.observe(env::IntegrationTestEnv) = Float32[env.state]
+    DrillInterface.terminated(env::IntegrationTestEnv) = env.step_count >= env.max_steps
+    DrillInterface.truncated(::IntegrationTestEnv) = false
+    function DrillInterface.act!(env::IntegrationTestEnv, action)
         env.state = clamp(env.state + action[1], -5.0f0, 15.0f0)
         env.step_count += 1
         return Float32(10.0 - abs(env.state - 5.0))
     end
-    Drill.get_info(env::IntegrationTestEnv) = Dict("step" => env.step_count, "state" => env.state)
-    function Drill.reset!(env::IntegrationTestEnv)
+    DrillInterface.get_info(env::IntegrationTestEnv) = Dict("step" => env.step_count, "state" => env.state)
+    function DrillInterface.reset!(env::IntegrationTestEnv)
         env.state = 0.0f0
         env.step_count = 0
         nothing

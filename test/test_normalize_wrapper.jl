@@ -64,14 +64,14 @@ end
 
 @testset "NormalizeWrapperEnv dummy environment" begin
     struct DummyEnv <: AbstractEnv end
-    Drill.observation_space(::DummyEnv) = Box(Float32[50.0, 50.0, 50.0], Float32[60.0, 60.0, 60.0])
-    Drill.action_space(::DummyEnv) = Box(Float32[7.0], Float32[9.0])
-    Drill.observe(::DummyEnv) = rand(observation_space(DummyEnv()))
-    Drill.terminated(::DummyEnv) = false
-    Drill.truncated(::DummyEnv) = false
-    Drill.act!(::DummyEnv, action) = randn() * 20.0f0 + 1000.0f0
-    Drill.get_info(::DummyEnv) = Dict()
-    Drill.reset!(::DummyEnv) = nothing
+    DrillInterface.observation_space(::DummyEnv) = Box(Float32[50.0, 50.0, 50.0], Float32[60.0, 60.0, 60.0])
+    DrillInterface.action_space(::DummyEnv) = Box(Float32[7.0], Float32[9.0])
+    DrillInterface.observe(::DummyEnv) = rand(observation_space(DummyEnv()))
+    DrillInterface.terminated(::DummyEnv) = false
+    DrillInterface.truncated(::DummyEnv) = false
+    DrillInterface.act!(::DummyEnv, action) = randn() * 20.0f0 + 1000.0f0
+    DrillInterface.get_info(::DummyEnv) = Dict()
+    DrillInterface.reset!(::DummyEnv) = nothing
 
     base_env = MultiThreadedParallelEnv([DummyEnv() for _ in 1:4])
 
@@ -88,14 +88,14 @@ end
 
 @testset "NormalizeWrapperEnv configuration options" begin
     struct DummyEnv2 <: AbstractEnv end
-    Drill.observation_space(::DummyEnv2) = Box(Float32[0.0, 0.0], Float32[1.0, 1.0])
-    Drill.action_space(::DummyEnv2) = Box(Float32[-1.0], Float32[1.0])
-    Drill.observe(::DummyEnv2) = rand(observation_space(DummyEnv2()))
-    Drill.terminated(::DummyEnv2) = false
-    Drill.truncated(::DummyEnv2) = false
-    Drill.act!(::DummyEnv2, action) = 5.0f0
-    Drill.get_info(::DummyEnv2) = Dict()
-    Drill.reset!(::DummyEnv2) = nothing
+    DrillInterface.observation_space(::DummyEnv2) = Box(Float32[0.0, 0.0], Float32[1.0, 1.0])
+    DrillInterface.action_space(::DummyEnv2) = Box(Float32[-1.0], Float32[1.0])
+    DrillInterface.observe(::DummyEnv2) = rand(observation_space(DummyEnv2()))
+    DrillInterface.terminated(::DummyEnv2) = false
+    DrillInterface.truncated(::DummyEnv2) = false
+    DrillInterface.act!(::DummyEnv2, action) = 5.0f0
+    DrillInterface.get_info(::DummyEnv2) = Dict()
+    DrillInterface.reset!(::DummyEnv2) = nothing
 
     base_env = MultiThreadedParallelEnv([DummyEnv2() for _ in 1:2])
 
@@ -130,17 +130,17 @@ end
     end
     DetEnv() = DetEnv([Float32[50, 55, 60], Float32[51, 56, 61], Float32[52, 57, 62]], 0)
 
-    Drill.observation_space(::DetEnv) = Box(Float32[40.0, 40.0, 40.0], Float32[70.0, 70.0, 70.0])
-    Drill.action_space(::DetEnv) = Box(Float32[-1.0], Float32[1.0])
-    Drill.observe(env::DetEnv) = env.obs_values[min(env.step_count + 1, length(env.obs_values))]
-    Drill.terminated(::DetEnv) = false
-    Drill.truncated(::DetEnv) = false
-    function Drill.act!(env::DetEnv, action)
+    DrillInterface.observation_space(::DetEnv) = Box(Float32[40.0, 40.0, 40.0], Float32[70.0, 70.0, 70.0])
+    DrillInterface.action_space(::DetEnv) = Box(Float32[-1.0], Float32[1.0])
+    DrillInterface.observe(env::DetEnv) = env.obs_values[min(env.step_count + 1, length(env.obs_values))]
+    DrillInterface.terminated(::DetEnv) = false
+    DrillInterface.truncated(::DetEnv) = false
+    function DrillInterface.act!(env::DetEnv, action)
         env.step_count += 1
         return 0.0f0
     end
-    Drill.get_info(::DetEnv) = Dict()
-    function Drill.reset!(env::DetEnv)
+    DrillInterface.get_info(::DetEnv) = Dict()
+    function DrillInterface.reset!(env::DetEnv)
         env.step_count = 0
         nothing
     end
@@ -175,17 +175,17 @@ end
     end
     HighVarRewardEnv() = HighVarRewardEnv(Float32[1000, 2000, 500, 1500], 0)
 
-    Drill.observation_space(::HighVarRewardEnv) = Box(Float32[0.0], Float32[1.0])
-    Drill.action_space(::HighVarRewardEnv) = Box(Float32[-1.0], Float32[1.0])
-    Drill.observe(::HighVarRewardEnv) = Float32[0.5]
-    Drill.terminated(::HighVarRewardEnv) = false
-    Drill.truncated(::HighVarRewardEnv) = false
-    function Drill.act!(env::HighVarRewardEnv, action)
+    DrillInterface.observation_space(::HighVarRewardEnv) = Box(Float32[0.0], Float32[1.0])
+    DrillInterface.action_space(::HighVarRewardEnv) = Box(Float32[-1.0], Float32[1.0])
+    DrillInterface.observe(::HighVarRewardEnv) = Float32[0.5]
+    DrillInterface.terminated(::HighVarRewardEnv) = false
+    DrillInterface.truncated(::HighVarRewardEnv) = false
+    function DrillInterface.act!(env::HighVarRewardEnv, action)
         env.step_count = (env.step_count % length(env.reward_values)) + 1
         return env.reward_values[env.step_count]
     end
-    Drill.get_info(::HighVarRewardEnv) = Dict()
-    Drill.reset!(env::HighVarRewardEnv) = (env.step_count = 0; nothing)
+    DrillInterface.get_info(::HighVarRewardEnv) = Dict()
+    DrillInterface.reset!(env::HighVarRewardEnv) = (env.step_count = 0; nothing)
 
     base_env = MultiThreadedParallelEnv([HighVarRewardEnv() for _ in 1:2])
     norm_env = NormalizeWrapperEnv(base_env; training = true, norm_obs = false, norm_reward = true)
@@ -217,14 +217,14 @@ end
 
 @testset "NormalizeWrapperEnv clipping behavior" begin
     struct ExtremeObsEnv <: AbstractEnv end
-    Drill.observation_space(::ExtremeObsEnv) = Box(Float32[-1000.0, -1000.0], Float32[1000.0, 1000.0])
-    Drill.action_space(::ExtremeObsEnv) = Box(Float32[-1.0], Float32[1.0])
-    Drill.observe(::ExtremeObsEnv) = Float32[1000.0, -1000.0]
-    Drill.terminated(::ExtremeObsEnv) = false
-    Drill.truncated(::ExtremeObsEnv) = false
-    Drill.act!(::ExtremeObsEnv, action) = 0.0f0
-    Drill.get_info(::ExtremeObsEnv) = Dict()
-    Drill.reset!(::ExtremeObsEnv) = nothing
+    DrillInterface.observation_space(::ExtremeObsEnv) = Box(Float32[-1000.0, -1000.0], Float32[1000.0, 1000.0])
+    DrillInterface.action_space(::ExtremeObsEnv) = Box(Float32[-1.0], Float32[1.0])
+    DrillInterface.observe(::ExtremeObsEnv) = Float32[1000.0, -1000.0]
+    DrillInterface.terminated(::ExtremeObsEnv) = false
+    DrillInterface.truncated(::ExtremeObsEnv) = false
+    DrillInterface.act!(::ExtremeObsEnv, action) = 0.0f0
+    DrillInterface.get_info(::ExtremeObsEnv) = Dict()
+    DrillInterface.reset!(::ExtremeObsEnv) = nothing
 
     base_env = MultiThreadedParallelEnv([ExtremeObsEnv() for _ in 1:1])
 
@@ -247,17 +247,17 @@ end
     end
     SimpleEnv() = SimpleEnv(1.0f0)
 
-    Drill.observation_space(::SimpleEnv) = Box(Float32[0.0], Float32[10.0])
-    Drill.action_space(::SimpleEnv) = Box(Float32[-1.0], Float32[1.0])
-    Drill.observe(env::SimpleEnv) = Float32[env.value]
-    Drill.terminated(::SimpleEnv) = false
-    Drill.truncated(::SimpleEnv) = false
-    function Drill.act!(env::SimpleEnv, action)
+    DrillInterface.observation_space(::SimpleEnv) = Box(Float32[0.0], Float32[10.0])
+    DrillInterface.action_space(::SimpleEnv) = Box(Float32[-1.0], Float32[1.0])
+    DrillInterface.observe(env::SimpleEnv) = Float32[env.value]
+    DrillInterface.terminated(::SimpleEnv) = false
+    DrillInterface.truncated(::SimpleEnv) = false
+    function DrillInterface.act!(env::SimpleEnv, action)
         env.value += 1.0f0
         return env.value
     end
-    Drill.get_info(::SimpleEnv) = Dict()
-    Drill.reset!(env::SimpleEnv) = (env.value = 1.0f0; nothing)
+    DrillInterface.get_info(::SimpleEnv) = Dict()
+    DrillInterface.reset!(env::SimpleEnv) = (env.value = 1.0f0; nothing)
 
     base_env = MultiThreadedParallelEnv([SimpleEnv() for _ in 1:2])
     norm_env = NormalizeWrapperEnv(base_env; training = true)
@@ -287,17 +287,17 @@ end
     end
     TerminalEnv(max_steps = 3) = TerminalEnv(0, max_steps)
 
-    Drill.observation_space(::TerminalEnv) = Box(Float32[0.0], Float32[10.0])
-    Drill.action_space(::TerminalEnv) = Box(Float32[-1.0], Float32[1.0])
-    Drill.observe(env::TerminalEnv) = Float32[env.steps]
-    Drill.terminated(env::TerminalEnv) = env.steps >= env.max_steps
-    Drill.truncated(::TerminalEnv) = false
-    function Drill.act!(env::TerminalEnv, action)
+    DrillInterface.observation_space(::TerminalEnv) = Box(Float32[0.0], Float32[10.0])
+    DrillInterface.action_space(::TerminalEnv) = Box(Float32[-1.0], Float32[1.0])
+    DrillInterface.observe(env::TerminalEnv) = Float32[env.steps]
+    DrillInterface.terminated(env::TerminalEnv) = env.steps >= env.max_steps
+    DrillInterface.truncated(::TerminalEnv) = false
+    function DrillInterface.act!(env::TerminalEnv, action)
         env.steps += 1
         return Float32(env.steps)
     end
-    Drill.get_info(::TerminalEnv) = Dict{String, Any}()
-    function Drill.reset!(env::TerminalEnv)
+    DrillInterface.get_info(::TerminalEnv) = Dict{String, Any}()
+    function DrillInterface.reset!(env::TerminalEnv)
         env.steps = 0
         nothing
     end
@@ -331,14 +331,14 @@ end
     struct SimpleTestEnv <: AbstractEnv
         rng::Random.AbstractRNG
     end
-    Drill.observation_space(::SimpleTestEnv) = Box(Float32[0.0, 0.0], Float32[1.0, 1.0])
-    Drill.action_space(::SimpleTestEnv) = Box(Float32[-1.0], Float32[1.0])
-    Drill.observe(env::SimpleTestEnv) = rand(env.rng, Float32, 2)
-    Drill.terminated(::SimpleTestEnv) = false
-    Drill.truncated(::SimpleTestEnv) = false
-    Drill.act!(env::SimpleTestEnv, action) = rand(env.rng, Float32)
-    Drill.get_info(::SimpleTestEnv) = Dict()
-    Drill.reset!(::SimpleTestEnv) = nothing
+    DrillInterface.observation_space(::SimpleTestEnv) = Box(Float32[0.0, 0.0], Float32[1.0, 1.0])
+    DrillInterface.action_space(::SimpleTestEnv) = Box(Float32[-1.0], Float32[1.0])
+    DrillInterface.observe(env::SimpleTestEnv) = rand(env.rng, Float32, 2)
+    DrillInterface.terminated(::SimpleTestEnv) = false
+    DrillInterface.truncated(::SimpleTestEnv) = false
+    DrillInterface.act!(env::SimpleTestEnv, action) = rand(env.rng, Float32)
+    DrillInterface.get_info(::SimpleTestEnv) = Dict()
+    DrillInterface.reset!(::SimpleTestEnv) = nothing
 
     base_env = MultiThreadedParallelEnv([SimpleTestEnv(Random.MersenneTwister(i)) for i in 1:3])
     norm_env = NormalizeWrapperEnv(base_env)

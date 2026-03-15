@@ -120,7 +120,7 @@ print_timer(to)
 
 ### Custom Environments
 
-Implement the Drill environment interface:
+When implementing an environment, depend on **DrillInterface**; add **Drill** when you need training, wrappers, or `check_env`. Implement the Drill environment interface:
 
 ```julia
 struct MyEnv <: AbstractEnv
@@ -128,13 +128,13 @@ struct MyEnv <: AbstractEnv
 end
 
 # Required methods
-Drill.reset!(env::MyEnv) = # Reset environment
-Drill.act!(env::MyEnv, action) = # Take action, return reward  
-Drill.observe(env::MyEnv) = # Return current observation
-Drill.terminated(env::MyEnv) = # Check if episode is done
-Drill.truncated(env::MyEnv) = # Check if episode is truncated
-Drill.action_space(env::MyEnv) = # Return action space
-Drill.observation_space(env::MyEnv) = # Return observation space
+DrillInterface.reset!(env::MyEnv) = # Reset environment
+DrillInterface.act!(env::MyEnv, action) = # Take action, return reward  
+DrillInterface.observe(env::MyEnv) = # Return current observation
+DrillInterface.terminated(env::MyEnv) = # Check if episode is done
+DrillInterface.truncated(env::MyEnv) = # Check if episode is truncated
+DrillInterface.action_space(env::MyEnv) = # Return action space
+DrillInterface.observation_space(env::MyEnv) = # Return observation space
 ```
 
 ### Environment Wrappers

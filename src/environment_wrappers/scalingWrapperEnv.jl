@@ -47,7 +47,7 @@ function ScalingWrapperEnv(env::E, original_obs_space::Box, original_act_space::
     )
 end
 #TODO:document/fix unwrap
-Drill.unwrap(env::ScalingWrapperEnv) = env.env
+DrillInterface.unwrap(env::ScalingWrapperEnv) = env.env
 
 function observation_space(env::ScalingWrapperEnv)
     return env.observation_space
