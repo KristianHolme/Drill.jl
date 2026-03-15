@@ -438,7 +438,7 @@ export AbstractPolicy, RandomPolicy, ConstantPolicy
 """
     AbstractPolicy
 
-Abstract type for deployment policies. Subtypes are callable with signature:
+Abstract type for policies. Subtypes are callable with signature:
 
     (policy::AbstractPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = Random.default_rng())
 
