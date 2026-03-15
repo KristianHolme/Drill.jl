@@ -239,7 +239,7 @@ end
     space_0 = Discrete(5, 0)
     alg = PPO()
 
-    @test all(process_action.(0:4, space_0, alg) .== 0:4)
+    @test all(process_action.(0:4, Ref(space_0), Ref(alg)) .== 0:4)
 
     @test process_action(0, space_0, alg) == 0
     @test_throws AssertionError process_action(10, space_0, alg)
