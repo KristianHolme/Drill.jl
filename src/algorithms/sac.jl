@@ -80,71 +80,58 @@ function SACLayer(
     )
 end
 
-#TODO: not needed anymore
-function sac_ent_coef_loss(
-        ::SAC,
-        layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic}, ps, st, data;
-        rng::AbstractRNG = Random.default_rng()
-    )
-    log_ent_coef = first(ps.log_ent_coef)
-    layer_ps = data.layer_ps
-    layer_st = data.layer_st
-    _, log_probs_pi, layer_st = action_log_prob(layer, data.observations, layer_ps, layer_st; rng)
-    target_entropy = data.target_entropy
-    loss = -(log_ent_coef * @ignore_derivatives(log_probs_pi .+ target_entropy |> mean))
-    return loss, st, NamedTuple()
-end
 
 function sac_actor_loss(
         ::SAC, layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic},
         ps, st, data; rng::AbstractRNG = Random.default_rng()
     )
-    obs = data.observations
-    ent_coef = exp(first(data.log_ent_coef.log_ent_coef))
-    actions_pi, log_probs_pi, st = action_log_prob(layer, obs, ps, st; rng)
-    q_values, st = predict_values(layer, obs, actions_pi, ps, st)
+    ent_coef = data.ent_coef
+    actions_pi, log_probs_pi, st = action_log_prob(layer, data.observations, ps, st; rng)
+    q_values, st = predict_values(layer, data.observations, actions_pi, ps, st)
     min_q_values = minimum(q_values, dims = 1) |> vec
     loss = mean(ent_coef .* log_probs_pi - min_q_values)
     return loss, st, NamedTuple()
+end
+
+function compute_target_q_values(
+        alg::SAC,
+        layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic},
+        ps,
+        st,
+        data;
+        rng::AbstractRNG = Random.default_rng()
+    )
+    next_obs = data.next_observations
+    ent_coef = exp(first(data.log_ent_coef.log_ent_coef))
+
+    next_actions, next_log_probs, st = action_log_prob(layer, next_obs, ps, st; rng)
+    ps_with_target = merge_params(ps, data.target_ps)
+    st_with_target = merge(st, data.target_st)
+    next_q_vals, _ = predict_values(layer, next_obs, next_actions, ps_with_target, st_with_target)
+    min_next_q = vec(minimum(next_q_vals, dims = 1))
+
+    T = eltype(min_next_q)
+    mask = T.(.!data.terminated)
+    next_q_vals_with_entropy = min_next_q .- ent_coef .* next_log_probs
+    target_q_values = data.rewards .+ alg.gamma .* mask .* next_q_vals_with_entropy
+    return target_q_values
 end
 
 function sac_critic_loss(
         alg::SAC, layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic}, ps, st, data;
         rng::AbstractRNG = Random.default_rng()
     )
-    obs, actions, rewards, terminated, _, next_obs = data.observations, data.actions, data.rewards, data.terminated, data.truncated, data.next_observations
-    gamma = alg.gamma
-    ent_coef = exp(first(data.log_ent_coef.log_ent_coef))
-    target_ps = data.target_ps
-    target_st = data.target_st
+    obs = data.observations
+    actions = data.actions
+    target_q_values = data.target_q_values
 
     # Current Q-values
     current_q_values, new_st = predict_values(layer, obs, actions, ps, st)
 
-    # Target Q-values (no gradients)
-    obs_dims = ndims(obs)
-    next_obs = selectdim(next_obs, obs_dims, .!terminated)
-    @assert !any(isnan, next_obs) "Next observations contain NaNs"
-    target_q_values = @ignore_derivatives begin
-        next_actions, next_log_probs, st = action_log_prob(layer, next_obs, ps, st; rng)
-        #replace critic ps and st with target
-        ps_with_target = merge_params(ps, target_ps)
-        st_with_target = merge(st, target_st)
-        next_q_vals, _ = predict_values(layer, next_obs, next_actions, ps_with_target, st_with_target)
-        min_next_q = minimum(next_q_vals, dims = 1) |> vec
-
-        # Add entropy term
-        next_q_vals_with_entropy = min_next_q .- ent_coef .* next_log_probs
-        target_q_vals = copy(rewards)
-        # Bellman target
-        target_q_vals[.!terminated] .+= gamma .* next_q_vals_with_entropy
-        target_q_vals
-    end
-
     # Critic loss (sum over all Q-networks)
     T = eltype(current_q_values)
-    #TODO: type stability here?
-    critic_loss = T(0.5) * sum(mean((current_q .- target_q_values) .^ 2) for current_q in eachrow(current_q_values))
+    δ = current_q_values .- reshape(target_q_values, 1, :)
+    critic_loss = T(0.5) * sum(mean(abs2, δ; dims = 2))
 
     stats = (mean_q_values = mean(current_q_values),)
     return critic_loss, new_st, stats
@@ -157,6 +144,32 @@ function (alg::SAC)(::ContinuousActorCriticLayer, ps, st, batch_data)
     error("SAC algorithm object should not be called directly. Use specific loss functions instead.")
 end
 
+struct SACEntropyObjective end
+
+function (::SACEntropyObjective)(model, ps, st, data)
+    log_ent_coef = first(ps.log_ent_coef)
+    loss = -(log_ent_coef * data.c)
+    return loss, st, NamedTuple()
+end
+
+struct SACCriticObjective{A, R}
+    alg::A
+    rng::R
+end
+
+function (objective::SACCriticObjective)(model, ps, st, data)
+    return sac_critic_loss(objective.alg, model, ps, st, data; rng = objective.rng)
+end
+
+struct SACActorObjective{A, R}
+    alg::A
+    rng::R
+end
+
+function (objective::SACActorObjective)(model, ps, st, data)
+    return sac_actor_loss(objective.alg, model, ps, st, data; rng = objective.rng)
+end
+
 function Agent(
         layer::ContinuousActorCriticLayer,
         alg::SAC;
@@ -164,9 +177,12 @@ function Agent(
         logger = NoTrainingLogger(),
         stats_window::Int = 100,
         rng::AbstractRNG = Random.default_rng(),
-        verbose::Int = 1
+        verbose::Int = 1,
+        device = cpu_device()
     )
     ps, st = Lux.setup(rng, layer)
+    ps = device(ps)
+    st = device(st)
     optimizer = make_optimizer(optimizer_type, alg)
     train_state = Lux.Training.TrainState(layer, ps, st, optimizer)
     Q_target_parameters = copy_critic_parameters(layer, ps)
@@ -174,6 +190,7 @@ function Agent(
 
     # Always initialize entropy coefficient train state
     ent_coef_params = init_entropy_coefficient(alg.ent_coef)
+    ent_coef_params = device(ent_coef_params)
     ent_optimizer = make_optimizer(optimizer_type, alg)
     ent_train_state = Lux.Training.TrainState(layer, ent_coef_params, NamedTuple(), ent_optimizer)
 
@@ -181,10 +198,11 @@ function Agent(
     aux = QAux(Q_target_parameters, Q_target_states, ent_train_state)
 
     logger = convert(AbstractTrainingLogger, logger)
-    return Agent(
+    agent = Agent(
         layer, alg, adapter, train_state, optimizer_type, stats_window, logger, verbose, rng,
-        AgentStats(0, 0), aux
+        AgentStats(0, 0), aux, nothing
     )
+    return agent
 end
 
 
@@ -223,9 +241,20 @@ function predict_actions(
     train_state = agent.train_state
     layer = agent.layer
     ps = train_state.parameters
-    st = train_state.states
+    st = rollout_inference_state(train_state.states)
     batched_obs = batch(observations, observation_space(layer))
-    actions, st = predict_actions(layer, batched_obs, ps, st; deterministic, rng)
+    dev = current_device(ps)
+    batched_obs = batched_obs |> dev
+    actions_batched, st = execute_rollout_predict_actions(
+        dev,
+        agent,
+        batched_obs,
+        ps,
+        st;
+        deterministic,
+        rng,
+    )
+    actions = actions_batched isa AbstractVector ? collect(actions_batched) : collect(eachslice(actions_batched, dims = ndims(actions_batched)))
     @reset train_state.states = st
     agent.train_state = train_state
     if raw
@@ -322,6 +351,9 @@ function update!(
     )
     layer = agent.layer
     train_state = agent.train_state
+    entropy_objective = SACEntropyObjective()
+    critic_objective = SACCriticObjective(alg, agent.rng)
+    actor_objective = SACActorObjective(alg, agent.rng)
     # Entropy coefficient update if enabled
     ent_loss = nothing
     if alg.ent_coef isa AutoEntropyCoefficient
@@ -340,11 +372,7 @@ function update!(
         ent_data = (; c)
         ent_grad, ent_loss_val, _, ent_train_state = Lux.Training.compute_gradients(
             ad_type,
-            (model, ps, st, data) -> begin
-                log_ent_coef = first(ps.log_ent_coef)
-                loss = -(log_ent_coef * data.c)
-                return loss, st, NamedTuple()
-            end,
+            entropy_objective,
             ent_data,
             ent_train_state
         )
@@ -354,41 +382,46 @@ function update!(
     end
 
     # Critic update
+    target_q_values = compute_target_q_values(
+        alg,
+        layer,
+        train_state.parameters,
+        train_state.states,
+        (
+            next_observations = batch_data.next_observations,
+            terminated = batch_data.terminated,
+            log_ent_coef = agent.aux.ent_train_state.parameters,
+            rewards = batch_data.rewards,
+            target_ps = agent.aux.Q_target_parameters,
+            target_st = agent.aux.Q_target_states,
+        );
+        rng = agent.rng,
+    )
     critic_data = (
         observations = batch_data.observations,
         actions = batch_data.actions,
-        rewards = batch_data.rewards,
-        terminated = batch_data.terminated,
-        truncated = batch_data.truncated,
-        next_observations = batch_data.next_observations,
-        log_ent_coef = agent.aux.ent_train_state.parameters,
-        target_ps = agent.aux.Q_target_parameters,
-        target_st = agent.aux.Q_target_states,
+        target_q_values = target_q_values,
     )
     critic_grad, critic_loss, critic_stats, train_state = Lux.Training.compute_gradients(
         ad_type,
-        (model, ps, st, data) -> sac_critic_loss(alg, layer, ps, st, data; rng = agent.rng),
+        critic_objective,
         critic_data,
         train_state
     )
     train_state = Lux.Training.apply_gradients(train_state, critic_grad)
 
-    # Actor update
-    actor_data = (
-        observations = batch_data.observations,
-        actions = batch_data.actions,
-        rewards = batch_data.rewards,
-        terminated = batch_data.terminated,
-        truncated = batch_data.truncated,
-        next_observations = batch_data.next_observations,
-        log_ent_coef = agent.aux.ent_train_state.parameters,
-    )
-    actor_loss_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
-        ad_type,
-        (model, ps, st, data) -> sac_actor_loss(alg, layer, ps, st, data; rng = agent.rng),
-        actor_data,
-        train_state
-    )
+# Actor update
+ent_coef = Float32(exp(first(agent.aux.ent_train_state.parameters.log_ent_coef)))
+actor_data = (
+    observations = batch_data.observations,
+    ent_coef = ent_coef,
+)
+actor_loss_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
+    ad_type,
+    actor_objective,
+    actor_data,
+    train_state
+)
     zero_critic_grads!(actor_loss_grad, layer)
     train_state = Lux.Training.apply_gradients(train_state, actor_loss_grad)
 
@@ -412,6 +445,34 @@ function update!(
         entropy_coefficient = current_ent_coef,
         grad_norm = total_grad_norm,
     )
+end
+
+function load_layer_params_and_state!(
+        agent::Agent{<:ContinuousActorCriticLayer, <:SAC, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:QAux},
+        alg::SAC,
+        path::AbstractString;
+        suffix::String = ".jld2"
+    )
+    file_path = endswith(path, suffix) ? path : path * suffix
+    @info "Loading policy, parameters, and state from $file_path"
+    data = load(file_path)
+    dev = get_device(agent.train_state.parameters)
+    new_layer = data["layer"]
+    new_parameters = data["parameters"]
+    new_states = data["states"]
+    new_aux = data["aux"]
+    if dev !== nothing
+        new_parameters = dev(new_parameters)
+        new_states = dev(new_states)
+        new_aux = Adapt.adapt(dev, new_aux)
+    end
+    new_optimizer = make_optimizer(agent.optimizer_type, alg)
+    new_train_state = Lux.Training.TrainState(new_layer, new_parameters, new_states, new_optimizer)
+    agent.layer = new_layer
+    agent.train_state = new_train_state
+    agent.aux = new_aux
+    invalidate_cache!(agent)
+    return agent
 end
 
 function train!(
@@ -522,8 +583,10 @@ function train!(
         # Perform gradient updates
         n_updates = get_gradient_steps(alg, alg.train_freq, n_envs)
         data_loader = get_data_loader(replay_buffer, alg.batch_size, n_updates, true, true, agent.rng)
+        dev = get_device(agent.train_state.parameters)
+        data_iter = dev !== nothing ? dev(data_loader) : data_loader
 
-        @timeit to "gradient_updates" for (i, batch_data) in enumerate(data_loader)
+        @timeit to "gradient_updates" for (i, batch_data) in enumerate(data_iter)
             stats_step = update!(agent, alg, batch_data; ad_type)
             if stats_step.entropy_loss !== nothing
                 push!(training_stats.entropy_losses, stats_step.entropy_loss)

@@ -1,9 +1,13 @@
-@testitem "DiagGaussian vs Distributions.MvNormal" begin
-    using Random
-    using Distributions
-    using LinearAlgebra
-    using Drill.DrillDistributions
+using Test
+using Drill
+using Random
+using Distributions
+using LinearAlgebra
+include("setup.jl")
+using .TestSetup
 
+@testset "DiagGaussian vs Distributions.MvNormal" begin
+    using Drill.DrillDistributions
 
     shapes = [(1,), (1, 1), (2,), (2, 3), (2, 3, 1), (2, 3, 4)]
     for shape in shapes
@@ -35,11 +39,9 @@
         end
         @test all(same_outputs)
     end
-
 end
 
-@testitem "SquashedDiagGaussian epsilon keyword types" begin
-    using Random
+@testset "SquashedDiagGaussian epsilon keyword types" begin
     using Drill.DrillDistributions
 
     make_triplet(::Type{T}) where {T <: AbstractFloat} = (rand(T, 2, 3), rand(T, 2, 3), rand(T, 2, 3))
@@ -53,11 +55,9 @@ end
         true
     end
 
-    # matching types should succeed and preserve type
     @test check_ok_with_eps(Float32)
     @test check_ok_with_eps(Float64)
 
-    # mismatched epsilon type should fail
     mean32, logstd32, _ = make_triplet(Float32)
     mean64, logstd64, _ = make_triplet(Float64)
     @test_throws MethodError SquashedDiagGaussian(mean32, logstd32, Float64(1.0e-6))
@@ -65,9 +65,7 @@ end
     @test_throws MethodError SquashedDiagGaussian(mean64, logstd64, Float16(1.0e-6))
 end
 
-
-@testitem "SquashedDiagGaussian constructor and logpdf types" begin
-    using Random
+@testset "SquashedDiagGaussian constructor and logpdf types" begin
     using Drill.DrillDistributions
 
     make_triplet(::Type{T}) where {T <: AbstractFloat} = (rand(T, 2, 3), rand(T, 2, 3), rand(T, 2, 3))
@@ -80,36 +78,34 @@ end
         true
     end
 
-    # same-type constructions should work and logpdf should return matching type
     @test check_ok_and_type(Float32)
     @test check_ok_and_type(Float64)
 
-    # mixed-type constructions should fail
     mean32, logstd32, _ = make_triplet(Float32)
     mean64, logstd64, _ = make_triplet(Float64)
     @test_throws MethodError SquashedDiagGaussian(mean32, logstd64)
     @test_throws MethodError SquashedDiagGaussian(mean64, logstd32)
 end
 
-@testitem "Categorical vs Distributions.Categorical" begin
-    using Random
-    using Distributions
-
+@testset "Categorical vs Distributions.Categorical" begin
     same_outputs = Bool[]
 
     for N in [3, 8], i in 1:100
         p = rand(Float32, N)
         p = p ./ sum(p)
 
-        d = DrillDistributions.Categorical(p)
+        d = Drill.DrillDistributions.BatchedCategorical()
 
         dist_d = Distributions.Categorical(p)
 
-        custom_logpdf = DrillDistributions.logpdf(d, 1)
+        probs = reshape(p, :, 1)
+        x = zeros(Float32, N, 1)
+        x[1, 1] = 1.0f0
+        custom_logpdf = Drill.DrillDistributions.logpdf(d, x, probs)[1]
         dist_logpdf = Distributions.logpdf(dist_d, 1)
         push!(same_outputs, custom_logpdf ≈ dist_logpdf)
 
-        custom_entropy = DrillDistributions.entropy(d)
+        custom_entropy = Drill.DrillDistributions.entropy(d, probs)[1]
         dist_entropy = Distributions.entropy(dist_d)
         push!(same_outputs, custom_entropy ≈ dist_entropy)
     end
@@ -117,18 +113,38 @@ end
     @test all(same_outputs)
 end
 
+@testset "BatchedCategorical rand and mode return dense one-hot" begin
+    rng = MersenneTwister(42)
+    d = Drill.DrillDistributions.BatchedCategorical()
 
-@testitem "Diaggaussion constructor" begin
-    using Random
+    for (num_classes, batch_size) in [(3, 5), (8, 1), (2, 10)]
+        p = rand(rng, Float32, num_classes, batch_size)
+        probs = p ./ sum(p, dims = 1)
 
+        x = rand(rng, d, probs)
+        @test size(x) == size(probs)
+        @test eltype(x) == eltype(probs)
+        @test all(sum(x, dims = 1) .== 1)
+
+        logp = Drill.DrillDistributions.logpdf(d, x, probs)
+        @test size(logp) == (1, batch_size)
+        @test all(isfinite.(logp))
+        @test all(logp .<= 0)
+
+        m = Drill.DrillDistributions.mode(d, probs)
+        @test size(m) == size(probs)
+        @test eltype(m) == eltype(probs)
+        @test all(sum(m, dims = 1) .== 1)
+    end
+end
+
+@testset "DiagGaussian constructor" begin
     same_outputs = Bool[]
 
-    #test strict types
     @test_throws MethodError DiagGaussian([1.0], [2.0f0])
 
     d = DiagGaussian([1.0f0], [2.0f0])
-    @test_throws MethodError DrillDistributions.logpdf(d, [1.0])
-
+    @test_throws MethodError Drill.DrillDistributions.logpdf(d, [1.0])
 
     mean_batch = rand(Float32, 2, 2, 7)
     std_batch = rand(Float32, 2, 2, 7)
@@ -137,16 +153,16 @@ end
 
     @test begin
         ds = DiagGaussian.(eachslice(mean_batch, dims = ndims(mean_batch)), eachslice(std_batch, dims = ndims(std_batch)))
-        entropies = DrillDistributions.entropy.(ds)
-        logpdfs = DrillDistributions.logpdf.(ds, eachslice(x_batch, dims = ndims(x_batch)))
+        entropies = Drill.DrillDistributions.entropy.(ds)
+        logpdfs = Drill.DrillDistributions.logpdf.(ds, eachslice(x_batch, dims = ndims(x_batch)))
         true
     end
 
     single_std = rand(Float32, 2, 2)
     @test begin
         ds = DiagGaussian.(eachslice(mean_batch, dims = ndims(mean_batch)), Ref(single_std))
-        entropies = DrillDistributions.entropy.(ds)
-        logpdfs = DrillDistributions.logpdf.(ds, eachslice(x_batch, dims = ndims(x_batch)))
+        entropies = Drill.DrillDistributions.entropy.(ds)
+        logpdfs = Drill.DrillDistributions.logpdf.(ds, eachslice(x_batch, dims = ndims(x_batch)))
         true
     end
 end

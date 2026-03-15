@@ -24,13 +24,23 @@ function get_action_and_values(
     layer = agent.layer
     train_state = agent.train_state
     ps = train_state.parameters
-    st = train_state.states
-    # Convert observations vector to batched matrix for policy
+    st = rollout_inference_state(train_state.states)
     batched_obs = batch(observations, observation_space(layer))
-    #FIXME: type instability here, is policy not known??
-    actions, values, logprobs, st = layer(batched_obs, ps, st)
+    dev = current_device(ps)
+    batched_obs = batched_obs |> dev
+    batched_obs = canonicalize_device_batch(dev, batched_obs)
+    actions_batched, values, logprobs, st = execute_rollout_action_values(
+        dev,
+        agent,
+        batched_obs,
+        ps,
+        st,
+        agent.rng,
+    )
     @reset train_state.states = st
     agent.train_state = train_state
+    actions = _actions_to_vector(actions_batched)
+    actions = _postprocess_actions(actions, action_space(layer))
     return actions, values, logprobs
 end
 
@@ -54,10 +64,19 @@ function predict_values(
     layer = agent.layer
     train_state = agent.train_state
     ps = train_state.parameters
-    st = train_state.states
+    st = rollout_inference_state(train_state.states)
     # Convert observations vector to batched matrix for policy
     batched_obs = batch(observations, observation_space(layer))
-    values, st = predict_values(layer, batched_obs, ps, st)
+    dev = current_device(ps)
+    batched_obs = batched_obs |> dev
+    batched_obs = canonicalize_device_batch(dev, batched_obs)
+    values, st = execute_rollout_predict_values(
+        dev,
+        agent,
+        batched_obs,
+        ps,
+        st,
+    )
     @reset train_state.states = st
     agent.train_state = train_state
     return values
@@ -92,25 +111,49 @@ function predict_actions(
     layer = agent.layer
     train_state = agent.train_state
     ps = train_state.parameters
-    st = train_state.states
-    # Convert observations vector to batched matrix for policy
+    st = rollout_inference_state(train_state.states)
     batched_obs = batch(observations, observation_space(layer))
-    actions, st = predict_actions(layer, batched_obs, ps, st; deterministic = deterministic, rng = rng)
+    dev = current_device(ps)
+    batched_obs = batched_obs |> dev
+    batched_obs = canonicalize_device_batch(dev, batched_obs)
+    actions_batched, st = execute_rollout_predict_actions(
+        dev,
+        agent,
+        batched_obs,
+        ps,
+        st;
+        deterministic,
+        rng,
+    )
     @reset train_state.states = st
     agent.train_state = train_state
-    # Convert policy-space actions to env-space using the agent's adapter
+    actions_vec = _actions_to_vector(actions_batched)
     adapter = agent.action_adapter
-    actions = to_env.(Ref(adapter), actions, Ref(action_space(layer)))
+    actions = to_env.(Ref(adapter), actions_vec, Ref(action_space(layer)))
     return actions
 end
 
-# Abstract methods for all agents
-function save_policy_params_and_state(agent::AbstractAgent, path::AbstractString; suffix::String = ".jld2")
-    error("save_policy_params_and_state not implemented for $(typeof(agent))")
+function _actions_to_vector(actions::AbstractVector)
+    return collect(actions)
 end
 
-function load_policy_params_and_state(agent::AbstractAgent, path::AbstractString; suffix::String = ".jld2")
-    error("load_policy_params_and_state not implemented for $(typeof(agent))")
+function _actions_to_vector(actions::AbstractArray)
+    return collect(eachslice(actions, dims = ndims(actions)))
+end
+
+# Convert layer outputs to storable format (one-hot → integer for Discrete, identity otherwise)
+_postprocess_actions(actions, ::AbstractSpace) = actions
+function _postprocess_actions(actions, space::Discrete)
+    return [space.start + argmax(a) - 1 for a in actions]
+end
+
+# Abstract methods for all agents
+function save_layer_params_and_state(agent::AbstractAgent, path::AbstractString; suffix::String = ".jld2")
+    error("save_layer_params_and_state not implemented for $(typeof(agent))")
+end
+
+function load_layer_params_and_state(agent::AbstractAgent, path::AbstractString; suffix::String = ".jld2")
+    error("load_layer_params_and_state not implemented for $(typeof(agent))")
 end
 
 function make_optimizer(optimizer_type::Type{<:Optimisers.AbstractRule}, alg::AbstractAlgorithm)
@@ -118,20 +161,21 @@ function make_optimizer(optimizer_type::Type{<:Optimisers.AbstractRule}, alg::Ab
 end
 
 
-# Implementation for unified Agent
-function save_policy_params_and_state(
+# Implementation for unified Agent (always save from CPU)
+function save_layer_params_and_state(
         agent::Agent{<:AbstractActorCriticLayer, ALG, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any},
         path::AbstractString;
         suffix::String = ".jld2"
     ) where {ALG <: AbstractAlgorithm}
     file_path = endswith(path, suffix) ? path : path * suffix
     @info "Saving policy, parameters, and state to $file_path"
+    agent_cpu = agent |> cpu_device()
     save(
         file_path, Dict(
-            "layer" => agent.layer,
-            "parameters" => agent.train_state.parameters,
-            "states" => agent.train_state.states,
-            "aux" => agent.aux
+            "layer" => agent_cpu.layer,
+            "parameters" => agent_cpu.train_state.parameters,
+            "states" => agent_cpu.train_state.states,
+            "aux" => agent_cpu.aux
         )
     )
     return file_path

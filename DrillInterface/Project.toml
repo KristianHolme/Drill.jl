@@ -1,0 +1,17 @@
+name = "DrillInterface"
+uuid = "d92b6104-cdd8-4875-a041-bad43500bca7"
+authors = ["Kristian Holme <holme.kristian@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+
+[compat]
+Random = "1"
+julia = "1.10"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]

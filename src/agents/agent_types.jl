@@ -61,6 +61,41 @@ mutable struct Agent{L <: AbstractActorCriticLayer, ALG <: AbstractAlgorithm, AD
     rng::R
     stats::AgentStats
     aux::AUX
+    cache
+end
+
+function Agent(
+        layer::L,
+        algorithm::ALG,
+        action_adapter::AD,
+        train_state::Lux.Training.TrainState,
+        optimizer_type::Type{<:Optimisers.AbstractRule},
+        stats_window::Int,
+        logger::LG,
+        verbose::Int,
+        rng::R,
+        stats::AgentStats,
+        aux::AUX,
+    ) where {L <: AbstractActorCriticLayer, ALG <: AbstractAlgorithm, AD <: AbstractActionAdapter, R <: AbstractRNG, LG <: AbstractTrainingLogger, AUX}
+    return Agent(
+        layer,
+        algorithm,
+        action_adapter,
+        train_state,
+        optimizer_type,
+        stats_window,
+        logger,
+        verbose,
+        rng,
+        stats,
+        aux,
+        nothing,
+    )
+end
+
+function invalidate_cache!(agent::Agent)
+    agent.cache = nothing
+    return agent
 end
 
 add_step!(agent::Agent, steps::Int = 1) = add_step!(agent.stats, steps)

@@ -4,8 +4,10 @@ using Random
 using ChainRulesCore
 #TODO: remove lux dependency, find other source of softplus
 using Lux
+using OneHotArrays
 
-export Categorical, DiagGaussian, SquashedDiagGaussian
+export DiagGaussian, SquashedDiagGaussian
+export BatchedCategorical, BatchedDiagGaussian, BatchedSquashedDiagGaussian
 
 export logpdf, entropy, mode
 

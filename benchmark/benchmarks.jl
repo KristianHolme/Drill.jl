@@ -6,6 +6,8 @@ using Zygote
 import Lux
 using Lux: AutoZygote, AutoEnzyme
 using Enzyme: Reverse, set_runtime_activity
+using Reactant
+Reactant.set_default_backend("cpu")
 
 include("bench_utils.jl")
 using .BenchUtils
@@ -19,13 +21,13 @@ rollouts["rollout_buffer"] = @benchmarkable begin
     Drill.collect_rollout!(buffer, agent, alg, env)
 end setup = begin
     env, agent, alg, buffer = BenchUtils.setup_rollout_collection()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 rollouts["replay_buffer"] = @benchmarkable begin
     Drill.collect_rollout!(buffer, agent, alg, env, n_steps)
 end setup = begin
     env, agent, alg, buffer, n_steps = BenchUtils.setup_replay_collection()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 training = BenchmarkGroup()
 SUITE["training"] = training
@@ -34,13 +36,45 @@ training["ppo_cartpole"] = @benchmarkable begin
     train!(agent, env, alg, max_steps)
 end setup = begin
     env, agent, alg, max_steps = BenchUtils.setup_training_ppo()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 training["sac_pendulum"] = @benchmarkable begin
     train!(agent, env, alg, max_steps)
 end setup = begin
     env, agent, alg, max_steps = BenchUtils.setup_training_sac()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
+
+# Device benchmarks: compare CPU vs Reactant (when available). Same workload (DEVICE_BENCH_MAX_STEPS).
+# Run with: BenchmarkTools.run(SUITE["devices"]). With Reactant: run Reactant entries; without, only CPU runs.
+devices = BenchmarkGroup()
+SUITE["devices"] = devices
+
+devices["ppo_cpu"] = @benchmarkable begin
+    train!(agent, env, alg, max_steps)
+end setup = begin
+    env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device()
+end
+
+if isdefined(Lux, :reactant_device)
+    devices["ppo_reactant"] = @benchmarkable begin
+        train!(agent, env, alg, max_steps; ad_type = ad_backend)
+    end setup = begin
+        env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device(; device = Lux.reactant_device())
+        ad_backend = AutoEnzyme()
+        (env, agent, alg, max_steps, ad_backend)
+    end
+    # Reactant with CPU backend (no GPU): compare compiled Reactant vs plain CPU.
+    devices["ppo_reactant_cpu_backend"] = @benchmarkable begin
+        train!(agent, env, alg, max_steps; ad_type = ad_backend)
+    end setup = begin
+        if isdefined(Main, :Reactant) && isdefined(Main.Reactant, :set_default_backend)
+            Main.Reactant.set_default_backend("cpu")
+        end
+        env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device(; device = Lux.reactant_device())
+        ad_backend = AutoEnzyme()
+        (env, agent, alg, max_steps, ad_backend)
+    end
+end
 
 wrappers = BenchmarkGroup()
 SUITE["wrappers"] = wrappers
@@ -49,56 +83,57 @@ wrappers["broadcasted_act"] = @benchmarkable begin
     act!(env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers["monitor_act"] = @benchmarkable begin
     act!(monitor_env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers["normalize_act"] = @benchmarkable begin
     act!(normalize_env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers["broadcasted_reset"] = @benchmarkable begin
     reset!(env)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers["monitor_reset"] = @benchmarkable begin
     reset!(monitor_env)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers["normalize_reset"] = @benchmarkable begin
     reset!(normalize_env)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers["multithreaded_act"] = @benchmarkable begin
     act!(threaded_env, actions)
 end setup = begin
     threaded_env, actions = BenchUtils.setup_threaded_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
 wrappers["multithreaded_reset"] = @benchmarkable begin
     reset!(threaded_env)
 end setup = begin
     threaded_env, actions = BenchUtils.setup_threaded_envs()
-end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+end
 
-const ENABLE_AD_BACKEND_BENCHES = false
+const ENABLE_AD_BACKEND_BENCHES = true
 if ENABLE_AD_BACKEND_BENCHES
     ad_backends = BenchmarkGroup()
     SUITE["ad_backends"] = ad_backends
 
-    ad_backends["ppo"] = BenchmarkGroup()
+    ad_backends["ppo_discrete"] = BenchmarkGroup()
+    ad_backends["ppo_continuous"] = BenchmarkGroup()
     ad_backends["sac"] = BenchmarkGroup()
 
     ad_backend_types = [
@@ -108,66 +143,83 @@ if ENABLE_AD_BACKEND_BENCHES
     ]
 
     for (name, ad_backend) in ad_backend_types
-        ad_backends["ppo"][name] = @benchmarkable begin
-            Lux.Training.compute_gradients(ad_backend, alg, batch_data, train_state)
+        ad_backends["ppo_discrete"][name] = @benchmarkable begin
+            Lux.Training.compute_gradients($ad_backend, alg, batch_data, train_state)
         end setup = begin
-            alg, batch_data, train_state = BenchUtils.setup_ppo_gradient_data()
-        end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+            alg, batch_data, train_state = BenchUtils.setup_ppo_gradient_data_discrete()
+        end
     end
 
     for (name, ad_backend) in ad_backend_types
+        ad_backends["ppo_continuous"][name] = @benchmarkable begin
+            Lux.Training.compute_gradients($ad_backend, alg, batch_data, train_state)
+        end setup = begin
+            alg, batch_data, train_state = BenchUtils.setup_ppo_gradient_data_continuous()
+        end
+    end
+
+    for (name, ad_backend) in ad_backend_types[[1, 3]] #dont use enzyme without runtime activity
         ad_backends["sac"][name] = @benchmarkable begin
             if alg.ent_coef isa AutoEntropyCoefficient
                 target_entropy = Drill.get_target_entropy(alg.ent_coef, action_space(layer))
-                ent_data = (
-                    observations = batch_data.observations,
-                    layer_ps = train_state.parameters,
-                    layer_st = train_state.states,
-                    target_entropy = target_entropy,
-                    target_ps = target_ps,
-                    target_st = target_st,
+                # Compute c outside autodiff (following current SAC implementation)
+                _, log_probs_pi, _ = Drill.action_log_prob(
+                    layer,
+                    batch_data.observations,
+                    train_state.parameters,
+                    train_state.states;
+                    rng = rng,
                 )
+                c = mean(log_probs_pi .+ target_entropy)
+                ent_data = (; c)
                 _, _, _, ent_train_state = Lux.Training.compute_gradients(
-                    ad_backend,
-                    (model, ps, st, data) -> Drill.sac_ent_coef_loss(alg, layer, ps, st, data; rng = rng),
+                    $ad_backend,
+                    Drill.SACEntropyObjective(),
                     ent_data,
                     ent_train_state,
                 )
             end
+            target_q_values = Drill.compute_target_q_values(
+                alg,
+                layer,
+                train_state.parameters,
+                train_state.states,
+                (
+                    rewards = batch_data.rewards,
+                    next_observations = batch_data.next_observations,
+                    terminated = batch_data.terminated,
+                    log_ent_coef = ent_train_state.parameters,
+                    target_ps = target_ps,
+                    target_st = target_st,
+                );
+                rng = rng,
+            )
             critic_data = (
                 observations = batch_data.observations,
                 actions = batch_data.actions,
-                rewards = batch_data.rewards,
-                terminated = batch_data.terminated,
-                truncated = batch_data.truncated,
-                next_observations = batch_data.next_observations,
-                log_ent_coef = ent_train_state.parameters,
-                target_ps = target_ps,
-                target_st = target_st,
+                target_q_values = target_q_values,
             )
+            critic_objective = Drill.SACCriticObjective(alg, rng)
             _, _, _, train_state = Lux.Training.compute_gradients(
-                ad_backend,
-                (model, ps, st, data) -> Drill.sac_critic_loss(alg, layer, ps, st, data; rng = rng),
+                $ad_backend,
+                critic_objective,
                 critic_data,
                 train_state,
             )
+            ent_coef = Float32(exp(first(ent_train_state.parameters.log_ent_coef)))
+            actor_objective = Drill.SACActorObjective(alg, rng)
             Lux.Training.compute_gradients(
-                ad_backend,
-                (model, ps, st, data) -> Drill.sac_actor_loss(alg, layer, ps, st, data; rng = rng),
+                $ad_backend,
+                actor_objective,
                 (
                     observations = batch_data.observations,
-                    actions = batch_data.actions,
-                    rewards = batch_data.rewards,
-                    terminated = batch_data.terminated,
-                    truncated = batch_data.truncated,
-                    next_observations = batch_data.next_observations,
-                    log_ent_coef = ent_train_state.parameters,
+                    ent_coef = ent_coef,
                 ),
                 train_state,
             )
         end setup = begin
             layer, alg, batch_data, train_state, ent_train_state, target_ps, target_st, rng =
                 BenchUtils.setup_sac_gradient_data()
-        end evals = 1 samples = BenchUtils.DEFAULT_SAMPLES
+        end
     end
 end

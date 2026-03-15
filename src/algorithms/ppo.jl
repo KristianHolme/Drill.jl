@@ -22,21 +22,121 @@ agent = Agent(model, ppo)
 train!(agent, env, ppo, 100_000)
 ```
 """
-@kwdef struct PPO{T <: AbstractFloat} <: OnPolicyAlgorithm
-    gamma::T = 0.99f0
-    gae_lambda::T = 0.95f0
-    clip_range::T = 0.2f0
-    clip_range_vf::Union{T, Nothing} = nothing
-    ent_coef::T = 0.0f0
-    vf_coef::T = 0.5f0
-    max_grad_norm::T = 0.5f0
-    target_kl::Union{T, Nothing} = nothing
-    normalize_advantage::Bool = true
-    # Agent parameters moved from ActorCriticAgent
-    n_steps::Int = 2048
-    batch_size::Int = 64
-    epochs::Int = 10
-    learning_rate::T = 3.0f-4
+abstract type AbstractAdvantageStrategy end
+struct NormalizeAdvantages <: AbstractAdvantageStrategy end
+struct RawAdvantages <: AbstractAdvantageStrategy end
+
+abstract type AbstractClipVFStrategy{T <: AbstractFloat} end
+struct ClipVF{T <: AbstractFloat} <: AbstractClipVFStrategy{T}
+    value::T
+end
+struct NoClipVF{T <: AbstractFloat} <: AbstractClipVFStrategy{T} end
+
+abstract type AbstractKLTargetStrategy{T <: AbstractFloat} end
+struct KLTarget{T <: AbstractFloat} <: AbstractKLTargetStrategy{T}
+    value::T
+end
+struct NoKLTarget{T <: AbstractFloat} <: AbstractKLTargetStrategy{T} end
+
+struct PPO{
+        T <: AbstractFloat,
+        AS <: AbstractAdvantageStrategy,
+        CVS <: AbstractClipVFStrategy{T},
+        KLS <: AbstractKLTargetStrategy{T},
+    } <: OnPolicyAlgorithm
+    gamma::T
+    gae_lambda::T
+    clip_range::T
+    ent_coef::T
+    vf_coef::T
+    max_grad_norm::T
+    advantage_strategy::AS
+    clip_vf_strategy::CVS
+    target_kl_strategy::KLS
+    n_steps::Int
+    batch_size::Int
+    epochs::Int
+    learning_rate::T
+end
+
+function Base.convert(::Type{AbstractAdvantageStrategy}, x::Bool)
+    if x
+        return NormalizeAdvantages()
+    end
+    return RawAdvantages()
+end
+
+function Base.convert(::Type{AbstractClipVFStrategy{T}}, ::Nothing) where {T <: AbstractFloat}
+    return NoClipVF{T}()
+end
+function Base.convert(::Type{AbstractClipVFStrategy{T}}, x::Real) where {T <: AbstractFloat}
+    return ClipVF{T}(T(x))
+end
+
+function Base.convert(::Type{AbstractKLTargetStrategy{T}}, ::Nothing) where {T <: AbstractFloat}
+    return NoKLTarget{T}()
+end
+function Base.convert(::Type{AbstractKLTargetStrategy{T}}, x::Real) where {T <: AbstractFloat}
+    return KLTarget{T}(T(x))
+end
+
+normalize_advantage(::PPO{<:Any, NormalizeAdvantages}) = true
+normalize_advantage(::PPO{<:Any, RawAdvantages}) = false
+
+clip_range_vf(::PPO{<:Any, <:Any, <:NoClipVF}) = nothing
+function clip_range_vf(alg::PPO{<:Any, <:Any, <:ClipVF})
+    return alg.clip_vf_strategy.value
+end
+
+target_kl(::PPO{<:Any, <:Any, <:Any, <:NoKLTarget}) = nothing
+function target_kl(alg::PPO{<:Any, <:Any, <:Any, <:KLTarget})
+    return alg.target_kl_strategy.value
+end
+
+function PPO(;
+        gamma::Real = 0.99f0,
+        gae_lambda::Real = 0.95f0,
+        clip_range::Real = 0.2f0,
+        clip_range_vf = nothing,
+        ent_coef::Real = 0.0f0,
+        vf_coef::Real = 0.5f0,
+        max_grad_norm::Real = 0.5f0,
+        target_kl = nothing,
+        normalize_advantage::Bool = true,
+        n_steps::Int = 2048,
+        batch_size::Int = 64,
+        epochs::Int = 10,
+        learning_rate::Real = 3.0f-4
+    )
+    T = promote_type(
+        typeof(float(gamma)),
+        typeof(float(gae_lambda)),
+        typeof(float(clip_range)),
+        typeof(float(ent_coef)),
+        typeof(float(vf_coef)),
+        typeof(float(max_grad_norm)),
+        typeof(float(learning_rate)),
+        isnothing(clip_range_vf) ? Float32 : typeof(float(clip_range_vf)),
+        isnothing(target_kl) ? Float32 : typeof(float(target_kl)),
+    )
+    advantage_strategy = convert(AbstractAdvantageStrategy, normalize_advantage)
+    clip_vf_strategy = convert(AbstractClipVFStrategy{T}, clip_range_vf)
+    target_kl_strategy = convert(AbstractKLTargetStrategy{T}, target_kl)
+    return PPO{T, typeof(advantage_strategy), typeof(clip_vf_strategy), typeof(target_kl_strategy)}(
+        T(gamma),
+        T(gae_lambda),
+        T(clip_range),
+        T(ent_coef),
+        T(vf_coef),
+        T(max_grad_norm),
+        advantage_strategy,
+        clip_vf_strategy,
+        target_kl_strategy,
+        n_steps,
+        batch_size,
+        epochs,
+        T(learning_rate),
+    )
 end
 
 function Agent(
@@ -45,20 +145,24 @@ function Agent(
         stats_window::Int = 100, #TODO not used
         verbose::Int = 1,
         logger = NoTrainingLogger(),
-        rng::AbstractRNG = Random.default_rng()
+        rng::AbstractRNG = Random.default_rng(),
+        device = cpu_device()
     )
 
     optimizer = make_optimizer(optimizer_type, alg)
     ps, st = Lux.setup(rng, layer)
+    ps = device(ps)
+    st = device(st)
     train_state = Lux.Training.TrainState(layer, ps, st, optimizer)
     adapter = action_adapter(alg, action_space(layer))
 
 
     logger = convert(AbstractTrainingLogger, logger)
-    return Agent(
+    agent = Agent(
         layer, alg, adapter, train_state, optimizer_type, stats_window,
-        logger, verbose, rng, AgentStats(0, 0), NoAux()
+        logger, verbose, rng, AgentStats(0, 0), NoAux(), nothing
     )
+    return agent
 end
 
 function make_optimizer(optimizer_type::Type{<:Optimisers.Adam}, alg::PPO)
@@ -74,7 +178,7 @@ has_entropy_tuning(::PPO) = false
 uses_replay(::PPO) = false
 critic_type(::PPO) = VCritic()
 
-function load_policy_params_and_state!(
+function load_layer_params_and_state!(
         agent::Agent{<:AbstractActorCriticLayer, <:PPO, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any},
         alg::PPO,
         path::AbstractString;
@@ -83,13 +187,19 @@ function load_policy_params_and_state!(
     file_path = endswith(path, suffix) ? path : path * suffix
     @info "Loading policy, parameters, and state from $file_path"
     data = load(file_path)
+    dev = get_device(agent.train_state.parameters)
     new_layer = data["layer"]
     new_parameters = data["parameters"]
     new_states = data["states"]
+    if dev !== nothing
+        new_parameters = dev(new_parameters)
+        new_states = dev(new_states)
+    end
     new_optimizer = make_optimizer(agent.optimizer_type, alg)
     new_train_state = Lux.Training.TrainState(new_layer, new_parameters, new_states, new_optimizer)
     agent.layer = new_layer
     agent.train_state = new_train_state
+    invalidate_cache!(agent)
     return agent
 end
 
@@ -185,14 +295,16 @@ function train!(
             end
         end
 
+        train_actions = prepare_training_actions(roll_buffer.actions, action_space(env))
         data_loader = DataLoader(
             (
-                roll_buffer.observations, roll_buffer.actions,
+                roll_buffer.observations, train_actions,
                 roll_buffer.advantages, roll_buffer.returns,
                 roll_buffer.logprobs, roll_buffer.values,
             ),
             batchsize = alg.batch_size, shuffle = true, parallel = true, rng = agent.rng
         )
+        dev = get_device(agent.train_state.parameters)
         continue_training = true
         entropy_losses = Float32[]
         entropy = Float32[]
@@ -203,12 +315,14 @@ function train!(
         clip_fractions = Float32[]
         grad_norms = Float32[]
         @timeit to "epoch loop" for epoch in 1:alg.epochs
-            @timeit to "batch loop" for (i_batch, batch_data) in enumerate(data_loader)
+            data_iter = dev !== nothing ? dev(data_loader) : data_loader
+            @timeit to "batch loop" for (i_batch, batch_data) in enumerate(data_iter)
+                batch_data = maybe_normalize_batch_data(batch_data, alg.advantage_strategy)
                 grads, loss_val, stats, train_state = @timeit to "compute_gradients" Lux.Training.compute_gradients(ad_type, alg, batch_data, train_state)
 
                 if epoch == 1 && i_batch == 1
                     mean_ratio = stats.ratio
-                    isapprox(mean_ratio - one(mean_ratio), zero(mean_ratio), atol = eps(typeof(mean_ratio))) || @warn "ratios is not 1.0, iter $i, epoch $epoch, batch $i_batch, $mean_ratio"
+                    isapprox(mean_ratio - one(mean_ratio), zero(mean_ratio), atol = eps(T)) || @warn "ratios is not 1.0, iter $i, epoch $epoch, batch $i_batch, $mean_ratio"
                 end
                 @assert !nested_has_nan(grads) "gradient contains nan, iter $i, epoch $epoch, batch $i_batch"
                 @assert !nested_has_inf(grads) "gradient not finite, iter $i, epoch $epoch, batch $i_batch"
@@ -232,7 +346,8 @@ function train!(
                 end
                 # @info grads
                 # KL divergence check
-                if !isnothing(alg.target_kl) && stats.approx_kl_div > T(1.5) * alg.target_kl
+                kl_threshold = target_kl(alg)
+                if !isnothing(kl_threshold) && stats.approx_kl_div > T(1.5) * kl_threshold
                     continue_training = false
                     break
                 end
@@ -324,7 +439,7 @@ function train!(
     return learn_stats, to
 end
 
-function normalize(advantages::Vector{T}) where {T}
+function normalize(advantages::AbstractVector{T}) where {T}
     mean_adv = mean(advantages)
     std_adv = std(advantages)
     epsilon = T(1.0e-8)
@@ -332,7 +447,7 @@ function normalize(advantages::Vector{T}) where {T}
     return norm_advantages
 end
 
-function clip_range!(values::Vector{T}, old_values::Vector{T}, clip_range::T) where {T}
+function clip_range!(values, old_values, clip_range)
     for i in eachindex(values)
         diff = values[i] - old_values[i]
         clipped_diff = clamp(diff, -clip_range, clip_range)
@@ -341,13 +456,13 @@ function clip_range!(values::Vector{T}, old_values::Vector{T}, clip_range::T) wh
     return nothing
 end
 
-function clip_range(old_values::Vector{T}, values::Vector{T}, clip_range::T) where {T}
+function clip_range(old_values, values, clip_range)
     return old_values .+ clamp(values .- old_values, -clip_range, clip_range)
 end
 
 
 #TODO: vectorize this?
-function normalize!(values::Vector{T}) where {T}
+function normalize!(values::AbstractVector{T}) where {T}
     mean_values = mean(values)
     std_values = std(values)
     epsilon = T(1.0e-8)
@@ -355,27 +470,43 @@ function normalize!(values::Vector{T}) where {T}
     return nothing
 end
 
-function maybe_normalize!(advantages::Vector{T}, alg::PPO{T}) where {T}
-    if alg.normalize_advantage
-        normalize!(advantages)
-    end
-    return nothing
+function maybe_normalize!(advantages::AbstractVector{T}, ::NormalizeAdvantages) where {T}
+    normalize!(advantages)
+    return advantages
+end
+function maybe_normalize!(advantages::AbstractVector{T}, ::RawAdvantages) where {T}
+    return advantages
 end
 
-function (alg::PPO{T})(policy::AbstractActorCriticLayer, ps, st, batch_data) where {T}
+function maybe_normalize_batch_data(batch_data, strategy::AbstractAdvantageStrategy)
+    advantages = maybe_normalize!(copy(batch_data[3]), strategy)
+    return (
+        batch_data[1],
+        batch_data[2],
+        advantages,
+        batch_data[4],
+        batch_data[5],
+        batch_data[6],
+    )
+end
+
+function maybe_clip_range(old_values, values, ::NoClipVF)
+    return values
+end
+function maybe_clip_range(old_values, values, strategy::ClipVF)
+    return clip_range(old_values, values, strategy.value)
+end
+
+function (alg::PPO{T})(layer::AbstractActorCriticLayer, ps, st, batch_data) where {T}
     observations = batch_data[1]
     actions = batch_data[2]
-    advantages::Vector{T} = batch_data[3]
+    advantages = batch_data[3]
     returns = batch_data[4]
     old_logprobs = batch_data[5]
     old_values = batch_data[6]
 
-    # advantages = @ignore_derivatives alg.normalize_advantage ? normalize(advantages) : advantages
-    #TODO: do we need to ignore derivatives here?
-    @ignore_derivatives maybe_normalize!(advantages, alg)
-
-    values, log_probs, entropy, st = evaluate_actions(policy, observations, actions, ps, st)
-    values = !isnothing(alg.clip_range_vf) ? clip_range(old_values, values, alg.clip_range_vf::T) : values
+    values, log_probs, entropy, st = evaluate_actions(layer, observations, actions, ps, st)
+    values = maybe_clip_range(old_values, values, alg.clip_vf_strategy)
 
     r = exp.(log_probs - old_logprobs)
     ratio_clipped = clamp.(r, 1 - alg.clip_range, 1 + alg.clip_range)
@@ -385,14 +516,13 @@ function (alg::PPO{T})(policy::AbstractActorCriticLayer, ps, st, batch_data) whe
     v_loss = mean((values .- returns) .^ 2)
     loss = p_loss + alg.ent_coef * ent_loss + alg.vf_coef * v_loss
 
-    stats = @ignore_derivatives begin
-        # Calculate statistics
-        clip_fraction = mean(r .!= ratio_clipped)
-        #approx kl div
-        log_ratio = log_probs - old_logprobs
-        approx_kl_div = mean(exp.(log_ratio) .- 1 .- log_ratio)
+    # Calculate statistics
+    clip_fraction = mean(r .!= ratio_clipped)
+    #approx kl div
+    log_ratio = log_probs - old_logprobs
+    approx_kl_div = mean(exp.(log_ratio) .- 1 .- log_ratio)
 
-        (
+     stats =   (;
             policy_loss = p_loss,
             value_loss = v_loss,
             entropy_loss = ent_loss,
@@ -401,7 +531,6 @@ function (alg::PPO{T})(policy::AbstractActorCriticLayer, ps, st, batch_data) whe
             entropy = mean(entropy),
             ratio = mean(r),
         )
-    end
 
     return loss, st, stats
 end
@@ -420,9 +549,16 @@ function process_action(action, action_space::Box{T}, ::PPO) where {T}
     return action
 end
 
-# Helper function to process actions: convert from 1-based indexing to action space range
+# Helper function to process actions: validate integer discrete actions
 function process_action(action::Integer, action_space::Discrete, ::PPO)
-    # Make sure its in valid range
-    @assert action_space.start ≤ action ≤ action_space.start + action_space.n - 1
+    @assert action in action_space "Action $(action) is out of bounds for Discrete($(action_space.n), $(action_space.start))"
     return action
+end
+
+function prepare_training_actions(actions::AbstractArray, action_space::Box)
+    return actions
+end
+
+function prepare_training_actions(actions::AbstractArray{<:Integer}, action_space::Discrete)
+    return discrete_to_onehotbatch(actions, action_space)
 end

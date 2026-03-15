@@ -1,13 +1,17 @@
-@testitem "callbacks locals" tags = [:callbacks, :locals] setup = [SharedTestSetup] begin
-    using Zygote
-    ##
+using Test
+using Drill
+using Zygote
+include("setup.jl")
+using .TestSetup
+
+@testset "callbacks locals" begin
     alg = PPO(; ent_coef = 0.1f0, n_steps = 256, batch_size = 64, epochs = 10)
-    env = BroadcastedParallelEnv([SharedTestSetup.CustomEnv() for _ in 1:8])
+    env = BroadcastedParallelEnv([CustomEnv() for _ in 1:8])
     env = MonitorWrapperEnv(env)
     env = NormalizeWrapperEnv(env, gamma = alg.gamma)
 
-    policy = ActorCriticLayer(observation_space(env), action_space(env))
-    agent = Agent(policy, alg; verbose = 0)
+    layer = ActorCriticLayer(observation_space(env), action_space(env))
+    agent = Agent(layer, alg; verbose = 0)
 
     function test_keys(locals::Dict, keys_to_check::Vector{Symbol})
         for key in keys_to_check
@@ -53,19 +57,17 @@
     )
 end
 
-@testitem "callbacks early stopping" tags = [:callbacks, :early_stopping] setup = [SharedTestSetup] begin
-    using Zygote
+@testset "callbacks early stopping" begin
     function setup_agent_env_alg()
         alg = PPO(; ent_coef = 0.1f0, n_steps = 64, batch_size = 64, epochs = 10)
-        env = BroadcastedParallelEnv([SharedTestSetup.CustomEnv() for _ in 1:8])
+        env = BroadcastedParallelEnv([CustomEnv() for _ in 1:8])
         env = MonitorWrapperEnv(env)
         env = NormalizeWrapperEnv(env, gamma = alg.gamma)
 
-        policy = ActorCriticLayer(observation_space(env), action_space(env))
-        agent = Agent(policy, alg; verbose = 0)
+        layer = ActorCriticLayer(observation_space(env), action_space(env))
+        agent = Agent(layer, alg; verbose = 0)
         return agent, env, alg
     end
-
 
     @kwdef struct OnTrainingStartStopEarlyCallback <: AbstractCallback end
     function Drill.on_training_start(callback::OnTrainingStartStopEarlyCallback, locals::Dict)

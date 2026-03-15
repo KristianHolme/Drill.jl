@@ -3,8 +3,8 @@
 function Trajectory{T}(observation_space::AbstractSpace, action_space::AbstractSpace) where {T <: AbstractFloat}
     obs_type = typeof(rand(observation_space))
     action_type = typeof(rand(action_space))
-    observations = Array{obs_type}[]
-    actions = Array{action_type}[]
+    observations = obs_type[]
+    actions = action_type[]
     rewards = T[]
     logprobs = T[]
     values = T[]
@@ -64,6 +64,7 @@ function collect_trajectories(
                 # We need to bootstrap with the value of the current observation
                 if !terminateds[j] && !truncateds[j] && i == n_steps
                     # Get the next observation after last step (which is the current state)
+                    #TODO: do this batched for efficiency? maybe remove the 1:n_envs for loop somehow?
                     next_obs = new_obs[j]
                     next_value = predict_values(agent, [next_obs])[1]
                     current_trajectories[j].bootstrap_value = next_value
@@ -93,6 +94,7 @@ function compute_advantages!(advantages::AbstractArray, traj::Trajectory, gamma:
     advantages[end] = delta
 
     # Compute advantages for earlier steps using the standard GAE recursion
+    #TODO: @turbo?
     for i in (n - 1):-1:1
         delta = traj.rewards[i] + gamma * traj.values[i + 1] - traj.values[i]
         advantages[i] = delta + gamma * gae_lambda * advantages[i + 1]

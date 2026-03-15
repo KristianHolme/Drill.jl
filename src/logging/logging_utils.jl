@@ -16,19 +16,21 @@ function get_hparams(alg::PPO)
         "ent_coef" => alg.ent_coef,
         "vf_coef" => alg.vf_coef,
         "max_grad_norm" => alg.max_grad_norm,
-        "normalize_advantage" => alg.normalize_advantage,
+        "normalize_advantage" => normalize_advantage(alg),
         "learning_rate" => alg.learning_rate,
         "batch_size" => alg.batch_size,
         "n_steps" => alg.n_steps,
         "epochs" => alg.epochs
     )
 
-    if !isnothing(alg.clip_range_vf)
-        hparams["clip_range_vf"] = alg.clip_range_vf
+    clip_range_vf_value = clip_range_vf(alg)
+    if !isnothing(clip_range_vf_value)
+        hparams["clip_range_vf"] = clip_range_vf_value
     end
 
-    if !isnothing(alg.target_kl)
-        hparams["target_kl"] = alg.target_kl
+    target_kl_value = target_kl(alg)
+    if !isnothing(target_kl_value)
+        hparams["target_kl"] = target_kl_value
     end
 
     return hparams
