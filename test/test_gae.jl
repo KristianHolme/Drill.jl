@@ -1,5 +1,6 @@
 using Test
 using Drill
+using DrillInterface
 using Random
 include("setup.jl")
 using .TestSetup
