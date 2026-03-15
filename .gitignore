@@ -1,6 +1,7 @@
 Manifest*.toml
 test/Manifest.toml
 logs/
+dev/
 notes
 .CondaPkg
 
