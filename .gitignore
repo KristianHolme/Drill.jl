@@ -12,3 +12,4 @@ docs/package-lock.json
 
 benchmark_results/
 .sisyphus/
+LocalPreferences.toml
