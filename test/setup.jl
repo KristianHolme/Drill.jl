@@ -5,8 +5,8 @@ using Random
 using Drill.Lux
 
 export CustomEnv, InfiniteHorizonEnv, TrackingTargetEnv, SimpleRewardEnv,
-       ConstantValueLayer, ConstantObsWrapper, CustomShapedBoxEnv, RandomDiscreteEnv,
-       compute_expected_gae
+    ConstantValueLayer, ConstantObsWrapper, CustomShapedBoxEnv, RandomDiscreteEnv,
+    compute_expected_gae
 
 # Custom environment that gives a reward of 1.0 only at the final timestep of an episode.
 # Equivalent to CustomEnv in stable-baselines3 test_gae.py.
@@ -24,17 +24,17 @@ mutable struct CustomEnv <: AbstractEnv
     function CustomEnv(max_steps::Int = 8, rng::Random.AbstractRNG = Random.Xoshiro())
         obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
         act_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
-        new(max_steps, 0, obs_space, act_space, false, false, 0.0f0, Dict{String, Any}(), rng)
+        return new(max_steps, 0, obs_space, act_space, false, false, 0.0f0, Dict{String, Any}(), rng)
     end
 end
 
-Drill.observation_space(env::CustomEnv) = env.observation_space
-Drill.action_space(env::CustomEnv) = env.action_space
-Drill.terminated(env::CustomEnv) = env._terminated
-Drill.truncated(env::CustomEnv) = env._truncated
-Drill.get_info(env::CustomEnv) = env._info
+DrillInterface.observation_space(env::CustomEnv) = env.observation_space
+DrillInterface.action_space(env::CustomEnv) = env.action_space
+DrillInterface.terminated(env::CustomEnv) = env._terminated
+DrillInterface.truncated(env::CustomEnv) = env._truncated
+DrillInterface.get_info(env::CustomEnv) = env._info
 
-function Drill.reset!(env::CustomEnv)
+function DrillInterface.reset!(env::CustomEnv)
     env.n_steps = 0
     env._terminated = false
     env._truncated = false
@@ -43,7 +43,7 @@ function Drill.reset!(env::CustomEnv)
     return nothing
 end
 
-function Drill.act!(env::CustomEnv, action::AbstractArray)
+function DrillInterface.act!(env::CustomEnv, action::AbstractArray)
     env.n_steps += 1
 
     # Reward of 1.0 only at the final step, 0.0 otherwise
@@ -59,7 +59,7 @@ function Drill.act!(env::CustomEnv, action::AbstractArray)
     return reward
 end
 
-function Drill.observe(env::CustomEnv)
+function DrillInterface.observe(env::CustomEnv)
     return rand(env.rng, Float32, 2) .* 2.0f0 .- 1.0f0
 end
 
@@ -78,17 +78,17 @@ mutable struct InfiniteHorizonEnv <: AbstractEnv
     function InfiniteHorizonEnv(n_states::Int = 4, rng::Random.AbstractRNG = Random.Xoshiro())
         obs_space = Box(Float32[0.0], Float32[Float32(n_states)])
         act_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
-        new(n_states, 0.0f0, obs_space, act_space, false, false, 0.0f0, Dict{String, Any}(), rng)
+        return new(n_states, 0.0f0, obs_space, act_space, false, false, 0.0f0, Dict{String, Any}(), rng)
     end
 end
 
-Drill.observation_space(env::InfiniteHorizonEnv) = env.observation_space
-Drill.action_space(env::InfiniteHorizonEnv) = env.action_space
-Drill.terminated(env::InfiniteHorizonEnv) = env._terminated
-Drill.truncated(env::InfiniteHorizonEnv) = env._truncated
-Drill.get_info(env::InfiniteHorizonEnv) = env._info
+DrillInterface.observation_space(env::InfiniteHorizonEnv) = env.observation_space
+DrillInterface.action_space(env::InfiniteHorizonEnv) = env.action_space
+DrillInterface.terminated(env::InfiniteHorizonEnv) = env._terminated
+DrillInterface.truncated(env::InfiniteHorizonEnv) = env._truncated
+DrillInterface.get_info(env::InfiniteHorizonEnv) = env._info
 
-function Drill.reset!(env::InfiniteHorizonEnv)
+function DrillInterface.reset!(env::InfiniteHorizonEnv)
     env.current_state = 0.0f0
     env._terminated = false
     env._truncated = false
@@ -97,7 +97,7 @@ function Drill.reset!(env::InfiniteHorizonEnv)
     return nothing
 end
 
-function Drill.act!(env::InfiniteHorizonEnv, action::AbstractArray)
+function DrillInterface.act!(env::InfiniteHorizonEnv, action::AbstractArray)
     env.current_state = Float32((Int(env.current_state) + 1) % env.n_states)
 
     # Always gives reward of 1.0
@@ -112,7 +112,7 @@ function Drill.act!(env::InfiniteHorizonEnv, action::AbstractArray)
     return reward
 end
 
-function Drill.observe(env::InfiniteHorizonEnv)
+function DrillInterface.observe(env::InfiniteHorizonEnv)
     return [env.current_state]
 end
 
@@ -141,13 +141,13 @@ function TrackingTargetEnv(
     )
 end
 
-Drill.observation_space(env::TrackingTargetEnv) = env.observation_space
-Drill.action_space(env::TrackingTargetEnv) = env.action_space
-Drill.terminated(env::TrackingTargetEnv) = env._terminated
-Drill.truncated(env::TrackingTargetEnv) = env._truncated
-Drill.get_info(::TrackingTargetEnv) = Dict{String, Any}()
+DrillInterface.observation_space(env::TrackingTargetEnv) = env.observation_space
+DrillInterface.action_space(env::TrackingTargetEnv) = env.action_space
+DrillInterface.terminated(env::TrackingTargetEnv) = env._terminated
+DrillInterface.truncated(env::TrackingTargetEnv) = env._truncated
+DrillInterface.get_info(::TrackingTargetEnv) = Dict{String, Any}()
 
-function Drill.reset!(env::TrackingTargetEnv)
+function DrillInterface.reset!(env::TrackingTargetEnv)
     env.current_step = 0
     env._terminated = false
     env._truncated = false
@@ -155,7 +155,7 @@ function Drill.reset!(env::TrackingTargetEnv)
     return nothing
 end
 
-function Drill.act!(env::TrackingTargetEnv, action::AbstractArray)
+function DrillInterface.act!(env::TrackingTargetEnv, action::AbstractArray)
     env.current_step += 1
     action_low = env.action_space.low[1]
     action_high = env.action_space.high[1]
@@ -169,7 +169,7 @@ function Drill.act!(env::TrackingTargetEnv, action::AbstractArray)
     return reward
 end
 
-function Drill.observe(env::TrackingTargetEnv)
+function DrillInterface.observe(env::TrackingTargetEnv)
     return Float32[env.current_obs]
 end
 
@@ -188,17 +188,17 @@ mutable struct SimpleRewardEnv <: AbstractEnv
     function SimpleRewardEnv(max_steps::Int = 8, rng::Random.AbstractRNG = Random.Xoshiro())
         obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
         act_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
-        new(max_steps, 0, obs_space, act_space, false, false, 0.0f0, Dict{String, Any}(), rng)
+        return new(max_steps, 0, obs_space, act_space, false, false, 0.0f0, Dict{String, Any}(), rng)
     end
 end
 
-Drill.observation_space(env::SimpleRewardEnv) = env.observation_space
-Drill.action_space(env::SimpleRewardEnv) = env.action_space
-Drill.terminated(env::SimpleRewardEnv) = env._terminated
-Drill.truncated(env::SimpleRewardEnv) = env._truncated
-Drill.get_info(env::SimpleRewardEnv) = env._info
+DrillInterface.observation_space(env::SimpleRewardEnv) = env.observation_space
+DrillInterface.action_space(env::SimpleRewardEnv) = env.action_space
+DrillInterface.terminated(env::SimpleRewardEnv) = env._terminated
+DrillInterface.truncated(env::SimpleRewardEnv) = env._truncated
+DrillInterface.get_info(env::SimpleRewardEnv) = env._info
 
-function Drill.reset!(env::SimpleRewardEnv)
+function DrillInterface.reset!(env::SimpleRewardEnv)
     env.current_step = 0
     env._terminated = false
     env._truncated = false
@@ -207,7 +207,7 @@ function Drill.reset!(env::SimpleRewardEnv)
     return nothing
 end
 
-function Drill.act!(env::SimpleRewardEnv, action::AbstractArray)
+function DrillInterface.act!(env::SimpleRewardEnv, action::AbstractArray)
     env.current_step += 1
 
     # Reward of 1.0 only at the final step, 0.0 otherwise
@@ -222,7 +222,7 @@ function Drill.act!(env::SimpleRewardEnv, action::AbstractArray)
     return reward
 end
 
-function Drill.observe(env::SimpleRewardEnv)
+function DrillInterface.observe(env::SimpleRewardEnv)
     return rand(env.rng, Float32, 2) .* 2.0f0 .- 1.0f0
 end
 
@@ -311,52 +311,52 @@ mutable struct ConstantObsWrapper{E <: AbstractEnv} <: AbstractEnvWrapper{E}
     constant_obs::Vector{Float32}
 
     function ConstantObsWrapper(env::AbstractEnv, obs::Vector{Float32})
-        new{typeof(env)}(env, obs)
+        return new{typeof(env)}(env, obs)
     end
 end
 
-Drill.observation_space(wrapper::ConstantObsWrapper) = Drill.observation_space(wrapper.env)
-Drill.action_space(wrapper::ConstantObsWrapper) = Drill.action_space(wrapper.env)
-Drill.terminated(wrapper::ConstantObsWrapper) = Drill.terminated(wrapper.env)
-Drill.truncated(wrapper::ConstantObsWrapper) = Drill.truncated(wrapper.env)
-Drill.get_info(wrapper::ConstantObsWrapper) = Drill.get_info(wrapper.env)
+DrillInterface.observation_space(wrapper::ConstantObsWrapper) = DrillInterface.observation_space(wrapper.env)
+DrillInterface.action_space(wrapper::ConstantObsWrapper) = DrillInterface.action_space(wrapper.env)
+DrillInterface.terminated(wrapper::ConstantObsWrapper) = DrillInterface.terminated(wrapper.env)
+DrillInterface.truncated(wrapper::ConstantObsWrapper) = DrillInterface.truncated(wrapper.env)
+DrillInterface.get_info(wrapper::ConstantObsWrapper) = DrillInterface.get_info(wrapper.env)
 
-function Drill.reset!(wrapper::ConstantObsWrapper)
-    Drill.reset!(wrapper.env)
+function DrillInterface.reset!(wrapper::ConstantObsWrapper)
+    DrillInterface.reset!(wrapper.env)
     return nothing
 end
 
-function Drill.act!(wrapper::ConstantObsWrapper, action::AbstractArray)
-    return Drill.act!(wrapper.env, action)
+function DrillInterface.act!(wrapper::ConstantObsWrapper, action::AbstractArray)
+    return DrillInterface.act!(wrapper.env, action)
 end
 
-function Drill.observe(wrapper::ConstantObsWrapper)
+function DrillInterface.observe(wrapper::ConstantObsWrapper)
     return copy(wrapper.constant_obs)
 end
 
 struct CustomShapedBoxEnv <: AbstractEnv
     shape::Tuple{Int, Vararg{Int}}
 end
-Drill.reset!(env::CustomShapedBoxEnv) = nothing
-Drill.act!(env::CustomShapedBoxEnv, action::AbstractArray) = rand(Float32)
-Drill.observe(env::CustomShapedBoxEnv) = randn(Float32, env.shape...)
-Drill.observation_space(env::CustomShapedBoxEnv) = Box(Float32[-1.0], Float32[1.0], env.shape)
-Drill.action_space(env::CustomShapedBoxEnv) = Box(Float32[-1.0], Float32[1.0], env.shape)
-Drill.terminated(env::CustomShapedBoxEnv) = false
-Drill.truncated(env::CustomShapedBoxEnv) = false
-Drill.get_info(env::CustomShapedBoxEnv) = Dict{String, Any}()
+DrillInterface.reset!(env::CustomShapedBoxEnv) = nothing
+DrillInterface.act!(env::CustomShapedBoxEnv, action::AbstractArray) = rand(Float32)
+DrillInterface.observe(env::CustomShapedBoxEnv) = randn(Float32, env.shape...)
+DrillInterface.observation_space(env::CustomShapedBoxEnv) = Box(Float32[-1.0], Float32[1.0], env.shape)
+DrillInterface.action_space(env::CustomShapedBoxEnv) = Box(Float32[-1.0], Float32[1.0], env.shape)
+DrillInterface.terminated(env::CustomShapedBoxEnv) = false
+DrillInterface.truncated(env::CustomShapedBoxEnv) = false
+DrillInterface.get_info(env::CustomShapedBoxEnv) = Dict{String, Any}()
 
 struct RandomDiscreteEnv <: AbstractEnv
     obs_space::Box
     act_space::Discrete
 end
-Drill.reset!(env::RandomDiscreteEnv) = nothing
-Drill.act!(env::RandomDiscreteEnv, action::Int) = randn(Float32)
-Drill.observe(env::RandomDiscreteEnv) = rand(env.obs_space)
-Drill.observation_space(env::RandomDiscreteEnv) = env.obs_space
-Drill.action_space(env::RandomDiscreteEnv) = env.act_space
-Drill.terminated(env::RandomDiscreteEnv) = false
-Drill.truncated(env::RandomDiscreteEnv) = false
-Drill.get_info(env::RandomDiscreteEnv) = Dict{String, Any}()
+DrillInterface.reset!(env::RandomDiscreteEnv) = nothing
+DrillInterface.act!(env::RandomDiscreteEnv, action::Int) = randn(Float32)
+DrillInterface.observe(env::RandomDiscreteEnv) = rand(env.obs_space)
+DrillInterface.observation_space(env::RandomDiscreteEnv) = env.obs_space
+DrillInterface.action_space(env::RandomDiscreteEnv) = env.act_space
+DrillInterface.terminated(env::RandomDiscreteEnv) = false
+DrillInterface.truncated(env::RandomDiscreteEnv) = false
+DrillInterface.get_info(env::RandomDiscreteEnv) = Dict{String, Any}()
 
 end # module

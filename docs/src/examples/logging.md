@@ -52,7 +52,7 @@ for config in configs
     rng = Random.Xoshiro(SEED)
     envs = [CartPoleEnv(; rng = Random.Xoshiro(SEED + i)) for i in 1:N_ENVS]
     env = MonitorWrapperEnv(BroadcastedParallelEnv(envs))
-    Drill.reset!(env)
+    DrillInterface.reset!(env)
 
     # Create PPO algorithm
     alg = PPO(;
@@ -235,7 +235,7 @@ for config in configs
     rng = Random.Xoshiro(SEED)
     envs = [CartPoleEnv(; rng = Random.Xoshiro(SEED + i)) for i in 1:N_ENVS]
     env = MonitorWrapperEnv(BroadcastedParallelEnv(envs))
-    Drill.reset!(env)
+    DrillInterface.reset!(env)
 
     # Create PPO algorithm
     alg = PPO(;

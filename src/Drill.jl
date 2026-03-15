@@ -38,7 +38,6 @@ export AbstractCallback, on_training_start, on_training_end, on_rollout_start, o
 export AbstractActorCriticLayer, AbstractNoise, CriticType, QCritic, VCritic
 export FeatureSharing, SharedFeatures, SeparateFeatures
 export OffPolicyAlgorithm, OnPolicyAlgorithm
-export AbstractPolicy
 
 include("adapters/default_adapters.jl")
 export AbstractActionAdapter, ClampAdapter, TanhScaleAdapter, DiscreteAdapter
@@ -85,7 +84,7 @@ export MonitorWrapperEnv, EpisodeStats, is_wrapper, unwrap, unwrap_all
 export MultiAgentParallelEnv
 
 include("deployment/deployment_policy.jl")
-export extract_policy, NeuralPolicy, NormWrapperPolicy, RandomPolicy, ConstantPolicy
+export extract_policy, NeuralPolicy, NormWrapperPolicy
 
 include("utils/utils.jl")
 export collect_trajectory

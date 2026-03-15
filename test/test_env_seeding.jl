@@ -7,14 +7,14 @@ using Random
         rng::Random.AbstractRNG
     end
 
-    Drill.observation_space(::DummyEnv) = Box(Float32[0.0, 0.0], Float32[1.0, 1.0])
-    Drill.action_space(::DummyEnv) = Box(Float32[-1.0], Float32[1.0])
-    Drill.observe(env::DummyEnv) = rand(env.rng, Float32, 2)
-    Drill.terminated(::DummyEnv) = false
-    Drill.truncated(::DummyEnv) = false
-    Drill.act!(::DummyEnv, action) = 0.0f0
-    Drill.get_info(::DummyEnv) = Dict{String, Any}()
-    Drill.reset!(::DummyEnv) = nothing
+    DrillInterface.observation_space(::DummyEnv) = Box(Float32[0.0, 0.0], Float32[1.0, 1.0])
+    DrillInterface.action_space(::DummyEnv) = Box(Float32[-1.0], Float32[1.0])
+    DrillInterface.observe(env::DummyEnv) = rand(env.rng, Float32, 2)
+    DrillInterface.terminated(::DummyEnv) = false
+    DrillInterface.truncated(::DummyEnv) = false
+    DrillInterface.act!(::DummyEnv, action) = 0.0f0
+    DrillInterface.get_info(::DummyEnv) = Dict{String, Any}()
+    DrillInterface.reset!(::DummyEnv) = nothing
 
     env = DummyEnv(Random.Xoshiro())
     Random.seed!(env, 42)
@@ -41,14 +41,14 @@ end
         rng::Random.AbstractRNG
     end
 
-    Drill.observation_space(::DummyEnv2) = Box(Float32[0.0, 0.0], Float32[1.0, 1.0])
-    Drill.action_space(::DummyEnv2) = Box(Float32[-1.0], Float32[1.0])
-    Drill.observe(env::DummyEnv2) = rand(env.rng, Float32, 2)
-    Drill.terminated(::DummyEnv2) = false
-    Drill.truncated(::DummyEnv2) = false
-    Drill.act!(::DummyEnv2, action) = 0.0f0
-    Drill.get_info(::DummyEnv2) = Dict{String, Any}()
-    Drill.reset!(::DummyEnv2) = nothing
+    DrillInterface.observation_space(::DummyEnv2) = Box(Float32[0.0, 0.0], Float32[1.0, 1.0])
+    DrillInterface.action_space(::DummyEnv2) = Box(Float32[-1.0], Float32[1.0])
+    DrillInterface.observe(env::DummyEnv2) = rand(env.rng, Float32, 2)
+    DrillInterface.terminated(::DummyEnv2) = false
+    DrillInterface.truncated(::DummyEnv2) = false
+    DrillInterface.act!(::DummyEnv2, action) = 0.0f0
+    DrillInterface.get_info(::DummyEnv2) = Dict{String, Any}()
+    DrillInterface.reset!(::DummyEnv2) = nothing
 
     envs_mt = [DummyEnv2(Random.Xoshiro()) for _ in 1:3]
     penv_mt = MultiThreadedParallelEnv(envs_mt)
@@ -96,14 +96,14 @@ end
 
 @testset "Random.seed! no-rng env does not error" begin
     struct NoRNGEnv <: AbstractEnv end
-    Drill.observation_space(::NoRNGEnv) = Box(Float32[0.0], Float32[1.0])
-    Drill.action_space(::NoRNGEnv) = Box(Float32[-1.0], Float32[1.0])
-    Drill.observe(::NoRNGEnv) = Float32[rand()]
-    Drill.terminated(::NoRNGEnv) = false
-    Drill.truncated(::NoRNGEnv) = false
-    Drill.act!(::NoRNGEnv, action) = 0.0f0
-    Drill.get_info(::NoRNGEnv) = Dict{String, Any}()
-    Drill.reset!(::NoRNGEnv) = nothing
+    DrillInterface.observation_space(::NoRNGEnv) = Box(Float32[0.0], Float32[1.0])
+    DrillInterface.action_space(::NoRNGEnv) = Box(Float32[-1.0], Float32[1.0])
+    DrillInterface.observe(::NoRNGEnv) = Float32[rand()]
+    DrillInterface.terminated(::NoRNGEnv) = false
+    DrillInterface.truncated(::NoRNGEnv) = false
+    DrillInterface.act!(::NoRNGEnv, action) = 0.0f0
+    DrillInterface.get_info(::NoRNGEnv) = Dict{String, Any}()
+    DrillInterface.reset!(::NoRNGEnv) = nothing
 
     env = NoRNGEnv()
     Random.seed!(env, 123)
@@ -115,14 +115,14 @@ end
         rng::Random.AbstractRNG
     end
 
-    Drill.observation_space(::DummyEnv3) = Box(Float32[0.0, 0.0], Float32[1.0, 1.0])
-    Drill.action_space(::DummyEnv3) = Box(Float32[-1.0], Float32[1.0])
-    Drill.observe(env::DummyEnv3) = rand(env.rng, Float32, 2)
-    Drill.terminated(::DummyEnv3) = false
-    Drill.truncated(::DummyEnv3) = false
-    Drill.act!(::DummyEnv3, action) = 0.0f0
-    Drill.get_info(::DummyEnv3) = Dict{String, Any}()
-    Drill.reset!(::DummyEnv3) = nothing
+    DrillInterface.observation_space(::DummyEnv3) = Box(Float32[0.0, 0.0], Float32[1.0, 1.0])
+    DrillInterface.action_space(::DummyEnv3) = Box(Float32[-1.0], Float32[1.0])
+    DrillInterface.observe(env::DummyEnv3) = rand(env.rng, Float32, 2)
+    DrillInterface.terminated(::DummyEnv3) = false
+    DrillInterface.truncated(::DummyEnv3) = false
+    DrillInterface.act!(::DummyEnv3, action) = 0.0f0
+    DrillInterface.get_info(::DummyEnv3) = Dict{String, Any}()
+    DrillInterface.reset!(::DummyEnv3) = nothing
 
     env = DummyEnv3(Random.Xoshiro())
     Random.seed!(env, 11)

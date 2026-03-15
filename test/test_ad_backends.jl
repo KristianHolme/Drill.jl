@@ -11,8 +11,8 @@ using .TestSetup
 
 @testset "PPO training with different AD backends (continuous)" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
-    continuous_obs_space = Drill.observation_space(continuous_env)
-    continuous_action_space = Drill.action_space(continuous_env)
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
 
     backends = [
         ("Zygote", AutoZygote()),
@@ -35,8 +35,8 @@ end
 
 @testset "PPO training with different AD backends (discrete)" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
-    continuous_obs_space = Drill.observation_space(continuous_env)
-    continuous_action_space = Drill.action_space(continuous_env)
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
 
     discrete_obs_space = Drill.Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
     discrete_action_space = Drill.Discrete(3, 0)
@@ -65,8 +65,8 @@ end
 
 @testset "SAC training with different AD backends" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
-    continuous_obs_space = Drill.observation_space(continuous_env)
-    continuous_action_space = Drill.action_space(continuous_env)
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
 
     backends = [
         ("Zygote", AutoZygote()),

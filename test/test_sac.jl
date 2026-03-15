@@ -165,8 +165,8 @@ end
         rng = Random.Xoshiro(42)
 
         env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
-        obs_space = Drill.observation_space(env)
-        action_space = Drill.action_space(env)
+        obs_space = DrillInterface.observation_space(env)
+        action_space = DrillInterface.action_space(env)
 
         layer = ContinuousActorCriticLayer(
             obs_space, action_space; hidden_dims = [8, 4],

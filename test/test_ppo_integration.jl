@@ -18,8 +18,8 @@ using .TestSetup
     baseline_env = make_parallel_env(9_999, n_envs)
     trained_eval_env = make_parallel_env(9_999, n_envs)
 
-    obs_space = Drill.observation_space(train_env)
-    act_space = Drill.action_space(train_env)
+    obs_space = DrillInterface.observation_space(train_env)
+    act_space = DrillInterface.action_space(train_env)
 
     layer = ActorCriticLayer(obs_space, act_space; hidden_dims = [64, 64])
     alg = PPO(; n_steps = 64, batch_size = 32, epochs = 10, learning_rate = 3.0f-3)
@@ -50,8 +50,8 @@ end
     n_envs = 2
     train_env = make_parallel_env(321, n_envs)
 
-    obs_space = Drill.observation_space(train_env)
-    act_space = Drill.action_space(train_env)
+    obs_space = DrillInterface.observation_space(train_env)
+    act_space = DrillInterface.action_space(train_env)
 
     layer = ActorCriticLayer(obs_space, act_space; hidden_dims = [32, 32])
     alg = PPO(; n_steps = 16, batch_size = 16, epochs = 2, learning_rate = 5.0f-4)

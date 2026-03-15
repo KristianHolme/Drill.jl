@@ -10,8 +10,8 @@ using .TestSetup
 
 @testset "Device transfer with cpu_device (PPO)" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
-    continuous_obs_space = Drill.observation_space(continuous_env)
-    continuous_action_space = Drill.action_space(continuous_env)
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
 
     layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
@@ -28,8 +28,8 @@ end
 
 @testset "Device transfer with cpu_device (SAC)" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
-    continuous_obs_space = Drill.observation_space(continuous_env)
-    continuous_action_space = Drill.action_space(continuous_env)
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
 
     layer = ContinuousActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16], critic_type = QCritic())
     alg = SAC(; start_steps = 4, batch_size = 4)
@@ -46,8 +46,8 @@ end
 
 @testset "Training with Reactant device" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
-    continuous_obs_space = Drill.observation_space(continuous_env)
-    continuous_action_space = Drill.action_space(continuous_env)
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
@@ -62,8 +62,8 @@ end
 
 @testset "PPO constructor builds TrainState on Reactant device without warning" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
-    continuous_obs_space = Drill.observation_space(continuous_env)
-    continuous_action_space = Drill.action_space(continuous_env)
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
@@ -81,8 +81,8 @@ end
 
 @testset "SAC constructor builds TrainState on Reactant device without warning" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
-    continuous_obs_space = Drill.observation_space(continuous_env)
-    continuous_action_space = Drill.action_space(continuous_env)
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
@@ -101,8 +101,8 @@ end
 
 @testset "Reactant rollout inference populates and reuses cache" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
-    continuous_obs_space = Drill.observation_space(continuous_env)
-    continuous_action_space = Drill.action_space(continuous_env)
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
@@ -140,8 +140,8 @@ end
 
 @testset "Reactant deployment inference populates cache and recompiles on shape change" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
-    continuous_obs_space = Drill.observation_space(continuous_env)
-    continuous_action_space = Drill.action_space(continuous_env)
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
@@ -166,8 +166,8 @@ end
 
 @testset "Reactant SAC inference populates runtime cache" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
-    continuous_obs_space = Drill.observation_space(continuous_env)
-    continuous_action_space = Drill.action_space(continuous_env)
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
@@ -192,8 +192,8 @@ end
 
 @testset "Reactant cache invalidates on device adaptation" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
-    continuous_obs_space = Drill.observation_space(continuous_env)
-    continuous_action_space = Drill.action_space(continuous_env)
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
@@ -218,8 +218,8 @@ end
 
 @testset "Reactant cache invalidates after loading layer state" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
-    continuous_obs_space = Drill.observation_space(continuous_env)
-    continuous_action_space = Drill.action_space(continuous_env)
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()

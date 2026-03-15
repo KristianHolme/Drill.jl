@@ -429,4 +429,72 @@ function batch(x::AbstractMatrix{<:Integer}, space::Discrete)
 end
 
 
+# ------------------------------------------------------------
+# Policies
+# ------------------------------------------------------------
+
+export AbstractPolicy, RandomPolicy, ConstantPolicy
+
+"""
+    AbstractPolicy
+
+Abstract type for deployment policies. Subtypes are callable with signature:
+
+    (policy::AbstractPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = Random.default_rng())
+
+Return env-space actions for a single observation or a vector of observations.
+"""
+abstract type AbstractPolicy end
+
+"""
+    RandomPolicy(action_space)
+    RandomPolicy(env::AbstractEnv)
+
+A policy that returns a random action from the action space.
+
+# Examples
+```julia
+using DrillInterface
+space = Box(-1.0f0, 1.0f0, (2,))
+policy = RandomPolicy(space)
+action = policy(nothing; deterministic = true, rng = Random.Xoshiro(123))
+```
+"""
+struct RandomPolicy{A <: AbstractSpace} <: AbstractPolicy
+    action_space::A
+end
+
+function (rp::RandomPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = Random.default_rng())
+    return rand(rng, rp.action_space)
+end
+
+function RandomPolicy(env::AbstractEnv)
+    return RandomPolicy(action_space(env))
+end
+
+
+"""
+    ConstantPolicy(action)
+
+A policy that returns a constant action. Will throw an error if deterministic is false.
+Will warn if rng is not nothing. Will not use the rng.
+
+# Examples
+```julia
+using DrillInterface
+policy = ConstantPolicy([0.0f0])
+action = policy(nothing; deterministic = true)
+```
+"""
+struct ConstantPolicy{A} <: AbstractPolicy
+    action::A
+end
+
+function (cp::ConstantPolicy)(obs; deterministic::Bool = true, rng::Union{Nothing, AbstractRNG} = nothing)
+    !deterministic && error("ConstantPolicy is deterministic")
+    !isnothing(rng) && @warn "rng is not used by ConstantPolicy"
+    return cp.action
+end
+
+
 end # module

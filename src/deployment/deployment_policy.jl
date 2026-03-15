@@ -1,5 +1,7 @@
 # Deployment-time policy (actor-only wrapper)
 
+using DrillInterface: AbstractPolicy
+
 mutable struct NeuralPolicy{L, AD, S} <: AbstractPolicy
     layer::L
     params
@@ -112,55 +114,4 @@ function (nwp::NormWrapperPolicy)(obs; deterministic::Bool = true, rng::Abstract
     else
         return actions
     end
-end
-
-"""
-    RandomPolicy(env)
-    RandomPolicy(action_space)
-
-A policy that returns a random action from the action space.
-
-# Examples
-```julia
-using ClassicControlEnvironments
-env = CartPoleEnv()
-policy = RandomPolicy(env)
-action = policy(obs; deterministic = true, rng = Random.Xoshiro(123))
-```
-"""
-struct RandomPolicy{A <: AbstractSpace} <: AbstractPolicy
-    action_space::A
-end
-
-function (rp::RandomPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = Random.default_rng())
-    return rand(rng, rp.action_space)
-end
-
-function RandomPolicy(env::AbstractEnv)
-    return RandomPolicy(action_space(env))
-end
-
-
-"""
-    ConstantPolicy(action)
-
-A policy that returns a constant action. Will throw an error if deterministic is false.
- Will warn if rng is not nothing. Will not use the rng.
-
-# Examples
-```julia
-using ClassicControlEnvironments
-env = CartPoleEnv()
-policy = ConstantPolicy([0.0f0])
-action = policy(obs; deterministic = true, rng = Random.Xoshiro(123))
-```
-"""
-struct ConstantPolicy{A} <: AbstractPolicy
-    action::A
-end
-
-function (cp::ConstantPolicy)(obs; deterministic::Bool = true, rng::Union{Nothing, AbstractRNG} = nothing)
-    !deterministic && error("ConstantPolicy is deterministic")
-    !isnothing(rng) && warn("rng is not used by ConstantPolicy")
-    return cp.action
 end
