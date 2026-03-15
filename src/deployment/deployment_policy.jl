@@ -1,11 +1,33 @@
 # Deployment-time policy (actor-only wrapper)
 
-struct NeuralPolicy{L, AD, S} <: AbstractPolicy
+mutable struct NeuralPolicy{L, AD, S} <: AbstractPolicy
     layer::L
     params
     states::S
     action_space
     adapter::AD
+    cache
+end
+
+function NeuralPolicy(layer::L, params, states::S, action_space, adapter::AD) where {L, AD, S}
+    return NeuralPolicy(layer, params, states, action_space, adapter, nothing)
+end
+
+# Mark NeuralPolicy as a leaf so fmap doesn't recurse into its fields.
+# Our adapt_structure method below handles the actual device transfer.
+MLDataDevices.isleaf(::NeuralPolicy) = true
+
+function Adapt.adapt_structure(to::MLDataDevices.AbstractDevice, np::NeuralPolicy)
+    new_params = to(np.params)
+    new_states = to(np.states)
+    return NeuralPolicy(
+        np.layer,
+        new_params,
+        new_states,
+        np.action_space,
+        np.adapter,
+        nothing,
+    )
 end
 
 """
@@ -19,19 +41,41 @@ function extract_policy(agent)
     st = agent.train_state.states
     as = action_space(layer)
     adapter = agent.action_adapter
-    return NeuralPolicy(layer, ps, st, as, adapter)
+    return NeuralPolicy(layer, ps, st, as, adapter, nothing)
+end
+
+function invalidate_cache!(np::NeuralPolicy)
+    np.cache = nothing
+    return np
 end
 
 
 function (np::NeuralPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = Random.default_rng())
     single_obs = false
-    if size(obs) == size(observation_space(np.layer)) #single observation, make into vector
-        obs = [obs]
+    if !(obs isa AbstractVector{<:AbstractArray}) && size(obs) == size(observation_space(np.layer)) #single observation, make into vector
         single_obs = true
+        obs_batch = reshape(obs, :, 1)
+    else
+        obs_batch = batch(obs, observation_space(np.layer))
     end
-    obs_batch = batch(obs, observation_space(np.layer))
-    actions, _ = predict_actions(np.layer, obs_batch, np.params, np.states; deterministic = deterministic, rng = rng)
-    env_actions = to_env.(Ref(np.adapter), actions, Ref(np.action_space))
+    dev = current_device(np.params)
+    obs_batch = obs_batch |> dev
+    obs_batch = canonicalize_device_batch(dev, obs_batch)
+    st = deployment_inference_state(np.states)
+    actions_batched, _ = execute_deployment_predict_actions(
+        dev,
+        np,
+        obs_batch,
+        np.params,
+        st;
+        deterministic,
+        rng,
+    )
+    actions_vec = actions_batched isa AbstractVector ? collect(actions_batched) : collect(eachslice(actions_batched, dims = ndims(actions_batched)))
+    if dev isa MLDataDevices.ReactantDevice
+        actions_vec = map(Array, actions_vec)
+    end
+    env_actions = to_env.(Ref(np.adapter), actions_vec, Ref(np.action_space))
     if single_obs
         return env_actions[1]
     else

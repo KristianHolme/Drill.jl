@@ -1,15 +1,18 @@
 module Drill
 
 using Accessors
+using Adapt
 using Base.Threads
 using ChainRulesCore
 using ComponentArrays
 using DataStructures
+using DrillInterface
 using Functors: fmap
 using LinearAlgebra
 using Logging
 using Lux
 using LoopVectorization
+using MLDataDevices: get_device, AbstractDevice, cpu_device
 using MLUtils
 using Octavian
 using Optimisers
@@ -21,15 +24,15 @@ using StatsBase: sample
 using TimerOutputs
 using FileIO
 using JLD2
+using OneHotArrays
 
 include("DrillDistributions/DrillDistributions.jl")
 @reexport using .DrillDistributions
 
 include("interfaces/interfaces.jl")
-export AbstractEnv, AbstractParallelEnv, AbstractAgent, AbstractBuffer, AbstractAlgorithm
+export AbstractAgent, AbstractBuffer, AbstractAlgorithm
 export AbstractEntropyTarget, FixedEntropyTarget, AutoEntropyTarget
 export AbstractEntropyCoefficient, FixedEntropyCoefficient, AutoEntropyCoefficient
-export reset!, act!, observe, terminated, truncated, action_space, observation_space, get_info, number_of_envs
 export AbstractTrainingLogger, set_step!, increment_step!, log_scalar!, log_metrics!, flush!, close!, log_hparams!
 export AbstractCallback, on_training_start, on_training_end, on_rollout_start, on_rollout_end, on_step
 export AbstractActorCriticLayer, AbstractNoise, CriticType, QCritic, VCritic
@@ -37,12 +40,12 @@ export FeatureSharing, SharedFeatures, SeparateFeatures
 export OffPolicyAlgorithm, OnPolicyAlgorithm
 export AbstractPolicy
 
-include("spaces.jl")
-export AbstractSpace, Box, Discrete
-
 include("adapters/default_adapters.jl")
 export AbstractActionAdapter, ClampAdapter, TanhScaleAdapter, DiscreteAdapter
 export to_env, from_env
+
+include("space_utils.jl")
+export discrete_to_onehotbatch, onehotbatch_to_discrete
 
 include("layers/layers.jl")
 export ActorCriticLayer, ContinuousActorCriticLayer
@@ -51,7 +54,7 @@ export OrthogonalInitializer, action_log_prob
 export AbstractActorCriticLayer
 
 include("agents/agents.jl")
-export predict_actions, predict_values, steps_taken, save_policy_params_and_state, load_policy_params_and_state
+export predict_actions, predict_values, steps_taken, save_layer_params_and_state, load_layer_params_and_state
 include("agents/agent_factory.jl")
 export Agent
 
@@ -64,7 +67,7 @@ include("algorithms/sac.jl")
 export SAC, SACLayer
 
 include("algorithms/ppo.jl")
-export train!, PPO, load_policy_params_and_state!
+export train!, PPO, load_layer_params_and_state!
 
 include("callbacks.jl")
 

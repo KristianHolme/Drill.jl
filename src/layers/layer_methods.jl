@@ -3,37 +3,42 @@
 function predict_actions(layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any, <:Any, <:Any}, obs::AbstractArray, ps, st; deterministic::Bool = false, rng::AbstractRNG = Random.default_rng())
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
     action_means, st = get_actions_from_features(layer, actor_feats, ps, st)
-    log_std = ps.log_std
-    ds = get_distributions(layer, action_means, log_std)
+    d = _distribution_type(layer)
     if deterministic
-        actions = mode.(ds)
+        actions = mode(d, action_means)
     else
-        actions = rand.(rng, ds)
+        actions = rand(rng, d, action_means, ps.log_std)
     end
     return actions, st
 end
 
 function predict_actions(layer::DiscreteActorCriticLayer, obs::AbstractArray, ps, st; deterministic::Bool = false, rng::AbstractRNG = Random.default_rng())
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
-    action_logits, st = get_actions_from_features(layer, actor_feats, ps, st)  # For discrete, these are logits
-    ds = get_distributions(layer, action_logits)
+    action_logits, st = get_actions_from_features(layer, actor_feats, ps, st)
+    probs = Lux.softmax(action_logits)
+    d = BatchedCategorical()
     if deterministic
-        actions = mode.(ds)
+        actions_onehot = mode(d, probs)
     else
-        actions = rand.(rng, ds)
+        actions_onehot = rand(rng, d, probs)
     end
-    return actions, st
+    return actions_onehot, st
 end
 
-function evaluate_actions(layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any, <:Any, <:Any}, obs::AbstractArray{T}, actions::AbstractArray{T}, ps, st) where {T <: Real}
+function evaluate_actions(
+        layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any, <:Any, <:Any},
+        obs::AbstractArray,
+        actions::AbstractArray,
+        ps,
+        st,
+    )
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
-    new_action_means, st = get_actions_from_features(layer, actor_feats, ps, st) #runtime dispatch
-    values, st = get_values_from_features(layer, critic_feats, ps, st) #runtime dispatch
-    distributions = get_distributions(layer, new_action_means, ps.log_std) #runtime dispatch
-    actions_vec = collect(eachslice(actions, dims = ndims(actions))) #runtime dispatch
-    log_probs = logpdf.(distributions, actions_vec)
-    entropies = entropy.(distributions) #runtime dispatch
-    return evaluate_actions_returns(layer, values, log_probs, entropies, st)
+    new_action_means, st = get_actions_from_features(layer, actor_feats, ps, st)
+    values, st = get_values_from_features(layer, critic_feats, ps, st)
+    d = _distribution_type(layer)
+    log_probs = logpdf(d, actions, new_action_means, ps.log_std)
+    entropies = entropy(d, new_action_means, ps.log_std)
+    return evaluate_actions_returns(layer, values, vec(log_probs), vec(entropies), st)
 end
 
 function evaluate_actions_returns(::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic}, values, log_probs, entropies, st)
@@ -43,15 +48,15 @@ function evaluate_actions_returns(::ContinuousActorCriticLayer, values, log_prob
     return vec(values), log_probs, entropies, st
 end
 
-function evaluate_actions(layer::DiscreteActorCriticLayer, obs::AbstractArray, actions::AbstractArray{<:Int}, ps, st)
+function evaluate_actions(layer::DiscreteActorCriticLayer, obs::AbstractArray, actions::AbstractMatrix, ps, st)
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
-    new_action_logits, st = get_actions_from_features(layer, actor_feats, ps, st)  # For discrete, these are logits
+    new_action_logits, st = get_actions_from_features(layer, actor_feats, ps, st)
     values, st = get_values_from_features(layer, critic_feats, ps, st)
-    ds = get_distributions(layer, new_action_logits)
-    actions_vec = collect(eachslice(actions, dims = ndims(actions))) #::Vector{AbstractArray{T, ndims(actions) - 1}}
-    log_probs = logpdf.(ds, actions_vec)
-    entropies = entropy.(ds)
-    return vec(values), log_probs, entropies, st
+    probs = Lux.softmax(new_action_logits)
+    d = BatchedCategorical()
+    log_probs = logpdf(d, actions, probs)
+    entropies = entropy(d, probs)
+    return vec(values), vec(log_probs), vec(entropies), st
 end
 
 function predict_values(layer::AbstractActorCriticLayer, obs::AbstractArray, ps, st)
@@ -66,15 +71,11 @@ function predict_values(layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCrit
     return values, st #dont return vec(values) as this is a matrix
 end
 
-#returns vector of actions
 function action_log_prob(layer::ContinuousActorCriticLayer, obs::AbstractArray, ps, st; rng::AbstractRNG = Random.default_rng())
-    #TODO: fix runtime dispatch here in extract_features
     actor_feats, _, st = extract_features(layer, obs, ps, st)
     action_means, st = get_actions_from_features(layer, actor_feats, ps, st)
-    log_std = ps.log_std
-    ds = get_distributions(layer, action_means, log_std)
-    actions = rand.(rng, ds)
-    log_probs = logpdf.(ds, actions)
-    # scaled_actions = scale_to_space.(actions, Ref(policy.action_space))
-    return actions, log_probs, st
+    d = _distribution_type(layer)
+    actions = rand(rng, d, action_means, ps.log_std)
+    log_probs = logpdf(d, actions, action_means, ps.log_std)
+    return actions, vec(log_probs), st
 end

@@ -29,11 +29,18 @@ function from_env(::TanhScaleAdapter, action::AbstractArray, space::Box{T}) wher
 end
 
 from_env(::ClampAdapter, action::AbstractArray, ::Box) = action
-
-# Discrete spaces
-to_env(::DiscreteAdapter, action::Integer, space::Discrete) = action  # assume index is valid
-
-function to_env(::DiscreteAdapter, action::AbstractArray{<:Integer}, space::Discrete)
+function onehot_to_discrete(action::OneHotVector, space::Discrete)
+    return space.start + argmax(action) - 1
+end
+# Discrete spaces: convert onehot to discrete
+function to_env(::DiscreteAdapter, action::OneHotVector, space::Discrete)
+    return onehot_to_discrete(action, space)
+end
+function to_env(::DiscreteAdapter, action::AbstractVector, space::Discrete)
+    return space.start + argmax(action) - 1
+end
+function to_env(::DiscreteAdapter, action::Integer, space::Discrete)
+    @assert action in space "Action $(action) is out of bounds for $(space)"
     return action
 end
 

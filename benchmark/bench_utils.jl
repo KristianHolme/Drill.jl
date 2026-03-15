@@ -22,7 +22,7 @@ function make_pendulum_env(; n_envs::Int = DEFAULT_N_ENVS, seed::Int = DEFAULT_S
     return env
 end
 
-function make_ppo_agent(env::AbstractParallelEnv; seed::Int = DEFAULT_SEED)
+function make_ppo_agent(env::AbstractParallelEnv; seed::Int = DEFAULT_SEED, device = nothing)
     rng = Random.Xoshiro(seed)
     alg = PPO(; n_steps = 32, batch_size = 32, epochs = 1, learning_rate = 1.0f-3)
     layer = ActorCriticLayer(
@@ -30,7 +30,11 @@ function make_ppo_agent(env::AbstractParallelEnv; seed::Int = DEFAULT_SEED)
         action_space(env);
         hidden_dims = [32, 32]
     )
-    agent = Agent(layer, alg; verbose = 0, logger = NoTrainingLogger(), rng = rng)
+    agent = if device === nothing
+        Agent(layer, alg; verbose = 0, logger = NoTrainingLogger(), rng = rng)
+    else
+        Agent(layer, alg; verbose = 0, logger = NoTrainingLogger(), rng = rng, device = device)
+    end
     return agent, alg
 end
 
@@ -89,6 +93,16 @@ function setup_training_sac(; n_envs::Int = DEFAULT_N_ENVS, max_steps::Int = DEF
     return env, agent, alg, max_steps
 end
 
+# Same workload for device benchmarks (small steps, fixed seed) so CPU vs Reactant are comparable.
+const DEVICE_BENCH_MAX_STEPS = 128
+
+function setup_training_ppo_device(; n_envs::Int = DEFAULT_N_ENVS, device = nothing)
+    env = make_cartpole_env(; n_envs = n_envs)
+    agent, alg = make_ppo_agent(env; device = device)
+    reset!(env)
+    return env, agent, alg, DEVICE_BENCH_MAX_STEPS
+end
+
 function setup_wrapper_envs(; n_envs::Int = DEFAULT_N_ENVS)
     base_env = make_cartpole_env(; n_envs = n_envs)
     monitor_env = MonitorWrapperEnv(make_cartpole_env(; n_envs = n_envs))
@@ -110,7 +124,7 @@ function setup_threaded_envs(; n_envs::Int = DEFAULT_N_ENVS)
     return threaded_env, actions
 end
 
-function setup_ppo_gradient_data(; n_envs::Int = DEFAULT_N_ENVS)
+function setup_ppo_gradient_data_discrete(; n_envs::Int = DEFAULT_N_ENVS)
     env = make_cartpole_env(; n_envs = n_envs)
     agent, alg = make_ppo_agent(env)
     n_steps = alg.n_steps
@@ -146,6 +160,48 @@ function setup_ppo_gradient_data(; n_envs::Int = DEFAULT_N_ENVS)
     @assert batch_data !== nothing
     train_state = deepcopy(agent.train_state)
     return alg, batch_data, train_state
+end
+
+function setup_ppo_gradient_data_continuous(; n_envs::Int = DEFAULT_N_ENVS)
+    env = make_pendulum_env(; n_envs = n_envs)
+    agent, alg = make_ppo_agent(env)
+    n_steps = alg.n_steps
+    buffer = RolloutBuffer(
+        observation_space(env),
+        action_space(env),
+        alg.gae_lambda,
+        alg.gamma,
+        n_steps,
+        n_envs,
+    )
+    reset!(env)
+    Drill.collect_rollout!(buffer, agent, alg, env)
+    data_loader = Drill.DataLoader(
+        (
+            buffer.observations,
+            buffer.actions,
+            buffer.advantages,
+            buffer.returns,
+            buffer.logprobs,
+            buffer.values,
+        );
+        batchsize = alg.batch_size,
+        shuffle = true,
+        parallel = true,
+        rng = agent.rng,
+    )
+    batch_data = nothing
+    for batch_data_item in data_loader
+        batch_data = batch_data_item
+        break
+    end
+    @assert batch_data !== nothing
+    train_state = deepcopy(agent.train_state)
+    return alg, batch_data, train_state
+end
+
+function setup_ppo_gradient_data(; n_envs::Int = DEFAULT_N_ENVS)
+    return setup_ppo_gradient_data_discrete(; n_envs = n_envs)
 end
 
 function setup_sac_gradient_data(; n_envs::Int = DEFAULT_N_ENVS, n_steps::Int = DEFAULT_ROLLOUT_STEPS)

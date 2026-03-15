@@ -1,54 +1,35 @@
 """
-custom implementations of distributions. 
-
-functions:
-extend Random.rand
-logpdf to get logprobs
-entropy to get entropy
-mode to get the mode
-
-distributions:
-Categorical
-
-DiagGaussian
-also used for action spaces with only one action element
-    - mean is the action mean, doesnt need to be a vector, to preserve action shape
-    - std, same shape as mean
+Batched Categorical distribution (empty struct for dispatch).
+Returns dense one-hot matrices of shape (num_classes, batch_size) with eltype matching probs.
+Probs shape: (num_classes, batch_size). Kernel-friendly (tensor ops only) for Reactant.
 """
-
-
-struct Categorical{V <: AbstractVector{<:Real}} <: AbstractDiscreteDistribution
-    probabilities::V
-    start::Integer
-    function Categorical(probs::V, start::Integer = 1) where {V <: AbstractVector{<:Real}}
-        @assert sum(probs) ≈ 1 "Sum of probabilities must be 1"
-        return new{V}(probs, start)
-    end
+struct BatchedCategorical <: AbstractDiscreteDistribution
 end
 
-function logpdf(d::Categorical, x::AbstractArray{<:Integer})
-    @assert length(x) == 1 "Categorical distribution only supports single actions"
-    return logpdf(d, x[1])
+function Random.rand(rng::AbstractRNG, ::BatchedCategorical, probs::AbstractMatrix{T}) where {T}
+    epsval = eps(T)
+    U = rand(rng, T, 1, size(probs, 2))
+    U = @. clamp(U, epsval, one(T) - epsval)
+    cdf = cumsum(probs; dims = 1)
+    return @. ifelse((cdf >= U) & (cdf - probs < U), one(T), zero(T))
 end
 
-function logpdf(d::Categorical, x::Integer)
-    return log(d.probabilities[x - d.start + 1])
+function mode(::BatchedCategorical, probs::AbstractMatrix{T}) where {T}
+    # Tie-break so exactly one 1 per column (deterministic: smallest index wins)
+    num_classes = size(probs, 1)
+    tie_breaker = eps(T) .* (1:num_classes)
+    scores = probs .+ reshape(tie_breaker, :, 1)
+    max_scores = reshape(maximum(scores, dims = 1), (1, size(probs, 2)))
+    one_hot = (scores .== max_scores)
+    return T.(one_hot)
 end
 
-function entropy(d::Categorical)
-    return -sum(d.probabilities .* log.(d.probabilities))
+function logpdf(::BatchedCategorical, x::AbstractMatrix, probs::AbstractMatrix)
+    return log.(sum(probs .* x, dims = 1))
 end
 
-function mode(d::Categorical)
-    return argmax(d.probabilities) + d.start - 1
+function entropy(::BatchedCategorical, probs::AbstractMatrix)
+    probs_clamped = clamp.(probs, 0, 1)
+    plogp = probs_clamped .* log.(probs_clamped)
+    return -sum(plogp, dims = 1)
 end
-
-
-function Random.rand(rng::AbstractRNG, d::Categorical)
-    cumulative_probs = cumsum(d.probabilities)
-    u = rand(rng)
-    idx = findfirst(cumulative_probs .>= u)
-    return idx + d.start - 1
-end
-
-Random.rand(rng::AbstractRNG, d::Categorical, n::Integer) = [rand(rng, d) for _ in 1:n]

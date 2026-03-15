@@ -48,3 +48,54 @@ end
 function mode(d::SquashedDiagGaussian)
     return tanh.(d.DiagGaussian.mean)
 end
+
+# =============================================================================
+# Batched SquashedDiagGaussian (empty struct for dispatch)
+# =============================================================================
+
+struct BatchedSquashedDiagGaussian <: AbstractContinuousDistribution
+end
+
+function Random.rand(rng::AbstractRNG, ::BatchedSquashedDiagGaussian, mean::AbstractArray{T}, log_std::AbstractArray{T}) where {T}
+    gaussian_sample = mean .+ exp.(log_std) .* randn(rng, T, size(mean))
+    return tanh.(gaussian_sample)
+end
+
+function mode(::BatchedSquashedDiagGaussian, mean::AbstractArray)
+    return tanh.(mean)
+end
+
+const _default_eps = 1.0e-6
+# is this necessary, or are constants like log(2π) evaluated at compile time?
+const _log2π = log(2π)
+
+function _dsum_squashed(x::AbstractArray{T, N}, dims) where {T, N}
+    dims_drop = dims[1:(end - 1)]
+    return dropdims(sum(x; dims = dims), dims = dims_drop)
+end
+
+function logpdf(
+        ::BatchedSquashedDiagGaussian,
+        x::AbstractArray{T, N},
+        mean::AbstractArray{T, N},
+        log_std::AbstractArray{T, N};
+        eps = _default_eps,
+    ) where {T, N}
+    eps_t = T(eps)
+    non_batch_dims = ntuple(i -> i, N - 1)
+    k = prod(size(mean)[1:(end - 1)])
+    x_clamped = clamp.(x, Ref(-one(T) + eps_t), Ref(one(T) - eps_t))
+    gaussian_action = atanh.(x_clamped)
+    log_std_sum = _dsum_squashed(log_std, non_batch_dims)
+    diff = gaussian_action - mean
+    var_inv = exp.(-oftype(zero(T), 2) * log_std)
+    diff_squared_sum = _dsum_squashed(abs2.(diff) .* var_inv, non_batch_dims)
+    gaussian_logpdf = -T(0.5) * (T(2) * log_std_sum .+ diff_squared_sum .+ k * T(_log2π))
+    correction = T(2) * (log(T(2)) .- gaussian_action .- Lux.softplus.(-T(2) * gaussian_action))
+    correction_sum = _dsum_squashed(correction, non_batch_dims)
+    return gaussian_logpdf .- correction_sum
+end
+
+function entropy(::BatchedSquashedDiagGaussian, mean::AbstractArray{T, N}, log_std::AbstractArray{T, N}) where {T, N}
+    return entropy(BatchedDiagGaussian(), mean, log_std)
+end
