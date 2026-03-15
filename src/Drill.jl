@@ -8,7 +8,9 @@ using ComponentArrays
 using DataStructures
 import DrillInterface: act!, action_space, get_info, number_of_envs, observation_space,
     observe, reset!, terminated, truncated
-using DrillInterface
+using DrillInterface: AbstractEnv, AbstractEnvWrapper, AbstractParallelEnv,
+    AbstractParallelEnvWrapper, AbstractPolicy,
+    AbstractSpace, Box, Box, Discrete, Discrete, DrillInterface, batch
 using Functors: fmap
 using LinearAlgebra
 using Logging
