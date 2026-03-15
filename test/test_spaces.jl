@@ -1,5 +1,6 @@
 using Test
 using Drill
+using DrillInterface: Box, Discrete
 using Random
 
 @testset "Box space creation and properties" begin

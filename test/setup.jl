@@ -1,11 +1,12 @@
 module TestSetup
 using Drill
+using DrillInterface: AbstractEnv, AbstractParallelEnv, AbstractEnvWrapper, Box, Discrete
 using Random
 using Drill.Lux
 
 export CustomEnv, InfiniteHorizonEnv, TrackingTargetEnv, SimpleRewardEnv,
        ConstantValueLayer, ConstantObsWrapper, CustomShapedBoxEnv, RandomDiscreteEnv,
-       AbstractEnvWrapper, compute_expected_gae
+       compute_expected_gae
 
 # Custom environment that gives a reward of 1.0 only at the final timestep of an episode.
 # Equivalent to CustomEnv in stable-baselines3 test_gae.py.
@@ -304,16 +305,13 @@ function compute_expected_gae(
     return expected_advantages
 end
 
-# Define AbstractEnvWrapper
-abstract type AbstractEnvWrapper <: AbstractEnv end
-
 # Environment wrapper to ensure consistent observations for testing.
-mutable struct ConstantObsWrapper <: AbstractEnvWrapper
-    env::AbstractEnv
+mutable struct ConstantObsWrapper{E <: AbstractEnv} <: AbstractEnvWrapper{E}
+    env::E
     constant_obs::Vector{Float32}
 
     function ConstantObsWrapper(env::AbstractEnv, obs::Vector{Float32})
-        new(env, obs)
+        new{typeof(env)}(env, obs)
     end
 end
 
