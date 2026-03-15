@@ -120,6 +120,35 @@ end
     @test all(same_outputs)
 end
 
+@testitem "BatchedCategorical rand and mode return dense one-hot" begin
+    using Random
+
+    rng = MersenneTwister(42)
+    d = DrillDistributions.BatchedCategorical()
+
+    for (num_classes, batch_size) in [(3, 5), (8, 1), (2, 10)]
+        p = rand(rng, Float32, num_classes, batch_size)
+        probs = p ./ sum(p, dims = 1)
+
+        # rand: shape and eltype
+        x = rand(rng, d, probs)
+        @test size(x) == size(probs)
+        @test eltype(x) == eltype(probs)
+        @test all(sum(x, dims = 1) .== 1)
+
+        # logpdf(rand(...), probs) is finite and reasonable
+        logp = DrillDistributions.logpdf(d, x, probs)
+        @test size(logp) == (1, batch_size)
+        @test all(isfinite.(logp))
+        @test all(logp .<= 0)
+
+        # mode: shape, eltype, one-hot
+        m = DrillDistributions.mode(d, probs)
+        @test size(m) == size(probs)
+        @test eltype(m) == eltype(probs)
+        @test all(sum(m, dims = 1) .== 1)
+    end
+end
 
 @testitem "Diaggaussion constructor" begin
     using Random

@@ -16,6 +16,7 @@ Drill.jl is a prototype DRL package, aiming to be fast, flexible, and easy to us
 - **Flexible Environments**: Comprehensive environment interface supporting both discrete and continuous action spaces
 - **Rich Logging**: TensorBoard and WandB integration for training monitoring, and timer output ([TimerOutputs.jl](https://github.com/KristofferC/TimerOutputs.jl)) for performance analysis
 - **Parallelization**: Built-in support for parallel environment execution
+- **Reactant support**: Optional [Reactant](https://github.com/EnzymeAD/Reactant.jl) integration for GPU/accelerator execution via the Drill Reactant extension; use `agent |> Lux.reactant_device()` when the extension is loaded. Same device API for CPU/GPU.
 
 ## Implemented Algorithms
 
@@ -117,7 +118,7 @@ env = ScalingWrapperEnv(env)
 
 ### Device support (CPU / GPU)
 
-Agents are on CPU by default. Use `agent |> gpu_device()` or the constructor kwarg `device = gpu_device()` to train on GPU. Same API for policies: `extract_policy(agent) |> cpu_device()` for CPU deployment. Drill moves data in training and inference automatically. For best performance, use **Enzyme** with **Reactant** (see Lux docs); with Reactant loaded, `agent |> Lux.reactant_device()` runs on the Reactant device.
+Agents are on CPU by default. Use `agent |> gpu_device()` or the constructor kwarg `device = gpu_device()` to train on GPU. Same API for policies: `extract_policy(agent) |> cpu_device()` for CPU deployment. Drill moves data in training and inference automatically. Drill supports **Reactant** for GPU/accelerator execution: with the Reactant extension loaded, use `agent |> Lux.reactant_device()`. See the [documentation](https://KristianHolme.github.io/Drill.jl/dev) for Reactant setup and the optional CPU-default preference.
 
 ### Custom Layer Architectures
 

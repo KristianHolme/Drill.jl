@@ -63,8 +63,8 @@ end
         return agent.train_state.parameters != initial_params
     end
     @testset "$(backends[1][1])" test_sac_training(backends[1][2])
-    @testset "$(backends[2][1])" test_sac_training(backends[2][2])
-    @testset "$(backends[3][1])" begin
-        @test_broken test_sac_training(backends[3][2])
+    @testset "$(backends[2][1])" begin
+        @test_broken test_sac_training(backends[2][2])
     end
+    @testset "$(backends[3][1])" test_sac_training(backends[3][2])
 end

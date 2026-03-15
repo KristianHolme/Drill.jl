@@ -36,6 +36,9 @@ end
 function to_env(::DiscreteAdapter, action::OneHotVector, space::Discrete)
     return onehot_to_discrete(action, space)
 end
+function to_env(::DiscreteAdapter, action::AbstractVector, space::Discrete)
+    return space.start + argmax(action) - 1
+end
 function to_env(::DiscreteAdapter, action::Integer, space::Discrete)
     @assert action in space "Action $(action) is out of bounds for $(space)"
     return action

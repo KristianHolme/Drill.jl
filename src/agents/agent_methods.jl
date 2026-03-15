@@ -40,6 +40,7 @@ function get_action_and_values(
     @reset train_state.states = st
     agent.train_state = train_state
     actions = _actions_to_vector(actions_batched)
+    actions = _postprocess_actions(actions, action_space(layer))
     return actions, values, logprobs
 end
 
@@ -138,6 +139,12 @@ end
 
 function _actions_to_vector(actions::AbstractArray)
     return collect(eachslice(actions, dims = ndims(actions)))
+end
+
+# Convert layer outputs to storable format (one-hot → integer for Discrete, identity otherwise)
+_postprocess_actions(actions, ::AbstractSpace) = actions
+function _postprocess_actions(actions, space::Discrete)
+    return [space.start + argmax(a) - 1 for a in actions]
 end
 
 # Abstract methods for all agents

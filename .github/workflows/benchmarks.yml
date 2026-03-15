@@ -2,7 +2,7 @@ name: Benchmark this PR
 
 on:
   pull_request_target:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -14,5 +14,5 @@ jobs:
     steps:
       - uses: MilesCranmer/AirspeedVelocity.jl@action-v1
         with:
-          julia-version: '1'
-          extra-pkgs: 'https://github.com/KristianHolme/ClassicControlEnvironments.jl,Zygote'
+          julia-version: "1"
+          extra-pkgs: "https://github.com/KristianHolme/ClassicControlEnvironments.jl,Zygote,Enzyme,Reactant"

@@ -78,20 +78,23 @@ end
     # Test single observation prediction (with batch dimension)
     obs = Float32[0.5, -0.3]  # Single observation as column vector
     batched_obs = stack([obs])
-    actions, new_states = Drill.predict_actions(policy, batched_obs, params, states; deterministic = false, rng = rng)
+    actions_onehot, new_states = Drill.predict_actions(policy, batched_obs, params, states; deterministic = false, rng = rng)
 
-    # Actions should be in environment action space after processing
+    # Actions are one-hot matrices, convert to discrete integers
+    actions = Drill.onehotbatch_to_discrete(actions_onehot, action_space)
     @test actions[1] ∈ action_space
     @test actions[1] isa Integer
 
     # Test deterministic prediction
-    actions_det, _ = Drill.predict_actions(policy, batched_obs, params, states; deterministic = true, rng = rng)
+    actions_det_onehot, _ = Drill.predict_actions(policy, batched_obs, params, states; deterministic = true, rng = rng)
+    actions_det = Drill.onehotbatch_to_discrete(actions_det_onehot, action_space)
     @test actions_det[1] ∈ action_space
     @test actions_det[1] isa Integer
 
     # Test batch prediction
     batch_obs = Float32[0.5 -0.2; -0.3 0.7]  # 2 observations
-    batch_actions, _ = Drill.predict_actions(policy, batch_obs, params, states; deterministic = false, rng = rng)
+    batch_actions_onehot, _ = Drill.predict_actions(policy, batch_obs, params, states; deterministic = false, rng = rng)
+    batch_actions = Drill.onehotbatch_to_discrete(batch_actions_onehot, action_space)
 
     @test length(batch_actions) == 2
     @test all(a -> a ∈ action_space, batch_actions)
@@ -112,16 +115,16 @@ end
     # Test single observation evaluation
     obs = Float32[0.5, -0.3]
 
-    # Get action from policy (this will be in 1-based Julia indexing internally)
+    # Get action from policy (returns one-hot encoded action)
     batched_obs = stack([obs])
-    actions, values, log_probs, _ = policy(batched_obs, params, states)
+    actions_onehot, values, log_probs, _ = policy(batched_obs, params, states)
 
-    # Test that actions are valid integer actions in action space
+    # Convert one-hot to discrete integer
+    actions = Drill.onehotbatch_to_discrete(actions_onehot, action_space)
     @test actions[1] isa Integer
     @test actions[1] ∈ action_space
 
-    # Evaluate the same actions
-    actions_onehot = Drill.discrete_to_onehotbatch(actions, action_space)
+    # Evaluate the same actions (already one-hot, no conversion needed)
     eval_values, eval_log_probs, entropy, _ = Drill.evaluate_actions(policy, batched_obs, actions_onehot, params, states)
 
     # Values should match
@@ -135,9 +138,8 @@ end
 
     # Test batch evaluation
     batch_obs = Float32[0.5 -0.2; -0.3 0.7]
-    batch_actions, batch_values, batch_log_probs, _ = policy(batch_obs, params, states)
+    batch_actions_onehot, batch_values, batch_log_probs, _ = policy(batch_obs, params, states)
 
-    batch_actions_onehot = Drill.discrete_to_onehotbatch(batch_actions, action_space)
     eval_batch_values, eval_batch_log_probs, batch_entropy, _ = Drill.evaluate_actions(policy, batch_obs, batch_actions_onehot, params, states)
 
     @test length(eval_batch_values) == 2
@@ -170,16 +172,17 @@ end
         obs = Float32[0.5, -0.3]
         batched_obs = stack([obs])
 
-        # Test that policy actions are valid integers in action space
-        actions, _, _, _ = policy(batched_obs, params, states)
+        # Test that policy actions are one-hot matrices, convert to discrete for checking
+        actions_onehot, _, _, _ = policy(batched_obs, params, states)
+        actions = Drill.onehotbatch_to_discrete(actions_onehot, action_space)
         @test actions[1] ∈ action_space
 
-        # Test that predict_actions() returns processed actions in action space range
-        processed_actions, _ = Drill.predict_actions(policy, batched_obs, params, states)
+        # Test that predict_actions() returns one-hot matrices, convert to discrete for checking
+        processed_actions_onehot, _ = Drill.predict_actions(policy, batched_obs, params, states)
+        processed_actions = Drill.onehotbatch_to_discrete(processed_actions_onehot, action_space)
         @test processed_actions[1] ∈ action_space
 
-        # Test that evaluation works with onehot-converted actions
-        actions_onehot = Drill.discrete_to_onehotbatch(actions, action_space)
+        # Test that evaluation works with onehot actions (already one-hot, no conversion needed)
         eval_values, eval_log_probs, entropy, _ = Drill.evaluate_actions(policy, batched_obs, actions_onehot, params, states)
         @test length(eval_log_probs) == 1
         @test length(entropy) == 1
@@ -212,19 +215,22 @@ end
     batched_obs = stack([obs])
 
     # Test that both implement the same methods
-    discrete_actions, discrete_values, discrete_log_probs, _ = discrete_policy(batched_obs, discrete_params, discrete_states)
+    discrete_actions_onehot, discrete_values, discrete_log_probs, _ = discrete_policy(batched_obs, discrete_params, discrete_states)
     continuous_actions, continuous_values, continuous_log_probs, _ = continuous_policy(batched_obs, continuous_params, continuous_states)
 
     # Test predict
-    discrete_pred, _ = Drill.predict_actions(discrete_policy, batched_obs, discrete_params, discrete_states)
+    discrete_pred_onehot, _ = Drill.predict_actions(discrete_policy, batched_obs, discrete_params, discrete_states)
     continuous_pred, _ = Drill.predict_actions(continuous_policy, batched_obs, continuous_params, continuous_states)
+
+    # Convert discrete one-hot to integers for checking
+    discrete_actions = Drill.onehotbatch_to_discrete(discrete_actions_onehot, discrete_action_space)
+    discrete_pred = Drill.onehotbatch_to_discrete(discrete_pred_onehot, discrete_action_space)
 
     # Test predict_values
     discrete_vals, _ = predict_values(discrete_policy, batched_obs, discrete_params, discrete_states)
     continuous_vals, _ = predict_values(continuous_policy, batched_obs, continuous_params, continuous_states)
 
-    # Test evaluate_actions
-    discrete_actions_onehot = Drill.discrete_to_onehotbatch(discrete_actions, discrete_action_space)
+    # Test evaluate_actions (discrete actions are already one-hot)
     discrete_eval_values, discrete_eval_log_probs, discrete_entropy, _ = Drill.evaluate_actions(discrete_policy, batched_obs, discrete_actions_onehot, discrete_params, discrete_states)
     continuous_eval_values, continuous_eval_log_probs, continuous_entropy, _ = Drill.evaluate_actions(continuous_policy, batched_obs, continuous_actions, continuous_params, continuous_states)
 
@@ -253,11 +259,13 @@ end
 
     obs = Float32[0.5]
     batched_obs = stack([obs])
-    # Test that single action space works
-    actions, values, log_probs, _ = policy(batched_obs, params, states)
+    # Test that single action space works (returns one-hot matrix)
+    actions_onehot, values, log_probs, _ = policy(batched_obs, params, states)
+    actions = Drill.onehotbatch_to_discrete(actions_onehot, single_action_space)
     @test actions[1] == 0
 
-    processed_action, _ = Drill.predict_actions(policy, batched_obs, params, states)
+    processed_action_onehot, _ = Drill.predict_actions(policy, batched_obs, params, states)
+    processed_action = Drill.onehotbatch_to_discrete(processed_action_onehot, single_action_space)
     @test processed_action[1] == 0
 
     # Test large action space
@@ -267,10 +275,12 @@ end
     large_params = Lux.initialparameters(rng, large_policy)
     large_states = Lux.initialstates(rng, large_policy)
 
-    large_actions, _, _, _ = large_policy(batched_obs, large_params, large_states)
+    large_actions_onehot, _, _, _ = large_policy(batched_obs, large_params, large_states)
+    large_actions = Drill.onehotbatch_to_discrete(large_actions_onehot, large_action_space)
     @test large_actions[1] ∈ large_action_space
 
-    large_processed, _ = Drill.predict_actions(large_policy, batched_obs, large_params, large_states)
+    large_processed_onehot, _ = Drill.predict_actions(large_policy, batched_obs, large_params, large_states)
+    large_processed = Drill.onehotbatch_to_discrete(large_processed_onehot, large_action_space)
     @test large_processed[1] ∈ large_action_space
 
     # Test negative start action space
@@ -280,10 +290,12 @@ end
     neg_params = Lux.initialparameters(rng, neg_policy)
     neg_states = Lux.initialstates(rng, neg_policy)
 
-    neg_actions, _, _, _ = neg_policy(batched_obs, neg_params, neg_states)
+    neg_actions_onehot, _, _, _ = neg_policy(batched_obs, neg_params, neg_states)
+    neg_actions = Drill.onehotbatch_to_discrete(neg_actions_onehot, neg_action_space)
     @test neg_actions[1] ∈ neg_action_space
 
-    neg_processed, _ = Drill.predict_actions(neg_policy, batched_obs, neg_params, neg_states)
+    neg_processed_onehot, _ = Drill.predict_actions(neg_policy, batched_obs, neg_params, neg_states)
+    neg_processed = Drill.onehotbatch_to_discrete(neg_processed_onehot, neg_action_space)
     @test neg_processed[1] ∈ neg_action_space
 end
 
