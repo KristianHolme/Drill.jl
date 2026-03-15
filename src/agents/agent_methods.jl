@@ -148,12 +148,12 @@ function _postprocess_actions(actions, space::Discrete)
 end
 
 # Abstract methods for all agents
-function save_policy_params_and_state(agent::AbstractAgent, path::AbstractString; suffix::String = ".jld2")
-    error("save_policy_params_and_state not implemented for $(typeof(agent))")
+function save_layer_params_and_state(agent::AbstractAgent, path::AbstractString; suffix::String = ".jld2")
+    error("save_layer_params_and_state not implemented for $(typeof(agent))")
 end
 
-function load_policy_params_and_state(agent::AbstractAgent, path::AbstractString; suffix::String = ".jld2")
-    error("load_policy_params_and_state not implemented for $(typeof(agent))")
+function load_layer_params_and_state(agent::AbstractAgent, path::AbstractString; suffix::String = ".jld2")
+    error("load_layer_params_and_state not implemented for $(typeof(agent))")
 end
 
 function make_optimizer(optimizer_type::Type{<:Optimisers.AbstractRule}, alg::AbstractAlgorithm)
@@ -162,7 +162,7 @@ end
 
 
 # Implementation for unified Agent (always save from CPU)
-function save_policy_params_and_state(
+function save_layer_params_and_state(
         agent::Agent{<:AbstractActorCriticLayer, ALG, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any},
         path::AbstractString;
         suffix::String = ".jld2"

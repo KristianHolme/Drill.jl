@@ -158,7 +158,7 @@ if ENABLE_AD_BACKEND_BENCHES
         end
     end
 
-    for (name, ad_backend) in ad_backend_types
+    for (name, ad_backend) in ad_backend_types[[1, 3]] #dont use enzyme without runtime activity
         ad_backends["sac"][name] = @benchmarkable begin
             if alg.ent_coef isa AutoEntropyCoefficient
                 target_entropy = Drill.get_target_entropy(alg.ent_coef, action_space(layer))
@@ -199,23 +199,20 @@ if ENABLE_AD_BACKEND_BENCHES
                 actions = batch_data.actions,
                 target_q_values = target_q_values,
             )
+            critic_objective = Drill.SACCriticObjective(alg, rng)
             _, _, _, train_state = Lux.Training.compute_gradients(
                 $ad_backend,
-                (model, ps, st, data) -> Drill.sac_critic_loss(alg, layer, ps, st, data; rng = rng),
+                critic_objective,
                 critic_data,
                 train_state,
             )
             ent_coef = Float32(exp(first(ent_train_state.parameters.log_ent_coef)))
+            actor_objective = Drill.SACActorObjective(alg, rng)
             Lux.Training.compute_gradients(
                 $ad_backend,
-                (model, ps, st, data) -> Drill.sac_actor_loss(alg, layer, ps, st, data; rng = rng),
+                actor_objective,
                 (
                     observations = batch_data.observations,
-                    actions = batch_data.actions,
-                    rewards = batch_data.rewards,
-                    terminated = batch_data.terminated,
-                    truncated = batch_data.truncated,
-                    next_observations = batch_data.next_observations,
                     ent_coef = ent_coef,
                 ),
                 train_state,
