@@ -107,5 +107,17 @@ agent = Agent(model, ppo; device = gpu_device())
 policy = extract_policy(agent) |> cpu_device()
 ```
 
-**Performance:** For best performance, Lux recommends **Enzyme** for differentiation and **Reactant** for GPU/accelerator execution. With Reactant loaded, use `agent |> Lux.reactant_device()` to run on the Reactant device. See [Lux's documentation](https://lux.csail.mit.edu/stable/) on compiling models and GPU management for details.
+### Reactant support
+
+Drill supports **Reactant** for GPU/accelerator execution via the optional `Drill_ReactantExt` extension. The extension is loaded when Reactant is loaded. Then `Lux.reactant_device()` is available. Use the same device API as above:
+
+```julia
+# With Reactant and Drill_ReactantExt loaded
+agent = agent |> Lux.reactant_device()
+policy = extract_policy(agent) |> Lux.reactant_device()
+# Or at construction
+agent = Agent(model, ppo; device = Lux.reactant_device())
+```
+
+For compilation and GPU management details, see [Lux's documentation](https://lux.csail.mit.edu/stable/).
 

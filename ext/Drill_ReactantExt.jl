@@ -4,7 +4,6 @@ using Drill
 using Adapt
 using MLDataDevices
 using MLDataDevices: ReactantDevice
-using Random: Random
 using Reactant: @compile
 
 import Drill:

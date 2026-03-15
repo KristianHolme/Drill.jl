@@ -31,9 +31,8 @@ function (layer::DiscreteActorCriticLayer)(obs::AbstractArray, ps, st; rng::Abst
     probs = Lux.softmax(action_logits)
     d = BatchedCategorical()
     actions_onehot = rand(rng, d, probs)
-    actions = onehotbatch_to_discrete(actions_onehot, action_space(layer))
     log_probs = logpdf(d, actions_onehot, probs)
-    return actions, vec(values), vec(log_probs), st
+    return actions_onehot, vec(values), vec(log_probs), st
 end
 
 # Type-stable feature extraction using dispatch

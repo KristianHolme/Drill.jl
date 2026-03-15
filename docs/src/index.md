@@ -23,43 +23,31 @@ hero:
 features:
   - icon: 🚀
     title: Fast & Extensible
-    details: Built on Lux.jl for efficient neural networks with automatic differentiation. Pure Julia for easy customization.
+    details: Built on Lux.jl for efficient neural networks with automatic differentiation. Optional Reactant support for GPU/accelerator execution. Pure Julia for easy customization.
   - icon: 🎮
     title: Flexible Environments
     details: Comprehensive interface supporting discrete and continuous action spaces with parallel execution.
   - icon: 📊
     title: Rich Logging
     details: TensorBoard and Weights & Biases integration for real-time training monitoring and analysis.
-  - icon: ⚡
-    title: Production-Ready
-    details: Extract lightweight deployment policies. Save and load normalization statistics for consistent inference.
 ---
 ```
 
-```@raw html
-<div class="vp-doc" style="width:80%; margin:auto">
+## Implemented Algorithms
 
-<h2>Implemented Algorithms</h2>
-<table>
-<tr><th>Algorithm</th><th>Type</th></tr>
-<tr><td><strong>PPO</strong> (Proximal Policy Optimization)</td><td>On-policy</td></tr>
-<tr><td><strong>SAC</strong> (Soft Actor-Critic)</td><td>Off-policy</td></tr>
-</table>
+| Algorithm                                      | Type        |
+|------------------------------------------------|-------------|
+| **PPO** (Proximal Policy Optimization)         | On-policy   |
+| **SAC** (Soft Actor-Critic)                    | Off-policy  |
 
-<h2>How to Install Drill.jl?</h2>
-</div>
-```
+## How to Install Drill.jl?
 
 ```julia
 julia> using Pkg
 julia> Pkg.add(url="https://github.com/KristianHolme/Drill.jl")
 ```
 
-```@raw html
-<div class="vp-doc" style="width:80%; margin:auto">
-<h2>Quick Example</h2>
-</div>
-```
+## Quick Example
 
 ```julia
 using Drill

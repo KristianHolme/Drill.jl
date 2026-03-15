@@ -22,8 +22,7 @@ function predict_actions(layer::DiscreteActorCriticLayer, obs::AbstractArray, ps
     else
         actions_onehot = rand(rng, d, probs)
     end
-    actions = onehotbatch_to_discrete(actions_onehot, action_space(layer))
-    return actions, st
+    return actions_onehot, st
 end
 
 function evaluate_actions(

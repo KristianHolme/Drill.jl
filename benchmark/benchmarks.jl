@@ -6,6 +6,8 @@ using Zygote
 import Lux
 using Lux: AutoZygote, AutoEnzyme
 using Enzyme: Reverse, set_runtime_activity
+using Reactant
+Reactant.set_default_backend("cpu")
 
 include("bench_utils.jl")
 using .BenchUtils
@@ -55,22 +57,22 @@ end
 
 if isdefined(Lux, :reactant_device)
     devices["ppo_reactant"] = @benchmarkable begin
-        train!(agent, env, alg, max_steps)
+        train!(agent, env, alg, max_steps; ad_type = ad_backend)
     end setup = begin
-        env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device()
-        agent = agent |> Lux.reactant_device()
-        (env, agent, alg, max_steps)
+        env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device(; device = Lux.reactant_device())
+        ad_backend = AutoEnzyme()
+        (env, agent, alg, max_steps, ad_backend)
     end
     # Reactant with CPU backend (no GPU): compare compiled Reactant vs plain CPU.
     devices["ppo_reactant_cpu_backend"] = @benchmarkable begin
-        train!(agent, env, alg, max_steps)
+        train!(agent, env, alg, max_steps; ad_type = ad_backend)
     end setup = begin
         if isdefined(Main, :Reactant) && isdefined(Main.Reactant, :set_default_backend)
             Main.Reactant.set_default_backend("cpu")
         end
-        env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device()
-        agent = agent |> Lux.reactant_device()
-        (env, agent, alg, max_steps)
+        env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device(; device = Lux.reactant_device())
+        ad_backend = AutoEnzyme()
+        (env, agent, alg, max_steps, ad_backend)
     end
 end
 
@@ -160,22 +162,24 @@ if ENABLE_AD_BACKEND_BENCHES
         ad_backends["sac"][name] = @benchmarkable begin
             if alg.ent_coef isa AutoEntropyCoefficient
                 target_entropy = Drill.get_target_entropy(alg.ent_coef, action_space(layer))
-                ent_data = (
-                    observations = batch_data.observations,
-                    layer_ps = train_state.parameters,
-                    layer_st = train_state.states,
-                    target_entropy = target_entropy,
-                    target_ps = target_ps,
-                    target_st = target_st,
+                # Compute c outside autodiff (following current SAC implementation)
+                _, log_probs_pi, _ = Drill.action_log_prob(
+                    layer,
+                    batch_data.observations,
+                    train_state.parameters,
+                    train_state.states;
+                    rng = rng,
                 )
+                c = mean(log_probs_pi .+ target_entropy)
+                ent_data = (; c)
                 _, _, _, ent_train_state = Lux.Training.compute_gradients(
-                    ad_backend,
-                    (model, ps, st, data) -> Drill.sac_ent_coef_loss(alg, layer, ps, st, data; rng = rng),
+                    $ad_backend,
+                    Drill.SACEntropyObjective(),
                     ent_data,
                     ent_train_state,
                 )
             end
-            target_q_values = DRiL.compute_target_q_values(
+            target_q_values = Drill.compute_target_q_values(
                 alg,
                 layer,
                 train_state.parameters,
@@ -196,14 +200,14 @@ if ENABLE_AD_BACKEND_BENCHES
                 target_q_values = target_q_values,
             )
             _, _, _, train_state = Lux.Training.compute_gradients(
-                ad_backend,
+                $ad_backend,
                 (model, ps, st, data) -> Drill.sac_critic_loss(alg, layer, ps, st, data; rng = rng),
                 critic_data,
                 train_state,
             )
             ent_coef = Float32(exp(first(ent_train_state.parameters.log_ent_coef)))
             Lux.Training.compute_gradients(
-                ad_backend,
+                $ad_backend,
                 (model, ps, st, data) -> Drill.sac_actor_loss(alg, layer, ps, st, data; rng = rng),
                 (
                     observations = batch_data.observations,

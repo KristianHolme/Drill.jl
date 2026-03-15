@@ -22,7 +22,7 @@ function make_pendulum_env(; n_envs::Int = DEFAULT_N_ENVS, seed::Int = DEFAULT_S
     return env
 end
 
-function make_ppo_agent(env::AbstractParallelEnv; seed::Int = DEFAULT_SEED)
+function make_ppo_agent(env::AbstractParallelEnv; seed::Int = DEFAULT_SEED, device = nothing)
     rng = Random.Xoshiro(seed)
     alg = PPO(; n_steps = 32, batch_size = 32, epochs = 1, learning_rate = 1.0f-3)
     layer = ActorCriticLayer(
@@ -30,7 +30,11 @@ function make_ppo_agent(env::AbstractParallelEnv; seed::Int = DEFAULT_SEED)
         action_space(env);
         hidden_dims = [32, 32]
     )
-    agent = Agent(layer, alg; verbose = 0, logger = NoTrainingLogger(), rng = rng)
+    agent = if device === nothing
+        Agent(layer, alg; verbose = 0, logger = NoTrainingLogger(), rng = rng)
+    else
+        Agent(layer, alg; verbose = 0, logger = NoTrainingLogger(), rng = rng, device = device)
+    end
     return agent, alg
 end
 
@@ -92,9 +96,9 @@ end
 # Same workload for device benchmarks (small steps, fixed seed) so CPU vs Reactant are comparable.
 const DEVICE_BENCH_MAX_STEPS = 128
 
-function setup_training_ppo_device(; n_envs::Int = DEFAULT_N_ENVS)
+function setup_training_ppo_device(; n_envs::Int = DEFAULT_N_ENVS, device = nothing)
     env = make_cartpole_env(; n_envs = n_envs)
-    agent, alg = make_ppo_agent(env)
+    agent, alg = make_ppo_agent(env; device = device)
     reset!(env)
     return env, agent, alg, DEVICE_BENCH_MAX_STEPS
 end
@@ -171,8 +175,8 @@ function setup_ppo_gradient_data_continuous(; n_envs::Int = DEFAULT_N_ENVS)
         n_envs,
     )
     reset!(env)
-    DRiL.collect_rollout!(buffer, agent, alg, env)
-    data_loader = DRiL.DataLoader(
+    Drill.collect_rollout!(buffer, agent, alg, env)
+    data_loader = Drill.DataLoader(
         (
             buffer.observations,
             buffer.actions,
