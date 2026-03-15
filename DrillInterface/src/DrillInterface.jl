@@ -9,7 +9,7 @@ using Random
 export AbstractEnv, AbstractEnvWrapper, AbstractParallelEnv, AbstractParallelEnvWrapper
 export act!, observe, reset!, terminated, truncated
 export action_space, get_info, number_of_envs, observation_space
-export is_wrapper, unwrap
+export is_wrapper, unwrap, unwrap_all
 
 """
     AbstractEnv

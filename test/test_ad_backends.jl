@@ -6,7 +6,6 @@ using Lux
 using Lux: AutoZygote, AutoEnzyme, AutoMooncake
 using Zygote
 using Enzyme
-using Mooncake
 include("setup.jl")
 using .TestSetup
 

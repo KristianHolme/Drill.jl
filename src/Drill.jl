@@ -7,7 +7,7 @@ using ChainRulesCore
 using ComponentArrays
 using DataStructures
 import DrillInterface: act!, action_space, get_info, number_of_envs, observation_space,
-    observe, reset!, terminated, truncated
+    observe, reset!, terminated, truncated, unwrap, is_wrapper, unwrap_all
 using DrillInterface: AbstractEnv, AbstractEnvWrapper, AbstractParallelEnv,
     AbstractParallelEnvWrapper, AbstractPolicy,
     AbstractSpace, batch, Box, Discrete, Discrete, DrillInterface
@@ -88,7 +88,7 @@ export BroadcastedParallelEnv, MultiThreadedParallelEnv, NormalizeWrapperEnv, Ru
 export is_training, load_normalization_stats!, save_normalization_stats, set_training,
     sync_normalization_stats!
 export get_original_obs, get_original_rewards, normalize_obs!, normalize_rewards!, unnormalize_obs!, unnormalize_rewards!
-export EpisodeStats, MonitorWrapperEnv, is_wrapper, unwrap, unwrap_all
+export EpisodeStats, MonitorWrapperEnv
 export MultiAgentParallelEnv
 
 include("deployment/deployment_policy.jl")
@@ -104,7 +104,6 @@ include("logging/no_training_logger.jl")
 export NoTrainingLogger, get_hparams
 
 import DrillInterface: check_env
-export check_env
 
 include("evaluation.jl")
 export evaluate_agent
