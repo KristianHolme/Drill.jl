@@ -1,5 +1,4 @@
 # Include all interface files in correct dependency order
-include("environments.jl")
 include("agents.jl")
 include("buffers.jl")
 include("algorithms.jl")

@@ -6,6 +6,7 @@ using Base.Threads
 using ChainRulesCore
 using ComponentArrays
 using DataStructures
+using DrillInterface
 using Functors: fmap
 using LinearAlgebra
 using Logging
@@ -29,10 +30,9 @@ include("DrillDistributions/DrillDistributions.jl")
 @reexport using .DrillDistributions
 
 include("interfaces/interfaces.jl")
-export AbstractEnv, AbstractParallelEnv, AbstractAgent, AbstractBuffer, AbstractAlgorithm
+export AbstractAgent, AbstractBuffer, AbstractAlgorithm
 export AbstractEntropyTarget, FixedEntropyTarget, AutoEntropyTarget
 export AbstractEntropyCoefficient, FixedEntropyCoefficient, AutoEntropyCoefficient
-export reset!, act!, observe, terminated, truncated, action_space, observation_space, get_info, number_of_envs
 export AbstractTrainingLogger, set_step!, increment_step!, log_scalar!, log_metrics!, flush!, close!, log_hparams!
 export AbstractCallback, on_training_start, on_training_end, on_rollout_start, on_rollout_end, on_step
 export AbstractActorCriticLayer, AbstractNoise, CriticType, QCritic, VCritic
@@ -40,12 +40,12 @@ export FeatureSharing, SharedFeatures, SeparateFeatures
 export OffPolicyAlgorithm, OnPolicyAlgorithm
 export AbstractPolicy
 
-include("spaces.jl")
-export AbstractSpace, Box, Discrete
-
 include("adapters/default_adapters.jl")
 export AbstractActionAdapter, ClampAdapter, TanhScaleAdapter, DiscreteAdapter
 export to_env, from_env
+
+include("space_utils.jl")
+export discrete_to_onehotbatch, onehotbatch_to_discrete
 
 include("layers/layers.jl")
 export ActorCriticLayer, ContinuousActorCriticLayer

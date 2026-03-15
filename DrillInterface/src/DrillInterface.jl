@@ -1,3 +1,214 @@
+module DrillInterface
+
+using Random
+
+# ------------------------------------------------------------
+# Environments
+# ------------------------------------------------------------
+
+export AbstractEnv, AbstractParallelEnv, AbstractEnvWrapper, AbstractParallelEnvWrapper
+export reset!, act!, observe, terminated, truncated
+export action_space, observation_space, get_info, number_of_envs
+export is_wrapper, unwrap
+
+"""
+    AbstractEnv
+
+Abstract base type for all reinforcement learning environments.
+
+Subtypes must implement the following methods:
+- `reset!(env)` - Reset the environment
+- `act!(env, action)` - Take an action and return the reward
+- `observe(env)` - Get current observation
+- `terminated(env)` - Check if episode terminated
+- `truncated(env)` - Check if episode was truncated
+- `action_space(env)` - Get the action space
+- `observation_space(env)` - Get the observation space
+"""
+abstract type AbstractEnv end
+
+"""
+    AbstractParallelEnv <: AbstractEnv
+
+Abstract type for vectorized/parallel environments that manage multiple environment instances.
+
+# Key Differences from AbstractEnv
+
+| Method | Single Env | Parallel Env |
+|--------|------------|--------------|
+| `observe` | Returns one observation | Returns vector of observations |
+| `act!` | Returns `reward` | Returns `(rewards, terminateds, truncateds, infos)` |
+| `terminated` | Returns `Bool` | Returns `Vector{Bool}` |
+| `truncated` | Returns `Bool` | Returns `Vector{Bool}` |
+
+# Auto-Reset Behavior
+Parallel environments automatically reset individual sub-environments when they terminate or truncate.
+The terminal observation is stored in `infos[i]["terminal_observation"]` before reset.
+"""
+abstract type AbstractParallelEnv <: AbstractEnv end
+
+"""
+    reset!(env::AbstractEnv) -> Nothing
+
+Reset the environment to its initial state.
+
+# Arguments
+- `env::AbstractEnv`: The environment to reset
+
+# Returns
+- `Nothing`
+"""
+function reset! end
+
+"""
+    act!(env::AbstractEnv, action) -> reward
+
+Take an action in the environment and return the reward.
+
+# Arguments
+- `env::AbstractEnv`: The environment to act in
+- `action`: The action to take (type depends on environment's action space)
+
+# Returns
+- `reward`: Numerical reward from taking the action
+"""
+function act! end
+
+"""
+    observe(env::AbstractEnv) -> observation
+
+Get the current observation from the environment.
+
+# Arguments
+- `env::AbstractEnv`: The environment to observe
+
+# Returns
+- `observation`: Current state observation (type/shape depends on environment's observation space)
+"""
+function observe end
+
+"""
+    terminated(env::AbstractEnv) -> Bool
+
+Check if the environment episode has terminated due to reaching a terminal state.
+
+# Arguments
+- `env::AbstractEnv`: The environment to check
+
+# Returns
+- `Bool`: `true` if episode is terminated, `false` otherwise
+"""
+function terminated end
+
+"""
+    truncated(env::AbstractEnv) -> Bool
+
+Check if the environment episode has been truncated (e.g., time limit reached).
+
+# Arguments
+- `env::AbstractEnv`: The environment to check
+
+# Returns
+- `Bool`: `true` if episode is truncated, `false` otherwise
+"""
+function truncated end
+
+"""
+    action_space(env::AbstractEnv) -> AbstractSpace
+
+Get the action space specification for the environment.
+
+# Arguments
+- `env::AbstractEnv`: The environment
+
+# Returns
+- `AbstractSpace`: The action space (e.g., Box, Discrete)
+"""
+function action_space end
+
+"""
+    observation_space(env::AbstractEnv) -> AbstractSpace
+
+Get the observation space specification for the environment.
+
+# Arguments
+- `env::AbstractEnv`: The environment
+
+# Returns
+- `AbstractSpace`: The observation space (e.g., Box, Discrete)
+"""
+function observation_space end
+
+"""
+    get_info(env::AbstractEnv) -> Dict
+
+Get additional environment information (metadata, debug info, etc.).
+
+# Arguments
+- `env::AbstractEnv`: The environment
+
+# Returns
+- `Dict`: Dictionary containing environment-specific information
+"""
+function get_info end
+
+"""
+    number_of_envs(env::AbstractParallelEnv) -> Int
+
+Get the number of parallel environments in a parallel environment wrapper.
+
+# Arguments
+- `env::AbstractParallelEnv`: The parallel environment
+
+# Returns
+- `Int`: Number of parallel environments
+"""
+function number_of_envs end
+
+# ------------------------------------------------------------
+# Environment wrappers
+# ------------------------------------------------------------
+abstract type AbstractEnvWrapper{E <: AbstractEnv} <: AbstractEnv end
+abstract type AbstractParallelEnvWrapper{E <: AbstractParallelEnv} <: AbstractParallelEnv end
+
+# ------------------------------------------------------------
+# Environment wrapper utilities
+# ------------------------------------------------------------
+"""
+    is_wrapper(env::AbstractEnv) -> Bool
+
+Check if an environment is a wrapper around another environment.
+
+# Arguments
+- `env::AbstractEnv`: The environment to check
+
+# Returns
+- `Bool`: `true` if environment is a wrapper, `false` otherwise
+"""
+is_wrapper(env::AbstractEnv) = env isa AbstractEnvWrapper
+is_wrapper(env::AbstractParallelEnv) = env isa AbstractParallelEnvWrapper
+
+"""
+    unwrap(env::AbstractEnvWrapper) -> AbstractEnv
+
+Unwrap one layer of environment wrapper to access the underlying environment.
+
+# Arguments
+- `env::AbstractEnvWrapper`: The wrapped environment
+
+# Returns
+- `AbstractEnv`: The underlying environment (may still be wrapped)
+"""
+function unwrap end
+
+
+# ------------------------------------------------------------
+# Spaces
+# ------------------------------------------------------------
+
+export AbstractSpace, Box, Discrete
+export batch
+
 """
     AbstractSpace
 
@@ -30,12 +241,14 @@ struct Box{T <: Number} <: AbstractSpace
     high::Array{T}
     shape::Tuple{Vararg{Int}}
 end
+
 function Box{T}(low::Array{T}, high::Array{T}) where {T <: Number}
     @assert size(low) == size(high) "Low and high arrays must have the same shape"
     @assert all(low .<= high) "All low values must be <= corresponding high values"
     shape = size(low)
     return Box{T}(low, high, shape)
 end
+
 function Box(low::T, high::T, shape::Tuple{Vararg{Int}}) where {T <: Number}
     return Box{T}(low * ones(T, shape), high * ones(T, shape), shape)
 end
@@ -47,12 +260,10 @@ Base.ndims(space::Box) = length(size(space))
 
 Base.eltype(::Box{T}) where {T} = T
 
-#TODO fix comparison of spaces
 function Base.isequal(box1::Box{T1}, box2::Box{T2}) where {T1, T2}
     return T1 == T2 && box1.low == box2.low && box1.high == box2.high && box1.shape == box2.shape
 end
 
-# Extend Random.rand for Box spaces
 """
     rand([rng], space::Box{T})
 
@@ -74,7 +285,6 @@ function Random.rand(rng::AbstractRNG, space::Box{T}) where {T}
     return unit_random .* (space.high .- space.low) .+ space.low
 end
 
-# Multiple samples version
 """
     rand([rng], space::Box{T}, n::Integer)
 
@@ -87,6 +297,7 @@ function Random.rand(rng::AbstractRNG, space::Box{T}, n::Integer) where {T}
 end
 
 Random.rand(space::Box, n::Integer) = rand(Random.default_rng(), space, n)
+Random.rand(space::Box) = rand(Random.default_rng(), space)
 
 """
     sample in space::Box{T}
@@ -128,14 +339,6 @@ function Base.in(sample, space::Box{T}) where {T}
 
     # Check bounds element-wise
     return all(space.low .<= sample .<= space.high)
-end
-
-
-function scale_to_space(action, action_space::Box{T}) where {T}
-    low = action_space.low
-    high = action_space.high
-    x = action
-    return x .* (high - low) ./ T(2) + (low + high) ./ T(2)
 end
 
 
@@ -204,31 +407,6 @@ end
 
 Base.in(sample, space::Discrete) = false #non integers are not in space
 
-function process_action(
-        action::Integer,
-        action_space::Discrete,
-        alg::AbstractAlgorithm,
-    )
-    @assert action in action_space "Action $(action) is out of bounds for Discrete($(action_space.n), $(action_space.start))"
-    return action
-end
-
-function process_action(
-        actions::AbstractVector{<:Integer},
-        action_space::Discrete,
-        alg::AbstractAlgorithm,
-    )
-    return process_action.(actions, Ref(action_space), Ref(alg))
-end
-
-function process_action(
-        actions::AbstractMatrix{<:Integer},
-        action_space::Discrete,
-        alg::AbstractAlgorithm,
-    )
-    return process_action.(actions, Ref(action_space), Ref(alg))
-end
-
 Base.size(::Discrete) = (1,)
 Base.size(space::Box) = space.shape
 
@@ -250,17 +428,5 @@ function batch(x::AbstractMatrix{<:Integer}, space::Discrete)
     return x
 end
 
-function discrete_to_onehotbatch(actions::AbstractArray{<:Integer}, space::Discrete)
-    flat_actions = vec(actions)
-    indices = map(flat_actions) do action
-        idx = action - space.start + 1
-        @assert 1 <= idx <= space.n "Action $(action) is out of bounds for Discrete($(space.n), $(space.start))"
-        return idx
-    end
-    return OneHotArrays.onehotbatch(indices, 1:space.n)
-end
 
-function onehotbatch_to_discrete(actions::AbstractMatrix, space::Discrete)
-    idx = argmax(actions; dims = 1)
-    return [space.start + idx[i][1] - 1 for i in eachindex(idx)]
-end
+end # module
