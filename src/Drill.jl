@@ -83,7 +83,6 @@ include("environment_wrappers/multithreadedParallelEnv.jl")
 include("environment_wrappers/broadcastedParallelEnv.jl")
 include("environment_wrappers/multiAgentParallelEnv.jl")
 include("environment_wrappers/monitorWrapperEnv.jl")
-include("environment_wrappers/wrapper_utils.jl")
 export BroadcastedParallelEnv, MultiThreadedParallelEnv, NormalizeWrapperEnv, RunningMeanStd,
     ScalingWrapperEnv
 export is_training, load_normalization_stats!, save_normalization_stats, set_training,
