@@ -21,7 +21,7 @@ using .TestSetup
 
             for batch_size in [1, 2, 4, 8]
                 obs = rand(obs_space, batch_size)
-                batch_obs = Drill.batch(obs, obs_space)
+                batch_obs = DrillInterface.batch(obs, obs_space)
                 actor_feats, critic_feats, st = Drill.extract_features(layer, batch_obs, ps, st)
                 @test_nowarn Drill.get_actions_from_features(layer, actor_feats, ps, st)
             end
