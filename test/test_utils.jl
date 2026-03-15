@@ -1,8 +1,8 @@
 using Test
 using Drill
+using ComponentArrays
 
-@testitem "utils.jl" begin
-    using ComponentArrays
+@testset "utils.jl" begin
     target = [1.0, 2.0, 3.0]
     source = [0.0, 0.0, 0.0]
     tau = 0.5

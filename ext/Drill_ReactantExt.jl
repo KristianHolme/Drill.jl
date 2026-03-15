@@ -143,39 +143,39 @@ end
 
 function Drill.execute_deployment_predict_actions(
         dev::ReactantDevice,
-        policy,
+        layer,
         obs,
         ps,
         st;
         deterministic::Bool,
         rng,
     )
-    cache = ensure_reactant_cache!(policy)
+    cache = ensure_reactant_cache!(layer)
     if deterministic
         key = cache_key(:deployment_predict_actions, obs; mode = :deterministic)
         compiled = lookup_or_compile!(cache, key, () -> begin
             return @compile deployment_predict_actions_deterministic_kernel(
-                policy.layer,
+                layer.layer,
                 obs,
                 ps,
                 st,
             )
         end)
-        return compiled(policy.layer, obs, ps, st)
+        return compiled(layer.layer, obs, ps, st)
     end
 
     rrng = Adapt.adapt(dev, rng)
     key = cache_key(:deployment_predict_actions, obs; mode = :stochastic)
     compiled = lookup_or_compile!(cache, key, () -> begin
         return @compile deployment_predict_actions_stochastic_kernel(
-            policy.layer,
+            layer.layer,
             obs,
             ps,
             st,
             rrng,
         )
     end)
-    return compiled(policy.layer, obs, ps, st, rrng)
+    return compiled(layer.layer, obs, ps, st, rrng)
 end
 
 end

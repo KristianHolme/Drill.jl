@@ -111,7 +111,7 @@ end
 
 function execute_deployment_predict_actions(
         dev::MLDataDevices.AbstractDevice,
-        policy,
+        layer,
         obs_batch,
         ps,
         st;
@@ -119,7 +119,7 @@ function execute_deployment_predict_actions(
         rng,
     )
     if deterministic
-        return deployment_predict_actions_deterministic_kernel(policy.layer, obs_batch, ps, st)
+        return deployment_predict_actions_deterministic_kernel(layer.layer, obs_batch, ps, st)
     end
-    return deployment_predict_actions_stochastic_kernel(policy.layer, obs_batch, ps, st, rng)
+    return deployment_predict_actions_stochastic_kernel(layer.layer, obs_batch, ps, st, rng)
 end

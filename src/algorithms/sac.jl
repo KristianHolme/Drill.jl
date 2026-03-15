@@ -447,7 +447,7 @@ actor_loss_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
     )
 end
 
-function load_policy_params_and_state!(
+function load_layer_params_and_state!(
         agent::Agent{<:ContinuousActorCriticLayer, <:SAC, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:QAux},
         alg::SAC,
         path::AbstractString;

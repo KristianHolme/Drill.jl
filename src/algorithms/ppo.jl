@@ -178,7 +178,7 @@ has_entropy_tuning(::PPO) = false
 uses_replay(::PPO) = false
 critic_type(::PPO) = VCritic()
 
-function load_policy_params_and_state!(
+function load_layer_params_and_state!(
         agent::Agent{<:AbstractActorCriticLayer, <:PPO, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any},
         alg::PPO,
         path::AbstractString;

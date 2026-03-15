@@ -54,7 +54,7 @@ export OrthogonalInitializer, action_log_prob
 export AbstractActorCriticLayer
 
 include("agents/agents.jl")
-export predict_actions, predict_values, steps_taken, save_policy_params_and_state, load_policy_params_and_state
+export predict_actions, predict_values, steps_taken, save_layer_params_and_state, load_layer_params_and_state
 include("agents/agent_factory.jl")
 export Agent
 
@@ -67,7 +67,7 @@ include("algorithms/sac.jl")
 export SAC, SACLayer
 
 include("algorithms/ppo.jl")
-export train!, PPO, load_policy_params_and_state!
+export train!, PPO, load_layer_params_and_state!
 
 include("callbacks.jl")
 

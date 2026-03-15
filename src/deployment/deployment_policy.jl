@@ -13,6 +13,10 @@ function NeuralPolicy(layer::L, params, states::S, action_space, adapter::AD) wh
     return NeuralPolicy(layer, params, states, action_space, adapter, nothing)
 end
 
+# Mark NeuralPolicy as a leaf so fmap doesn't recurse into its fields.
+# Our adapt_structure method below handles the actual device transfer.
+MLDataDevices.isleaf(::NeuralPolicy) = true
+
 function Adapt.adapt_structure(to::MLDataDevices.AbstractDevice, np::NeuralPolicy)
     new_params = to(np.params)
     new_states = to(np.states)
