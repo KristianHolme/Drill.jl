@@ -1,6 +1,6 @@
 module TestSetup
 using Drill
-using DrillInterface: AbstractEnv, AbstractParallelEnv, AbstractEnvWrapper, Box, Discrete
+using DrillInterface: AbstractEnv, AbstractParallelEnv, AbstractEnvWrapper, Box, Discrete, DrillInterface
 using Random
 using Drill.Lux
 
