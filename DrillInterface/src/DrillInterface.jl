@@ -6,9 +6,9 @@ using Random
 # Environments
 # ------------------------------------------------------------
 
-export AbstractEnv, AbstractParallelEnv, AbstractEnvWrapper, AbstractParallelEnvWrapper
-export reset!, act!, observe, terminated, truncated
-export action_space, observation_space, get_info, number_of_envs
+export AbstractEnv, AbstractEnvWrapper, AbstractParallelEnv, AbstractParallelEnvWrapper
+export act!, observe, reset!, terminated, truncated
+export action_space, get_info, number_of_envs, observation_space
 export is_wrapper, unwrap
 
 """
