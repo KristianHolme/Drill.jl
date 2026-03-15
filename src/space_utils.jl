@@ -30,3 +30,11 @@ function onehotbatch_to_discrete(actions::AbstractMatrix, space::Discrete)
 end
 
 export discrete_to_onehotbatch, onehotbatch_to_discrete
+
+
+function scale_to_space(action, action_space::Box{T}) where {T}
+    low = action_space.low
+    high = action_space.high
+    x = action
+    return x .* (high - low) ./ T(2) + (low + high) ./ T(2)
+end
