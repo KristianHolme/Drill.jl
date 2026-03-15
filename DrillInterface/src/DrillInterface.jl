@@ -496,5 +496,10 @@ function (cp::ConstantPolicy)(obs; deterministic::Bool = true, rng::Union{Nothin
     return cp.action
 end
 
+# ------------------------------------------------------------
+# Environment checker
+# ------------------------------------------------------------
+include("env_checker.jl")
+export check_env
 
 end # module

@@ -95,7 +95,7 @@ include("logging/logging_utils.jl")
 include("logging/no_training_logger.jl")
 export get_hparams, NoTrainingLogger
 
-include("env_checker.jl")
+import DrillInterface: check_env
 export check_env
 
 include("evaluation.jl")

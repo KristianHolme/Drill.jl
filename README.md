@@ -120,7 +120,7 @@ print_timer(to)
 
 ### Custom Environments
 
-When implementing an environment, depend on **DrillInterface**; add **Drill** when you need training, wrappers, or `check_env`. Implement the Drill environment interface:
+When implementing an environment, depend on **DrillInterface** (which also provides `check_env`); add **Drill** when you need training or wrappers. Implement the Drill environment interface:
 
 ```julia
 struct MyEnv <: AbstractEnv

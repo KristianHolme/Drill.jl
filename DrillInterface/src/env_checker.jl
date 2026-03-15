@@ -1,15 +1,14 @@
 """
-Environment checking utilities for Drill.
+Environment checking utilities for DrillInterface.
 
 Provides functions to verify that environments correctly implement the required interface
 and respect observation/action space constraints.
 """
 
-
 """
     check_env(env::AbstractEnv; warn::Bool=true, skip_render_check::Bool=false, verbose::Bool=true)
 
-Check that an environment follows the Drill interface and respects space constraints.
+Check that an environment follows the DrillInterface and respects space constraints.
 
 # Arguments
 - `env::AbstractEnv`: The environment to check
@@ -288,6 +287,6 @@ function _check_observation_shape(obs, obs_space::Box, context::String)
 end
 
 # Fallback for unsupported space types
-function _check_observation_shape_dispatch(obs, obs_space::AbstractSpace, context::String)
+function _check_observation_shape(obs, obs_space::AbstractSpace, context::String)
     throw(AssertionError("$context: Unsupported observation space type: $(typeof(obs_space))"))
 end
