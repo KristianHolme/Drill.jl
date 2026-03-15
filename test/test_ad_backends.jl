@@ -1,5 +1,6 @@
 using Test
 using Drill
+using DrillInterface
 using Random
 using Lux
 using Lux: AutoZygote, AutoEnzyme, AutoMooncake
@@ -38,8 +39,8 @@ end
     continuous_obs_space = DrillInterface.observation_space(continuous_env)
     continuous_action_space = DrillInterface.action_space(continuous_env)
 
-    discrete_obs_space = Drill.Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
-    discrete_action_space = Drill.Discrete(3, 0)
+    discrete_obs_space = DrillInterface.Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
+    discrete_action_space = DrillInterface.Discrete(3, 0)
     discrete_env = BroadcastedParallelEnv(
         [RandomDiscreteEnv(discrete_obs_space, discrete_action_space) for _ in 1:2]
     )

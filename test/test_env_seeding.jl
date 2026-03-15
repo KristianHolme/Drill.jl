@@ -1,5 +1,6 @@
 using Test
 using Drill
+using DrillInterface
 using Random
 
 @testset "Random.seed! single and wrappers" begin
