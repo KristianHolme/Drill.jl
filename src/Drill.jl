@@ -6,13 +6,15 @@ using Base.Threads
 using ChainRulesCore
 using ComponentArrays
 using DataStructures
+import DrillInterface: act!, action_space, get_info, number_of_envs, observation_space,
+    observe, reset!, terminated, truncated
 using DrillInterface
 using Functors: fmap
 using LinearAlgebra
 using Logging
 using Lux
 using LoopVectorization
-using MLDataDevices: get_device, AbstractDevice, cpu_device
+using MLDataDevices: AbstractDevice, cpu_device, get_device
 using MLUtils
 using Octavian
 using Optimisers
@@ -30,35 +32,38 @@ include("DrillDistributions/DrillDistributions.jl")
 @reexport using .DrillDistributions
 
 include("interfaces/interfaces.jl")
-export AbstractAgent, AbstractBuffer, AbstractAlgorithm
-export AbstractEntropyTarget, FixedEntropyTarget, AutoEntropyTarget
-export AbstractEntropyCoefficient, FixedEntropyCoefficient, AutoEntropyCoefficient
-export AbstractTrainingLogger, set_step!, increment_step!, log_scalar!, log_metrics!, flush!, close!, log_hparams!
-export AbstractCallback, on_training_start, on_training_end, on_rollout_start, on_rollout_end, on_step
+export AbstractAgent, AbstractAlgorithm, AbstractBuffer
+export AbstractEntropyTarget, AutoEntropyTarget, FixedEntropyTarget
+export AbstractEntropyCoefficient, AutoEntropyCoefficient, FixedEntropyCoefficient
+export AbstractTrainingLogger, close!, flush!, increment_step!, log_hparams!, log_metrics!,
+    log_scalar!, set_step!
+export AbstractCallback, on_rollout_end, on_rollout_start, on_step, on_training_end,
+    on_training_start
 export AbstractActorCriticLayer, AbstractNoise, CriticType, QCritic, VCritic
-export FeatureSharing, SharedFeatures, SeparateFeatures
+export FeatureSharing, SeparateFeatures, SharedFeatures
 export OffPolicyAlgorithm, OnPolicyAlgorithm
 
 include("adapters/default_adapters.jl")
-export AbstractActionAdapter, ClampAdapter, TanhScaleAdapter, DiscreteAdapter
-export to_env, from_env
+export AbstractActionAdapter, ClampAdapter, DiscreteAdapter, TanhScaleAdapter
+export from_env, to_env
 
 include("space_utils.jl")
 export discrete_to_onehotbatch, onehotbatch_to_discrete
 
 include("layers/layers.jl")
 export ActorCriticLayer, ContinuousActorCriticLayer
-export DiscreteActorCriticLayer, AbstractWeightInitializer
+export AbstractWeightInitializer, DiscreteActorCriticLayer
 export OrthogonalInitializer, action_log_prob
 export AbstractActorCriticLayer
 
 include("agents/agents.jl")
-export predict_actions, predict_values, steps_taken, save_layer_params_and_state, load_layer_params_and_state
+export load_layer_params_and_state, predict_actions, predict_values,
+    save_layer_params_and_state, steps_taken
 include("agents/agent_factory.jl")
 export Agent
 
 include("buffers/buffers.jl")
-export Trajectory, RolloutBuffer, OffPolicyTrajectory, ReplayBuffer
+export OffPolicyTrajectory, ReplayBuffer, RolloutBuffer, Trajectory
 
 include("algorithms/traits.jl")
 
@@ -66,7 +71,7 @@ include("algorithms/sac.jl")
 export SAC, SACLayer
 
 include("algorithms/ppo.jl")
-export train!, PPO, load_layer_params_and_state!
+export PPO, load_layer_params_and_state!, train!
 
 include("callbacks.jl")
 
@@ -77,14 +82,16 @@ include("environment_wrappers/broadcastedParallelEnv.jl")
 include("environment_wrappers/multiAgentParallelEnv.jl")
 include("environment_wrappers/monitorWrapperEnv.jl")
 include("environment_wrappers/wrapper_utils.jl")
-export MultiThreadedParallelEnv, BroadcastedParallelEnv, ScalingWrapperEnv, NormalizeWrapperEnv, RunningMeanStd
-export save_normalization_stats, load_normalization_stats!, sync_normalization_stats!, set_training, is_training
+export BroadcastedParallelEnv, MultiThreadedParallelEnv, NormalizeWrapperEnv, RunningMeanStd,
+    ScalingWrapperEnv
+export is_training, load_normalization_stats!, save_normalization_stats, set_training,
+    sync_normalization_stats!
 export get_original_obs, get_original_rewards, normalize_obs!, normalize_rewards!, unnormalize_obs!, unnormalize_rewards!
-export MonitorWrapperEnv, EpisodeStats, is_wrapper, unwrap, unwrap_all
+export EpisodeStats, MonitorWrapperEnv, is_wrapper, unwrap, unwrap_all
 export MultiAgentParallelEnv
 
 include("deployment/deployment_policy.jl")
-export extract_policy, NeuralPolicy, NormWrapperPolicy
+export NeuralPolicy, NormWrapperPolicy, extract_policy
 
 include("utils/utils.jl")
 export collect_trajectory
@@ -93,7 +100,7 @@ export collect_trajectory
 # New logging interface and no-op logger; concrete backends provided via package extensions
 include("logging/logging_utils.jl")
 include("logging/no_training_logger.jl")
-export get_hparams, NoTrainingLogger
+export NoTrainingLogger, get_hparams
 
 import DrillInterface: check_env
 export check_env
