@@ -2,7 +2,7 @@
 
 ## Dependencies for environment implementers
 
-Packages or code that only implement environments should depend on **DrillInterface**, not Drill. DrillInterface is lightweight (minimal dependencies) and provides the types and function signatures needed to implement `AbstractEnv`. Add **Drill** when you need training (PPO, SAC), parallel environment wrappers (`MultiThreadedParallelEnv`, `BroadcastedParallelEnv`), other wrappers (e.g. `NormalizeWrapperEnv`), or environment validation (`check_env`). DrillInterface is available from the same repository as Drill.
+Packages or code that only implement environments should depend on **DrillInterface**, not Drill. DrillInterface is lightweight (minimal dependencies) and provides the types and function signatures needed to implement `AbstractEnv`. Add **Drill** when you need training (PPO, SAC), parallel environment wrappers (`MultiThreadedParallelEnv`, `BroadcastedParallelEnv`), or other wrappers (e.g. `NormalizeWrapperEnv`). Environment validation (`check_env`) is provided by DrillInterface; Drill re-exports it for convenience. DrillInterface is available from the same repository as Drill.
 
 ## Interface
 
