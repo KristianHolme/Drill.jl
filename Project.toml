@@ -1,37 +1,7 @@
-authors = ["Kristian Holme <holme.kristian@gmail.com>"]
 name = "Drill"
 uuid = "49b37b9d-a8e6-4364-9144-4677bcb8a7f0"
 version = "0.0.1"
-
-[compat]
-Accessors = "0.1"
-Adapt = "4"
-ChainRulesCore = "1"
-ComponentArrays = "0.15"
-DataStructures = "0.18.22, 0.19"
-DearDiary = "0.3"
-FileIO = "1"
-Functors = "0.5.2"
-JLD2 = "0.5.13, 0.6"
-LinearAlgebra = "1"
-Logging = "1"
-LoopVectorization = "0.12"
-Lux = "1"
-MLDataDevices = "1"
-MLUtils = "0.4"
-Octavian = "0.3"
-OneHotArrays = "0.2"
-Optimisers = "0.4"
-ProgressMeter = "1"
-Random = "1"
-Reactant = "0.2"
-Reexport = "1"
-Statistics = "1"
-StatsBase = "0.34"
-TensorBoardLogger = "0.1"
-TimerOutputs = "0.5"
-Wandb = "0.5"
-julia = "1.10"
+authors = ["Kristian Holme <holme.kristian@gmail.com>"]
 
 [deps]
 Accessors = "7d9f7c33-5ae7-4f3b-8dc6-eff91059b697"
@@ -53,11 +23,16 @@ OneHotArrays = "0b1bfda6-eb8a-41d2-88d8-f5af5cad476f"
 Optimisers = "3bd65402-5787-11e9-1adc-39752487f4e2"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
-Reactant = "3c362404-f566-11ee-1572-e11a4b42c853"
 Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
+
+[weakdeps]
+DearDiary = "bcf306fc-d39d-4f25-b732-26abcc96baf2"
+Reactant = "3c362404-f566-11ee-1572-e11a4b42c853"
+TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
+Wandb = "ad70616a-06c9-5745-b1f1-6a5f42545108"
 
 [extensions]
 Drill_DearDiaryExt = ["DearDiary"]
@@ -65,17 +40,37 @@ Drill_ReactantExt = ["Reactant"]
 Drill_TensorBoardLoggerExt = ["TensorBoardLogger"]
 Drill_WandbExt = ["Wandb"]
 
+[compat]
+Accessors = "0.1"
+Adapt = "4"
+ChainRulesCore = "1"
+ComponentArrays = "0.15"
+DataStructures = "0.18.22, 0.19"
+DearDiary = "0.3"
+FileIO = "1"
+Functors = "0.5"
+JLD2 = "0.5.13, 0.6"
+LinearAlgebra = "1"
+Logging = "1"
+LoopVectorization = "0.12"
+Lux = "1"
+MLDataDevices = "1"
+MLUtils = "0.4"
+Octavian = "0.3"
+OneHotArrays = "0.2"
+Optimisers = "0.4"
+ProgressMeter = "1"
+Random = "1"
+Reactant = "0.2"
+Reexport = "1"
+Statistics = "1"
+StatsBase = "0.34"
+TensorBoardLogger = "0.1"
+TimerOutputs = "0.5"
+Wandb = "0.5"
+julia = "1.10"
+
 [extras]
-CUDA_Runtime_jll = "76a88914-d11a-5bdc-97e0-2f5a05c973a2"
-DearDiary = "bcf306fc-d39d-4f25-b732-26abcc96baf2"
-Reactant_jll = "0192cb87-2b54-54ad-80e0-3be72ad8a3c0"
-TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
-Wandb = "ad70616a-06c9-5745-b1f1-6a5f42545108"
-
-[preferences.Reactant_jll]
-gpu = "cuda"
-
-[weakdeps]
 DearDiary = "bcf306fc-d39d-4f25-b732-26abcc96baf2"
 TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 Wandb = "ad70616a-06c9-5745-b1f1-6a5f42545108"
