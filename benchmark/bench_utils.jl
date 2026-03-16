@@ -1,6 +1,7 @@
 module BenchUtils
 
 using Drill
+using Drill.DrillInterface
 using ClassicControlEnvironments
 using Random
 
