@@ -11,6 +11,7 @@ import DrillInterface: act!, action_space, get_info, number_of_envs, observation
 using DrillInterface: AbstractEnv, AbstractEnvWrapper, AbstractParallelEnv,
     AbstractParallelEnvWrapper, AbstractPolicy,
     AbstractSpace, batch, Box, Discrete, Discrete, DrillInterface
+@reexport DrillInterface
 using Functors: fmap
 using LinearAlgebra
 using Logging
