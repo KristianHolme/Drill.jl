@@ -1,13 +1,14 @@
 using Documenter
 using DocumenterVitepress
 using Drill
+using DrillInterface
 
 makedocs(;
     sitename = "Drill.jl",
     authors = "Kristian Holme",
-    modules = [Drill],
+    modules = [Drill, DrillInterface],
     warnonly = true,
-    linkcheck_ignore = [r"^https?://localhost(:\d+)?"],
+    linkcheck_ignore = [r"^http?://localhost(:\d+)?"],
     format = DocumenterVitepress.MarkdownVitepress(;
         repo = "github.com/KristianHolme/Drill.jl",
         devbranch = "main",
