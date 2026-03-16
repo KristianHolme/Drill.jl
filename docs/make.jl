@@ -7,6 +7,7 @@ makedocs(;
     authors = "Kristian Holme",
     modules = [Drill],
     warnonly = true,
+    linkcheck_ignore = [r"^https?://localhost(:\d+)?"],
     format = DocumenterVitepress.MarkdownVitepress(;
         repo = "github.com/KristianHolme/Drill.jl",
         devbranch = "main",
