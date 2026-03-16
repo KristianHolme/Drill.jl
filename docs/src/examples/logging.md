@@ -7,6 +7,7 @@ Drill.jl supports three logging backends for tracking your experiments:
 - **DearDiary** - Pure Julia experiment tracking with SQLite backend
 
 All backends automatically log training metrics during `train!()` calls, including:
+
 - Episode rewards and lengths
 - Policy/value/entropy losses
 - Learning rate, gradient norms
@@ -90,11 +91,12 @@ end
 ### Viewing Results
 
 Run in terminal:
+
 ```bash
 tensorboard --logdir=data/tensorboard
 ```
 
-Then open your browser at [http://localhost:6006](http://localhost:6006)
+Then open your browser at `http://localhost:6006`
 
 - **SCALARS** tab: Training metrics over time
 - **HPARAMS** tab: Compare hyperparameter configurations
@@ -190,6 +192,7 @@ After training, view results at `https://wandb.ai/<username>/Drill-Examples`
 ## DearDiary Example
 
 DearDiary.jl is a pure Julia experiment tracking solution with a portable SQLite backend. It's ideal when you want:
+
 - No external Python dependencies
 - Self-hosted, local-first experiment tracking
 - Portable database files that can be easily shared or archived
@@ -346,15 +349,15 @@ struct CustomMetricsCallback <: AbstractCallback end
 function Drill.on_rollout_end(cb::CustomMetricsCallback, locals::Dict)
     agent = locals["agent"]
     env = locals["env"]
-    
+
     # Log custom metrics
     log_scalar!(agent.logger, "custom/episode_count", length(env.episode_stats.episode_returns))
-    
+
     # Log environment-specific info
     if !isempty(env.episode_stats.episode_returns)
         log_scalar!(agent.logger, "custom/best_return", maximum(env.episode_stats.episode_returns))
     end
-    
+
     return true  # Continue training
 end
 
@@ -377,10 +380,11 @@ agent = Agent(layer, alg; logger = NoTrainingLogger())
 
 ### Choosing a Backend
 
-| Feature | TensorBoard | W&B | DearDiary |
-|---------|-------------|-----|-----------|
-| Dependencies | Python (tensorboard) | Python (wandb) | Pure Julia |
-| Storage | Local files | Cloud | Local SQLite |
-| Real-time view | Yes (web UI) | Yes (web dashboard) | Query API |
-| Collaboration | Manual share | Built-in | Share DB file |
-| Cost | Free | Free tier + paid | Free |
+| Feature        | TensorBoard          | W&B                 | DearDiary     |
+| -------------- | -------------------- | ------------------- | ------------- |
+| Dependencies   | Python (tensorboard) | Python (wandb)      | Pure Julia    |
+| Storage        | Local files          | Cloud               | Local SQLite  |
+| Real-time view | Yes (web UI)         | Yes (web dashboard) | Query API     |
+| Collaboration  | Manual share         | Built-in            | Share DB file |
+| Cost           | Free                 | Free tier + paid    | Free          |
+
