@@ -96,7 +96,7 @@ Run in terminal:
 tensorboard --logdir=data/tensorboard
 ```
 
-Then open your browser at `http://localhost:6006`
+Then open your browser at url printed in the terminal (usually something like `localhost:6006`)
 
 - **SCALARS** tab: Training metrics over time
 - **HPARAMS** tab: Compare hyperparameter configurations
@@ -387,4 +387,3 @@ agent = Agent(layer, alg; logger = NoTrainingLogger())
 | Real-time view | Yes (web UI)         | Yes (web dashboard) | Query API     |
 | Collaboration  | Manual share         | Built-in            | Share DB file |
 | Cost           | Free                 | Free tier + paid    | Free          |
-
