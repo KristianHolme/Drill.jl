@@ -15,7 +15,7 @@ Drill.jl is a prototype DRL package, aiming to be fast, flexible, and easy to us
 - **Flexible Environments**: Comprehensive environment interface supporting both discrete and continuous action spaces
 - **Rich Logging**: TensorBoard and WandB integration for training monitoring, and timer output ([TimerOutputs.jl](https://github.com/KristofferC/TimerOutputs.jl)) for performance analysis
 - **Parallelization**: Built-in support for parallel environment execution
-- **Reactant support**: Optional [Reactant](https://github.com/EnzymeAD/Reactant.jl) integration for GPU/accelerator execution via the Drill Reactant extension; use `agent |> Lux.reactant_device()` when the extension is loaded. Same device API for CPU/GPU.
+- ⚠️ **Reactant support** (experimental): Optional [Reactant](https://github.com/EnzymeAD/Reactant.jl) integration for GPU/accelerator execution via the Drill Reactant extension; use `agent |> Lux.reactant_device()` when the extension is loaded. Same device API for CPU/GPU. This is very early stage and experimental, very slow, and not currently recommended to use!
 
 ## Implemented Algorithms
 
