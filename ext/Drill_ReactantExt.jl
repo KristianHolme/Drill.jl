@@ -83,9 +83,11 @@ function Drill.execute_rollout_action_values(
     cache = ensure_reactant_cache!(agent)
     rrng = Adapt.adapt(dev, rng)
     key = cache_key(:rollout_action_values, obs; mode = :stochastic)
-    compiled = lookup_or_compile!(cache, key, () -> begin
-        return @compile rollout_action_values_kernel(agent.layer, obs, ps, st, rrng)
-    end)
+    compiled = lookup_or_compile!(
+        cache, key, () -> begin
+            return @compile rollout_action_values_kernel(agent.layer, obs, ps, st, rrng)
+        end
+    )
     return compiled(agent.layer, obs, ps, st, rrng)
 end
 
@@ -101,28 +103,32 @@ function Drill.execute_rollout_predict_actions(
     cache = ensure_reactant_cache!(agent)
     if deterministic
         key = cache_key(:rollout_predict_actions, obs; mode = :deterministic)
-        compiled = lookup_or_compile!(cache, key, () -> begin
-            return @compile rollout_predict_actions_deterministic_kernel(
-                agent.layer,
-                obs,
-                ps,
-                st,
-            )
-        end)
+        compiled = lookup_or_compile!(
+            cache, key, () -> begin
+                return @compile rollout_predict_actions_deterministic_kernel(
+                    agent.layer,
+                    obs,
+                    ps,
+                    st,
+                )
+            end
+        )
         return compiled(agent.layer, obs, ps, st)
     end
 
     rrng = Adapt.adapt(dev, rng)
     key = cache_key(:rollout_predict_actions, obs; mode = :stochastic)
-    compiled = lookup_or_compile!(cache, key, () -> begin
-        return @compile rollout_predict_actions_stochastic_kernel(
-            agent.layer,
-            obs,
-            ps,
-            st,
-            rrng,
-        )
-    end)
+    compiled = lookup_or_compile!(
+        cache, key, () -> begin
+            return @compile rollout_predict_actions_stochastic_kernel(
+                agent.layer,
+                obs,
+                ps,
+                st,
+                rrng,
+            )
+        end
+    )
     return compiled(agent.layer, obs, ps, st, rrng)
 end
 
@@ -135,9 +141,11 @@ function Drill.execute_rollout_predict_values(
     )
     cache = ensure_reactant_cache!(agent)
     key = cache_key(:rollout_predict_values, obs; mode = :deterministic)
-    compiled = lookup_or_compile!(cache, key, () -> begin
-        return @compile rollout_predict_values_kernel(agent.layer, obs, ps, st)
-    end)
+    compiled = lookup_or_compile!(
+        cache, key, () -> begin
+            return @compile rollout_predict_values_kernel(agent.layer, obs, ps, st)
+        end
+    )
     return compiled(agent.layer, obs, ps, st)
 end
 
@@ -153,28 +161,32 @@ function Drill.execute_deployment_predict_actions(
     cache = ensure_reactant_cache!(layer)
     if deterministic
         key = cache_key(:deployment_predict_actions, obs; mode = :deterministic)
-        compiled = lookup_or_compile!(cache, key, () -> begin
-            return @compile deployment_predict_actions_deterministic_kernel(
-                layer.layer,
-                obs,
-                ps,
-                st,
-            )
-        end)
+        compiled = lookup_or_compile!(
+            cache, key, () -> begin
+                return @compile deployment_predict_actions_deterministic_kernel(
+                    layer.layer,
+                    obs,
+                    ps,
+                    st,
+                )
+            end
+        )
         return compiled(layer.layer, obs, ps, st)
     end
 
     rrng = Adapt.adapt(dev, rng)
     key = cache_key(:deployment_predict_actions, obs; mode = :stochastic)
-    compiled = lookup_or_compile!(cache, key, () -> begin
-        return @compile deployment_predict_actions_stochastic_kernel(
-            layer.layer,
-            obs,
-            ps,
-            st,
-            rrng,
-        )
-    end)
+    compiled = lookup_or_compile!(
+        cache, key, () -> begin
+            return @compile deployment_predict_actions_stochastic_kernel(
+                layer.layer,
+                obs,
+                ps,
+                st,
+                rrng,
+            )
+        end
+    )
     return compiled(layer.layer, obs, ps, st, rrng)
 end
 

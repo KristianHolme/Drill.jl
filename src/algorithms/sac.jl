@@ -410,18 +410,18 @@ function update!(
     )
     train_state = Lux.Training.apply_gradients(train_state, critic_grad)
 
-# Actor update
-ent_coef = Float32(exp(first(agent.aux.ent_train_state.parameters.log_ent_coef)))
-actor_data = (
-    observations = batch_data.observations,
-    ent_coef = ent_coef,
-)
-actor_loss_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
-    ad_type,
-    actor_objective,
-    actor_data,
-    train_state
-)
+    # Actor update
+    ent_coef = Float32(exp(first(agent.aux.ent_train_state.parameters.log_ent_coef)))
+    actor_data = (
+        observations = batch_data.observations,
+        ent_coef = ent_coef,
+    )
+    actor_loss_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
+        ad_type,
+        actor_objective,
+        actor_data,
+        train_state
+    )
     zero_critic_grads!(actor_loss_grad, layer)
     train_state = Lux.Training.apply_gradients(train_state, actor_loss_grad)
 

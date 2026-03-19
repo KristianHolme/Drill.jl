@@ -150,9 +150,9 @@ function get_critic_head(
     action_dim = size(action_space) |> prod
     chains = [
         get_q_mlp_tuple_input(
-            latent_dim, action_dim, hidden_dims, activation, bias_init,
-            hidden_init, output_init
-        ) for _ in 1:critic_type.n_critics
+                latent_dim, action_dim, hidden_dims, activation, bias_init,
+                hidden_init, output_init
+            ) for _ in 1:critic_type.n_critics
     ]
     if length(chains) == 1
         return chains[1]

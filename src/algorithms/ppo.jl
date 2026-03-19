@@ -522,15 +522,15 @@ function (alg::PPO{T})(layer::AbstractActorCriticLayer, ps, st, batch_data) wher
     log_ratio = log_probs - old_logprobs
     approx_kl_div = mean(exp.(log_ratio) .- 1 .- log_ratio)
 
-     stats =   (;
-            policy_loss = p_loss,
-            value_loss = v_loss,
-            entropy_loss = ent_loss,
-            clip_fraction = clip_fraction,
-            approx_kl_div = approx_kl_div,
-            entropy = mean(entropy),
-            ratio = mean(r),
-        )
+    stats = (;
+        policy_loss = p_loss,
+        value_loss = v_loss,
+        entropy_loss = ent_loss,
+        clip_fraction = clip_fraction,
+        approx_kl_div = approx_kl_div,
+        entropy = mean(entropy),
+        ratio = mean(r),
+    )
 
     return loss, st, stats
 end
