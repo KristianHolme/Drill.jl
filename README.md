@@ -11,7 +11,6 @@ Drill.jl is a prototype DRL package, aiming to be fast, flexible, and easy to us
 
 ## Main Features
 
-  
 - **Modern Architecture**: Built on [Lux.jl](https://github.com/LuxDL/Lux.jl) for neural networks with automatic differentiation support
 - **Flexible Environments**: Comprehensive environment interface supporting both discrete and continuous action spaces
 - **Rich Logging**: TensorBoard and WandB integration for training monitoring, and timer output ([TimerOutputs.jl](https://github.com/KristofferC/TimerOutputs.jl)) for performance analysis
@@ -24,6 +23,7 @@ Drill.jl is a prototype DRL package, aiming to be fast, flexible, and easy to us
 - SAC (Soft Actor-Critic)
 
 ## Core Components
+
 The Drill.jl package is built around the following core components: **Environments**, **Layers**, **Agents**, and **Algorithms**.
 The environment is the system we are interested in controlling, the layer is the training-time actor–critic network used for control, the agent manages training, and the algorithm specifies the training procedure and loss.
 
@@ -84,7 +84,7 @@ parallel_env = MultiThreadedParallelEnv([CartPoleEnv() for _ in 1:4])
 
 ## Actor-Critic Layer
 model = ActorCriticLayer(
-    observation_space(parallel_env), 
+    observation_space(parallel_env),
     action_space(parallel_env)
 )
 
@@ -129,7 +129,7 @@ end
 
 # Required methods
 DrillInterface.reset!(env::MyEnv) = # Reset environment
-DrillInterface.act!(env::MyEnv, action) = # Take action, return reward  
+DrillInterface.act!(env::MyEnv, action) = # Take action, return reward
 DrillInterface.observe(env::MyEnv) = # Return current observation
 DrillInterface.terminated(env::MyEnv) = # Check if episode is done
 DrillInterface.truncated(env::MyEnv) = # Check if episode is truncated
@@ -143,7 +143,7 @@ DrillInterface.observation_space(env::MyEnv) = # Return observation space
 # Normalize observations and rewards
 env = NormalizeWrapperEnv(env, normalize_obs=true, normalize_reward=true)
 
-# Monitor episode statistics  
+# Monitor episode statistics
 env = MonitorWrapperEnv(env)
 
 # Scale observations and actions
@@ -165,7 +165,6 @@ model = ActorCriticLayer(
 )
 ```
 
-
 ## Benchmarking (AirspeedVelocity.jl)
 
 Benchmarks live in `benchmark/benchmarks.jl` and are used by the CI workflow
@@ -181,5 +180,5 @@ benchpkg \
   --rev dirty,main \
   --script benchmark/benchmarks.jl \
   --output-dir benchmark_results \
-  --add https://github.com/KristianHolme/ClassicControlEnvironments.jl,Zygote, Enzyme
+  --add https://github.com/KristianHolme/ClassicControlEnvironments.jl,Zygote,Enzyme,Reactant
 ```
