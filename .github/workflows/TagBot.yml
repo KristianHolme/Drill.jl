@@ -22,11 +22,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.actor == 'JuliaTagBot'
     runs-on: ubuntu-latest
     steps:
-      - name: Tag Drill
-        uses: JuliaRegistries/TagBot@v1
-        with:
-          token: ${{ secrets.TAGBOT_TOKEN }}
-          ssh: ${{ secrets.DOCUMENTER_KEY }}
+      # - name: Tag Drill
+      #   uses: JuliaRegistries/TagBot@v1
+      #   with:
+      #     token: ${{ secrets.TAGBOT_TOKEN }}
+      #     ssh: ${{ secrets.DOCUMENTER_KEY }}
       - name: Tag DrillInterface
         uses: JuliaRegistries/TagBot@v1
         with:
