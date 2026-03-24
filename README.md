@@ -15,7 +15,6 @@ Drill.jl is a prototype DRL package, aiming to be fast, flexible, and easy to us
 - **Flexible Environments**: Comprehensive environment interface supporting both discrete and continuous action spaces
 - **Rich Logging**: TensorBoard and WandB integration for training monitoring, and timer output ([TimerOutputs.jl](https://github.com/KristofferC/TimerOutputs.jl)) for performance analysis
 - **Parallelization**: Built-in support for parallel environment execution
-- ⚠️ **Reactant support** (experimental): Optional [Reactant](https://github.com/EnzymeAD/Reactant.jl) integration for GPU/accelerator execution via the Drill Reactant extension; use `agent |> Lux.reactant_device()` when the extension is loaded. Same device API for CPU/GPU. This is very early stage and experimental, very slow, and not currently recommended to use!
 
 ## Implemented Algorithms
 
@@ -24,14 +23,16 @@ Drill.jl is a prototype DRL package, aiming to be fast, flexible, and easy to us
 
 ## Core Components
 
-The Drill.jl package is built around the following core components: **Environments**, **Layers**, **Agents**, and **Algorithms**.
-The environment is the system we are interested in controlling, the layer is the training-time actor–critic network used for control, the agent manages training, and the algorithm specifies the training procedure and loss.
+The Drill.jl package is built around the following core components: **Environments**, **Layers**, **Algorithms**, and **Agents**.
+The environment is the system we are interested in controlling, implementing the [DrillInterface.jl(https://github.com/KristianHolme/Drill.jl/main/tree/DrillInterface)] interface.
+The layer is a Lux Layer and contains the neural network(s) defining and required for training, the policy.
+The algorithm specifies the training procedure and loss function(s), and the agent manages training of the layer parameters according to the algorithm.
 
 ## Installation
 
 ```julia
 using Pkg
-Pkg.add(url="https://github.com/KristianHolme/Drill.jl")
+Pkg.add("Drill")
 ```
 
 ## Testing
@@ -40,21 +41,6 @@ Run tests from the package project:
 
 ```bash
 julia --project=. -e 'using Pkg; Pkg.test()'
-```
-
-Tag filtering is controlled with environment variables:
-
-- `DRILL_TEST_TAG_WHITELIST`: if non-empty, only tests with at least one listed tag run.
-- `DRILL_TEST_TAG_BLACKLIST`: tests with any listed tag are skipped.
-- Entries can be comma or whitespace separated (`quality,wandb` or `quality wandb`), and may include a leading `:`.
-- `:ad_backends` is always blacklisted by default.
-- If a tag appears in both lists, a warning is emitted and the blacklist takes precedence.
-
-Examples:
-
-```bash
-DRILL_TEST_TAG_WHITELIST=quality julia --project=. -e 'using Pkg; Pkg.test()'
-DRILL_TEST_TAG_BLACKLIST="quality,wandb" julia --project=. -e 'using Pkg; Pkg.test()'
 ```
 
 Wandb tests use a shared CondaPkg environment by default (`@drill-wandb-tests`), so local
@@ -75,12 +61,12 @@ Here's a complete example training a PPO agent on the CartPole environment:
 ```julia
 using Drill
 using Pkg
-Pkg.add(url="https://github.com/KristianHolme/ClassicControlEnvironments.jl")
+Pkg.add(url="ClassicControlEnvironments")
 using ClassicControlEnvironments
 using Random
 
 ## Environment
-parallel_env = MultiThreadedParallelEnv([CartPoleEnv() for _ in 1:4])
+parallel_env = BroadcastedParallelEnv([CartPoleEnv() for _ in 1:4])
 
 ## Actor-Critic Layer
 model = ActorCriticLayer(
@@ -150,9 +136,10 @@ env = MonitorWrapperEnv(env)
 env = ScalingWrapperEnv(env)
 ```
 
-### Device support (CPU / GPU)
+### AD backends and Device support (CPU / GPU)
 
-Agents are on CPU by default. Use `agent |> gpu_device()` or the constructor kwarg `device = gpu_device()` to train on GPU. Same API for policies: `extract_policy(agent) |> cpu_device()` for CPU deployment. Drill moves data in training and inference automatically. Drill supports **Reactant** for GPU/accelerator execution: with the Reactant extension loaded, use `agent |> Lux.reactant_device()`. See the [documentation](https://KristianHolme.github.io/Drill.jl/dev) for Reactant setup and the optional CPU-default preference.
+Different backends for automatic differentiation are supported through the `ad_backend` keyword argument to the `train!` function. Currently, [Zygote.jl](XXLINK) is the default (using the `AutoZygote()` backend). [Enzyme.jl](XXLINK) is also supported by using the `AutoEnzyme()` |backend. For the SAC algorithm, runtime activity must be turned on (`AutoEnzyme(; mode = set_runtime_activity(Reverse))`). The corresponding package (Zygote/Enzyme) must be loaded before calling `train!`.
+Work is underway to support GPU training, mainly focusing on [Reactant.jl](XXLINK) compatibility. Using Reactant is currently highly experimental, and is not recommended.
 
 ### Custom Layer Architectures
 
@@ -180,5 +167,5 @@ benchpkg \
   --rev dirty,main \
   --script benchmark/benchmarks.jl \
   --output-dir benchmark_results \
-  --add https://github.com/KristianHolme/ClassicControlEnvironments.jl,Zygote,Enzyme,Reactant
+  --add ClassicControlEnvironments,Zygote,Enzyme,Reactant
 ```
