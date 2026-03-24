@@ -3,7 +3,7 @@ using Drill
 using ClassicControlEnvironments
 using Random
 using Zygote
-import Drill.Lux
+#import Drill.Lux
 using Drill.Lux: AutoZygote, AutoEnzyme, Lux
 using Enzyme: Reverse, set_runtime_activity
 using Reactant
