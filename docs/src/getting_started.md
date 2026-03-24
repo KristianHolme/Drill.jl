@@ -52,25 +52,25 @@ agent, buffer, stats, timer = train!(agent, env, sac, 500_000)
 
 ### PPO
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `gamma` | 0.99 | Discount factor |
-| `gae_lambda` | 0.95 | GAE lambda |
-| `clip_range` | 0.2 | PPO clipping range |
-| `ent_coef` | 0.0 | Entropy coefficient |
-| `n_steps` | 2048 | Steps per rollout |
-| `batch_size` | 64 | Minibatch size |
-| `epochs` | 10 | Epochs per update |
+| Parameter    | Default | Description         |
+| ------------ | ------- | ------------------- |
+| `gamma`      | 0.99    | Discount factor     |
+| `gae_lambda` | 0.95    | GAE lambda          |
+| `clip_range` | 0.2     | PPO clipping range  |
+| `ent_coef`   | 0.0     | Entropy coefficient |
+| `n_steps`    | 2048    | Steps per rollout   |
+| `batch_size` | 64      | Minibatch size      |
+| `epochs`     | 10      | Epochs per update   |
 
 ### SAC
 
-| Parameter | Default | Description |
-|-----------|---------|-------------|
-| `gamma` | 0.99 | Discount factor |
-| `tau` | 0.005 | Soft update rate |
-| `buffer_capacity` | 1M | Replay buffer size |
-| `batch_size` | 256 | Batch size |
-| `train_freq` | 1 | Steps between updates |
+| Parameter         | Default | Description           |
+| ----------------- | ------- | --------------------- |
+| `gamma`           | 0.99    | Discount factor       |
+| `tau`             | 0.005   | Soft update rate      |
+| `buffer_capacity` | 1M      | Replay buffer size    |
+| `batch_size`      | 256     | Batch size            |
+| `train_freq`      | 1       | Steps between updates |
 
 ## Evaluation
 
@@ -80,44 +80,34 @@ stats = evaluate_agent(agent, eval_env; n_episodes=10, deterministic=true)
 println("Mean return: $(mean(stats.episodic_returns))")
 ```
 
-## Deployment
+## Extracting a policy from the agent
+
+The agent contains everything needed for producing actions from environment observations, in addition to things needed for training.
+To extract only the necessary structures needed for inference, use the `extract_policy` function. The object you get is a `NeuralPolicy`, implementing the minimal policy interface:
 
 ```julia
 # Extract lightweight policy (actor only)
 policy = extract_policy(agent)
 
-# Get actions for observations
-actions = predict(policy, observations; deterministic=true)
+observation = observe(env)
+# Get action for observation
+actions = policy(observation; deterministic=true)
 ```
 
-## Device support (CPU / GPU)
-
-Agents and policies are created on CPU by default. Use the same API as for data: pipe to a device to get a copy on that device. Drill moves data automatically during training and inference; you only choose where the agent (or policy) lives.
+If using the @NormalizeWrapperEnv wrapper on the training environment, supply this as the second positional argument to `extract_policy`:
 
 ```julia
-using Lux  # or MLDataDevices: cpu_device, gpu_device
-
-# Move agent to GPU for training
-agent = agent |> gpu_device()
-
-# Or pass the device at construction (convenience)
-agent = Agent(model, ppo; device = gpu_device())
-
-# Deploy on CPU: extract policy then move to CPU
-policy = extract_policy(agent) |> cpu_device()
+policy = extract_policy(agent, norm_wrapped_env)
 ```
 
-### Reactant support
-
-Drill supports **Reactant** for GPU/accelerator execution via the optional `Drill_ReactantExt` extension. The extension is loaded when Reactant is loaded. Then `Lux.reactant_device()` is available. Use the same device API as above:
+This will give you a `NeuralPolicy` wrapped in a `NormWrapperPolicy`, that normalizes the observations you pass to the policy:
 
 ```julia
-# With Reactant and Drill_ReactantExt loaded
-agent = agent |> Lux.reactant_device()
-policy = extract_policy(agent) |> Lux.reactant_device()
-# Or at construction
-agent = Agent(model, ppo; device = Lux.reactant_device())
+normwrapped_policy = extract_policy(agent, norm_wrapped_training_env)
+
+raw_observation = observe(single_test_time_env)
+# Get action for observation
+actions = policy(raw_observation; deterministic=true)
 ```
 
-For compilation and GPU management details, see [Lux's documentation](https://lux.csail.mit.edu/stable/).
-
+Here, `single_test_time_env` does not have a normalization wrapper, but the policy applies the normalization needed before obtaining the action from the layer.

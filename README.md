@@ -24,7 +24,7 @@ Drill.jl is a prototype DRL package, aiming to be fast, flexible, and easy to us
 ## Core Components
 
 The Drill.jl package is built around the following core components: **Environments**, **Layers**, **Algorithms**, and **Agents**.
-The environment is the system we are interested in controlling, implementing the [DrillInterface.jl(https://github.com/KristianHolme/Drill.jl/main/tree/DrillInterface)] interface.
+The environment is the system we are interested in controlling, implementing the [DrillInterface.jl](https://github.com/KristianHolme/Drill.jl/tree/main/DrillInterface) interface.
 The layer is a Lux Layer and contains the neural network(s) defining and required for training, the policy.
 The algorithm specifies the training procedure and loss function(s), and the agent manages training of the layer parameters according to the algorithm.
 
@@ -138,8 +138,8 @@ env = ScalingWrapperEnv(env)
 
 ### AD backends and Device support (CPU / GPU)
 
-Different backends for automatic differentiation are supported through the `ad_backend` keyword argument to the `train!` function. Currently, [Zygote.jl](XXLINK) is the default (using the `AutoZygote()` backend). [Enzyme.jl](XXLINK) is also supported by using the `AutoEnzyme()` |backend. For the SAC algorithm, runtime activity must be turned on (`AutoEnzyme(; mode = set_runtime_activity(Reverse))`). The corresponding package (Zygote/Enzyme) must be loaded before calling `train!`.
-Work is underway to support GPU training, mainly focusing on [Reactant.jl](XXLINK) compatibility. Using Reactant is currently highly experimental, and is not recommended.
+Different backends for automatic differentiation are supported through the `ad_backend` keyword argument to the `train!` function. Currently, [Zygote.jl](https://github.com/FluxML/Zygote.jl) is the default (using the `AutoZygote()` backend). [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl) is also supported by using the `AutoEnzyme()` backend. For the SAC algorithm, runtime activity must be turned on (`AutoEnzyme(; mode = set_runtime_activity(Reverse))`). The corresponding package (Zygote/Enzyme) must be loaded before calling `train!`.
+Work is underway to support GPU training, mainly focusing on [Reactant.jl](https://github.com/EnzymeAD/Reactant.jl) compatibility. Using Reactant is currently highly experimental, and is not recommended.
 
 ### Custom Layer Architectures
 
