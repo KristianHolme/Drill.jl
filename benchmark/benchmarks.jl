@@ -3,8 +3,8 @@ using Drill
 using ClassicControlEnvironments
 using Random
 using Zygote
-#import Drill.Lux
-using Drill.Lux: AutoZygote, AutoEnzyme, Lux
+using Lux
+using Lux: AutoZygote, AutoEnzyme
 using Enzyme: Reverse, set_runtime_activity
 using Reactant
 Reactant.set_default_backend("cpu")
