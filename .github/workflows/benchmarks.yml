@@ -15,4 +15,7 @@ jobs:
       - uses: MilesCranmer/AirspeedVelocity.jl@action-v1
         with:
           julia-version: "1"
+          # pull_request_target runs workflow from base branch; without this, benchpkg still
+          # downloads benchmark/benchmarks.jl from the default branch, so PR edits never run.
+          bench-on: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.sha || github.sha }}
           extra-pkgs: "ClassicControlEnvironments,Lux,Zygote,Enzyme,Reactant"
