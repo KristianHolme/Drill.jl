@@ -3,11 +3,7 @@ using Drill
 using ClassicControlEnvironments
 using Random
 using Zygote
-# Bind Lux via Drill only: AirspeedVelocity's bench env often has Lux only as a transitive
-# dep of Drill, so `using Lux` fails there. `Drill.Lux` is the same module (Julia package).
-const Lux = Drill.Lux
-const AutoZygote = Lux.AutoZygote
-const AutoEnzyme = Lux.AutoEnzyme
+using Drill.Lux
 using Enzyme: Reverse, set_runtime_activity
 using Reactant
 Reactant.set_default_backend("cpu")
