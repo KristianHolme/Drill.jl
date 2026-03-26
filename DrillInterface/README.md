@@ -8,7 +8,7 @@ From the Drill.jl repository (same repo as Drill):
 
 ```julia
 using Pkg
-Pkg.add(path = "/path/to/Drill.jl/DrillInterface")
+Pkg.add("DrillInterface")
 # Or add the parent repo and use the subfolder; see Drill's README.
 ```
 
