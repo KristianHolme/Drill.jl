@@ -7,7 +7,7 @@
 
 ## Overview
 
-Drill.jl is a prototype DRL package, aiming to be fast, flexible, and easy to use.
+Drill.jl is an experimental deep reinforcement learning package, aiming to be fast, flexible, and easy to use.
 
 ## Main Features
 
