@@ -49,6 +49,13 @@ function update_from_moments!(
     end
 end
 
+"""
+    NormalizeWrapperEnv
+
+`AbstractParallelEnvWrapper` that optionally normalizes observations and/or rewards using running statistics (`RunningMeanStd`), with clipping. Used in training to stabilize value learning.
+
+Toggle training vs inference behavior with `set_training` / `is_training`; sync stats across parallel copies with `sync_normalization_stats!` when needed.
+"""
 struct NormalizeWrapperEnv{E <: AbstractParallelEnv, T <: AbstractFloat} <: AbstractParallelEnvWrapper{E}
     env::E
     obs_rms::RunningMeanStd{T}

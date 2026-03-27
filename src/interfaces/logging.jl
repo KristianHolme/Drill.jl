@@ -1,6 +1,13 @@
 # ------------------------------------------------------------
 # Logging interface
 # ------------------------------------------------------------
+"""
+    AbstractTrainingLogger
+
+Pluggable training log sink: implement `set_step!`, `log_scalar!`, `log_metrics!`, `flush!`, `close!` (and optionally `increment_step!`, `log_hparams!`). Use `NoTrainingLogger` to disable logging.
+
+Concrete backends live in package extensions (TensorBoard, Wandb, DearDiary).
+"""
 abstract type AbstractTrainingLogger end
 
 """

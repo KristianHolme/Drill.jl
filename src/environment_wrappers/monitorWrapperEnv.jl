@@ -1,3 +1,8 @@
+"""
+    EpisodeStats{T}(stats_window)
+
+Rolling buffers of recent finished-episode returns and lengths (used by `MonitorWrapperEnv`).
+"""
 struct EpisodeStats{T <: AbstractFloat}
     episode_returns::CircularBuffer{T}
     episode_lengths::CircularBuffer{Int}
@@ -6,6 +11,13 @@ function EpisodeStats{T}(stats_window::Int) where {T}
     return EpisodeStats{T}(CircularBuffer{T}(stats_window), CircularBuffer{Int}(stats_window))
 end
 
+"""
+    MonitorWrapperEnv(env, stats_window=100)
+
+Wraps a parallel environment to track per-env episode returns and lengths in rolling buffers (`EpisodeStats`), exposing them via `get_info` for logging and `evaluate_agent`.
+
+Use when you want stable episode metrics under vectorized resets.
+"""
 struct MonitorWrapperEnv{E <: AbstractParallelEnv, T} <: AbstractParallelEnvWrapper{E} where {T <: AbstractFloat}
     env::E
     current_episode_lengths::Vector{Int}

@@ -2,6 +2,11 @@
 
 using DrillInterface: AbstractPolicy
 
+"""
+    NeuralPolicy
+
+Lightweight inference policy holding a trained layer, Lux parameters/states, the environment action space, and an `AbstractActionAdapter`. Built via `extract_policy`; callable on batched or single observations to produce environment actions.
+"""
 mutable struct NeuralPolicy{L, AD, S} <: AbstractPolicy
     layer::L
     params
@@ -86,6 +91,13 @@ function (np::NeuralPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = 
 end
 
 #TODO: add tests
+"""
+    NormWrapperPolicy
+
+Wraps a `NeuralPolicy` (or compatible policy) with observation normalization from a `NormalizeWrapperEnv`, matching training-time obs scaling at deployment.
+
+Constructed by `extract_policy(agent, normalize_env)`.
+"""
 struct NormWrapperPolicy{P <: AbstractPolicy, T <: AbstractFloat} <: AbstractPolicy
     policy::P
     obs_rms::RunningMeanStd{T}

@@ -72,8 +72,8 @@ MonitorWrapperEnv
 
 ```@docs
 extract_policy
-DeploymentPolicy
-NormalizedDeploymentPolicy
+NeuralPolicy
+NormWrapperPolicy
 ```
 
 ## Logging

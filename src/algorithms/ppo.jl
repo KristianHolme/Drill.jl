@@ -1,3 +1,19 @@
+abstract type AbstractAdvantageStrategy end
+struct NormalizeAdvantages <: AbstractAdvantageStrategy end
+struct RawAdvantages <: AbstractAdvantageStrategy end
+
+abstract type AbstractClipVFStrategy{T <: AbstractFloat} end
+struct ClipVF{T <: AbstractFloat} <: AbstractClipVFStrategy{T}
+    value::T
+end
+struct NoClipVF{T <: AbstractFloat} <: AbstractClipVFStrategy{T} end
+
+abstract type AbstractKLTargetStrategy{T <: AbstractFloat} end
+struct KLTarget{T <: AbstractFloat} <: AbstractKLTargetStrategy{T}
+    value::T
+end
+struct NoKLTarget{T <: AbstractFloat} <: AbstractKLTargetStrategy{T} end
+
 """
     PPO{T <: AbstractFloat} <: OnPolicyAlgorithm
 
@@ -22,22 +38,6 @@ agent = Agent(model, ppo)
 train!(agent, env, ppo, 100_000)
 ```
 """
-abstract type AbstractAdvantageStrategy end
-struct NormalizeAdvantages <: AbstractAdvantageStrategy end
-struct RawAdvantages <: AbstractAdvantageStrategy end
-
-abstract type AbstractClipVFStrategy{T <: AbstractFloat} end
-struct ClipVF{T <: AbstractFloat} <: AbstractClipVFStrategy{T}
-    value::T
-end
-struct NoClipVF{T <: AbstractFloat} <: AbstractClipVFStrategy{T} end
-
-abstract type AbstractKLTargetStrategy{T <: AbstractFloat} end
-struct KLTarget{T <: AbstractFloat} <: AbstractKLTargetStrategy{T}
-    value::T
-end
-struct NoKLTarget{T <: AbstractFloat} <: AbstractKLTargetStrategy{T} end
-
 struct PPO{
         T <: AbstractFloat,
         AS <: AbstractAdvantageStrategy,
@@ -206,7 +206,19 @@ end
 #TODO make parameters n_steps, batch_size, epochs, max_steps kwargs, default to values from agent
 #TODO refactor, separate out learnig loop and logging
 
+"""
+    train!(agent, env, alg::PPO, max_steps; ad_type=AutoZygote(), callbacks=nothing)
 
+Run PPO training on a parallel environment for up to `max_steps` environment steps (total across all sub-environments).
+
+Rollouts use `alg.n_steps` steps per sub-environment per iteration. Training stops early if a callback returns `false`.
+
+# Keyword arguments
+- `ad_type`: Lux AD backend for `compute_gradients` (default `AutoZygote()`).
+- `callbacks`: Optional vector of `AbstractCallback` hooks; see `on_training_start`, `on_rollout_start`, etc.
+
+Returns `nothing` (mutates `agent` in place). On early exit from callbacks, returns `nothing` without completing the full schedule.
+"""
 function train!(
         agent::Agent{<:AbstractActorCriticLayer, <:PPO, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any},
         env::AbstractParallelEnv,

@@ -13,6 +13,11 @@ function add_gradient_update!(stats::AgentStats, updates::Int = 1)
     return stats.gradient_updates += updates
 end
 
+"""
+    steps_taken(stats::AgentStats) -> Int
+
+Number of environment steps recorded in `stats` (updated by internal training loops via `add_step!`).
+"""
 function steps_taken(stats::AgentStats)
     return stats.steps_taken
 end
@@ -100,5 +105,11 @@ end
 
 add_step!(agent::Agent, steps::Int = 1) = add_step!(agent.stats, steps)
 add_gradient_update!(agent::Agent, updates::Int = 1) = add_gradient_update!(agent.stats, updates)
+
+"""
+    steps_taken(agent::Agent) -> Int
+
+Total environment steps taken by `agent` during training (mirrors `steps_taken` on `AgentStats`).
+"""
 steps_taken(agent::Agent) = steps_taken(agent.stats)
 gradient_updates(agent::Agent) = gradient_updates(agent.stats)
