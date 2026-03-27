@@ -90,6 +90,12 @@ end
 
 
 # Unified constructor name
+"""
+    ActorCriticLayer(observation_space, action_space::Box; kwargs...) -> ContinuousActorCriticLayer
+    ActorCriticLayer(observation_space, action_space::Discrete; kwargs...) -> DiscreteActorCriticLayer
+
+Unified constructor that forwards to `ContinuousActorCriticLayer` or `DiscreteActorCriticLayer` depending on the action space type.
+"""
 ActorCriticLayer(observation_space::Union{Discrete, Box}, action_space::Box; kwargs...) =
     ContinuousActorCriticLayer(observation_space, action_space; kwargs...)
 ActorCriticLayer(observation_space::Union{Discrete, Box}, action_space::Discrete; kwargs...) =
