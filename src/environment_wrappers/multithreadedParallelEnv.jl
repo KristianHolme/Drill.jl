@@ -1,3 +1,10 @@
+"""
+    MultiThreadedParallelEnv(envs::Vector)
+
+Parallel environment that steps sub-environments concurrently with `@threads` (same observation/action spaces, homogeneous env type).
+
+Use for CPU-bound envs when parallel rollout helps; compare [`BroadcastedParallelEnv`](@ref).
+"""
 struct MultiThreadedParallelEnv{E <: AbstractEnv} <: AbstractParallelEnv
     envs::Vector{E}
     function MultiThreadedParallelEnv(envs::Vector{E}) where {E <: AbstractEnv}

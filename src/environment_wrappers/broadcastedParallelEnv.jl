@@ -1,3 +1,10 @@
+"""
+    BroadcastedParallelEnv(envs::Vector)
+
+Vectorized parallel environment: `act!`, `observe`, etc. broadcast over `envs` on a single thread (same spaces, homogeneous type).
+
+Prefer when threading overhead dominates or env stepping is already cheap.
+"""
 struct BroadcastedParallelEnv{E <: AbstractEnv} <: AbstractParallelEnv
     envs::Vector{E}
 

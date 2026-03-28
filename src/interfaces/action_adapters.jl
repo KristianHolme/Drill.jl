@@ -2,6 +2,11 @@
 # Action Adapters (policy-space <-> env-space)
 # ------------------------------------------------------------
 
+"""
+    AbstractActionAdapter
+
+Maps between policy outputs and environment actions (see `to_env`, `from_env`); concrete types include `ClampAdapter`, `TanhScaleAdapter`, and `DiscreteAdapter`.
+"""
 abstract type AbstractActionAdapter end
 
 """

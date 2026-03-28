@@ -1,5 +1,12 @@
 # All buffer type definitions
 
+"""
+    RolloutBuffer
+
+On-policy rollout storage: stacked observations, actions, rewards, GAE advantages, returns, old log-probs and values for one PPO update.
+
+Typically constructed via `RolloutBuffer(observation_space, action_space, gae_lambda, gamma, n_steps, n_envs)`.
+"""
 struct RolloutBuffer{T <: AbstractFloat, O, A} <: AbstractBuffer
     observations::Array{O}
     actions::Array{A}

@@ -169,6 +169,12 @@ function number_of_envs end
 # Environment wrappers
 # ------------------------------------------------------------
 abstract type AbstractEnvWrapper{E <: AbstractEnv} <: AbstractEnv end
+
+"""
+    AbstractParallelEnvWrapper{E}
+
+Wraps a vectorized [`AbstractParallelEnv`](@ref) (e.g. normalization or monitoring) while remaining an `AbstractParallelEnv`.
+"""
 abstract type AbstractParallelEnvWrapper{E <: AbstractParallelEnv} <: AbstractParallelEnv end
 
 # ------------------------------------------------------------
