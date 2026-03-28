@@ -316,7 +316,7 @@ DearDiary.run()  # Starts server on localhost:9000
 
 ## MultiProgressManagers (training progress)
 
-Experiment loggers (TensorBoard, W&B, DearDiary) record metrics after each policy update. [MultiProgressManagers.jl](https://github.com/KristianHolme/MultiProgressManagers.jl) complements them by tracking **environment steps** during rollouts: progress is written to a SQLite database and can be viewed in a Tachikoma terminal dashboard. This can be useful when you are doing many training runs in paralell and want to get an overview of the total progress and progress of individual runs. See the package readme for installation instructions. 
+Experiment loggers (TensorBoard, W&B, DearDiary) record metrics after each policy update. [MultiProgressManagers.jl](https://github.com/KristianHolme/MultiProgressManagers.jl) complements them by tracking **environment steps** during rollouts: progress is written to a SQLite database and can be viewed in a Tachikoma terminal dashboard. This can be useful when you are doing many training runs in parallel and want to get an overview of the total progress and progress of individual runs. See the package readme for installation instructions.
 
 Drill integrates via a package extension: when both `MultiProgressManagers` and `Drill` are loaded, Julia loads `MultiProgressManagersDrillExt`. The helper `create_dril_callback` lives in that extension, so take it with `Base.get_extension` (see the example below). The callback hooks into `on_step` during trajectory collection so the dashboard advances with each parallel-env step. Choose `get_task(manager, i, :local)` for same-process training (shown below) or `:remote` for `Distributed` workers (see the MultiProgressManagers README).
 
@@ -329,7 +329,9 @@ using Pkg
 Pkg.add(url = "https://github.com/KristianHolme/MultiProgressManagers.jl")
 ```
 
-### Example
+### Example (hyperparameter sweep)
+
+The loop below trains several PPO configurations in sequence; each configuration gets its own task in one `ProgressManager`, so the dashboard shows one bar per run.
 
 ```julia
 using Drill
@@ -343,34 +345,49 @@ N_STEPS = 64   # rollout length per PPO iteration
 TOTAL_TIMESTEPS = N_STEPS * N_ENVS * 5  # five PPO updates; divisible by N_ENVS
 SEED = 42
 
+configs = [
+    (name = "default", learning_rate = 3.0f-4, ent_coef = 0.0f0),
+    (name = "high_lr", learning_rate = 1.0f-3, ent_coef = 0.0f0),
+    (name = "with_entropy", learning_rate = 3.0f-4, ent_coef = 0.01f0),
+]
+
 mpm_drill = Base.get_extension(MultiProgressManagers, :MultiProgressManagersDrillExt)
-
-rng = Random.Xoshiro(SEED)
-envs = [CartPoleEnv(; rng = Random.Xoshiro(SEED + i)) for i in 1:N_ENVS]
-env = MonitorWrapperEnv(BroadcastedParallelEnv(envs))
-DrillInterface.reset!(env)
-
-alg = PPO(; n_steps = N_STEPS, batch_size = 32, epochs = 2)
-layer = ActorCriticLayer(observation_space(env), action_space(env))
+mpm_drill === nothing && error("MultiProgressManagersDrillExt not loaded; use Drill and MultiProgressManagers in the same process")
 
 mktempdir() do dir
-    db_path = joinpath(dir, "drill_cartpole_mpm.db")
+    db_path = joinpath(dir, "drill_cartpole_sweep.db")
     manager = ProgressManager(
-        "CartPole PPO",
-        1;
+        "CartPole PPO sweep",
+        length(configs);
         db_path = db_path,
-        description = "Rollout progress (Drill + MultiProgressManagers)",
-        task_descriptions = ["training"],
+        description = "Hyperparameter sweep (Drill + MultiProgressManagers)",
+        task_descriptions = [string(c.name) for c in configs],
     )
-    task = get_task(manager, 1, :local)
-    progress_cb = mpm_drill.create_dril_callback(task)
+    for (i, config) in enumerate(configs)
+        rng = Random.Xoshiro(SEED + i)
+        envs = [CartPoleEnv(; rng = Random.Xoshiro(SEED + 100 * i + j)) for j in 1:N_ENVS]
+        env = MonitorWrapperEnv(BroadcastedParallelEnv(envs))
+        DrillInterface.reset!(env)
 
-    agent = Agent(layer, alg; verbose = 0, rng = rng)
-    train!(agent, env, alg, TOTAL_TIMESTEPS; callbacks = [progress_cb])
+        alg = PPO(;
+            n_steps = N_STEPS,
+            batch_size = 32,
+            epochs = 2,
+            learning_rate = config.learning_rate,
+            ent_coef = config.ent_coef,
+        )
+        layer = ActorCriticLayer(observation_space(env), action_space(env))
 
+        task = get_task(manager, i, :local)
+        progress_cb = mpm_drill.create_dril_callback(task)
+        agent = Agent(layer, alg; verbose = 0, rng = rng)
+        train!(agent, env, alg, TOTAL_TIMESTEPS; callbacks = [progress_cb])
+    end
     finish!(manager)
 end
 ```
+
+For how to open the Tachikoma dashboard or the `mpm` CLI on the database file, see **Viewing the Dashboard** in the [MultiProgressManagers.jl README](https://github.com/KristianHolme/MultiProgressManagers.jl).
 
 ---
 
