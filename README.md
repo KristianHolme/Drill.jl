@@ -152,7 +152,7 @@ model = ActorCriticLayer(
 )
 ```
 
-## Benchmarking [AirSpeedVelocity.jl](https://github.com/MilesCranmer/AirSpeedVelocity.jl)
+## Benchmarking with [AirSpeedVelocity.jl](https://github.com/MilesCranmer/AirSpeedVelocity.jl)
 
 
 Benchmarks live in `benchmark/benchmarks.jl` and are used by the CI workflow
