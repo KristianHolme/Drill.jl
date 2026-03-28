@@ -158,7 +158,7 @@ model = ActorCriticLayer(
 Benchmarks live in `benchmark/benchmarks.jl` and are used by the CI workflow
 `.github/workflows/benchmarks.yml`.
 
-To run locally, first install and build [AirSpeedVelocity.jl](https://github.com/MilesCranmer/AirSpeedVelocity.jl) as described in the [Readme file](https://github.com/MilesCranmer/AirSpeedVelocity.jl/tree/main/README.md),then run:
+To run locally, first install and build [AirSpeedVelocity.jl](https://github.com/MilesCranmer/AirSpeedVelocity.jl) as described in the readme file,then run:
  
 
 ```bash
