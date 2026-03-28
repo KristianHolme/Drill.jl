@@ -1,3 +1,8 @@
+"""
+    NoTrainingLogger
+
+No-op [`AbstractTrainingLogger`](@ref); all logging methods are silent.
+"""
 struct NoTrainingLogger <: AbstractTrainingLogger end
 
 set_step!(::NoTrainingLogger, ::Integer) = nothing

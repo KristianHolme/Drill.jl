@@ -1,6 +1,13 @@
 # ------------------------------------------------------------
 # Logging interface
 # ------------------------------------------------------------
+"""
+    AbstractTrainingLogger
+
+Pluggable training log sink: implement [`set_step!`](@ref), [`log_scalar!`](@ref), [`log_metrics!`](@ref), [`flush!`](@ref), [`close!`](@ref) (and optionally [`increment_step!`](@ref), [`log_hparams!`](@ref)). Use [`NoTrainingLogger`](@ref) to disable logging.
+
+Concrete backends live in package extensions (TensorBoard, Wandb, DearDiary).
+"""
 abstract type AbstractTrainingLogger end
 
 """
@@ -9,6 +16,12 @@ abstract type AbstractTrainingLogger end
 Set the global step for subsequent metric logs.
 """
 function set_step! end
+
+"""
+    increment_step!(logger::AbstractTrainingLogger, delta::Integer)
+
+Advance the logger step counter by `delta` (optional for backends that only use [`set_step!`](@ref)).
+"""
 function increment_step! end
 
 """

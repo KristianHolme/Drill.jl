@@ -1,3 +1,10 @@
+"""
+    ScalingWrapperEnv
+
+Maps observation and action spaces to a normalized `Box` in ``[-1, 1]`` (affine transform) so policies see consistent bounds. Wraps a single [`AbstractEnv`](@ref).
+
+Construct with `ScalingWrapperEnv(env)` or `ScalingWrapperEnv(env, orig_obs_box, orig_act_box)`.
+"""
 struct ScalingWrapperEnv{E <: AbstractEnv, O <: AbstractSpace, A <: AbstractSpace} <: AbstractEnvWrapper{E}
     env::E
     observation_space::O
