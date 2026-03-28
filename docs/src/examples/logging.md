@@ -318,7 +318,7 @@ DearDiary.run()  # Starts server on localhost:9000
 
 Experiment loggers (TensorBoard, W&B, DearDiary) record metrics after each policy update. [MultiProgressManagers.jl](https://github.com/KristianHolme/MultiProgressManagers.jl) complements them by tracking **environment steps** during rollouts: progress is written to a SQLite database and can be viewed in a Tachikoma terminal dashboard. This can be useful when you are doing many training runs in parallel and want to get an overview of the total progress and progress of individual runs. See the package readme for installation instructions.
 
-Drill integrates via a package extension: when both `MultiProgressManagers` and `Drill` are loaded, Julia loads `MultiProgressManagersDrillExt`. The helper `create_dril_callback` lives in that extension, so take it with `Base.get_extension` (see the example below). The callback hooks into `on_step` during trajectory collection so the dashboard advances with each parallel-env step. Choose `get_task(manager, i, :local)` for same-process training (shown below) or `:remote` for `Distributed` workers (see the MultiProgressManagers README).
+Drill integrates via a package extension: when both `MultiProgressManagers` and `Drill` are loaded, Julia loads `MultiProgressManagersDrillExt`. The helper `create_drill_callback` lives in that extension, so take it with `Base.get_extension` (see the example below). The callback hooks into `on_step` during trajectory collection so the dashboard advances with each parallel-env step. Choose `get_task(manager, i, :local)` for same-process training (shown below) or `:remote` for `Distributed` workers (see the MultiProgressManagers README).
 
 ### Setup
 
@@ -378,7 +378,7 @@ mktempdir() do dir
         layer = ActorCriticLayer(observation_space(env), action_space(env))
 
         task = get_task(manager, i, :local)
-        progress_cb = mpm_drill.create_dril_callback(task)
+        progress_cb = mpm_drill.create_drill_callback(task)
         agent = Agent(layer, alg; verbose = 0, rng = rng)
         train!(agent, env, alg, TOTAL_TIMESTEPS; callbacks = [progress_cb])
     end
