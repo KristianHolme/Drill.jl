@@ -316,7 +316,7 @@ DearDiary.run()  # Starts server on localhost:9000
 
 ## MultiProgressManagers (training progress)
 
-Experiment loggers (TensorBoard, W&B, DearDiary) record metrics after each policy update. [MultiProgressManagers.jl](https://github.com/KristianHolme/MultiProgressManagers.jl) complements them by tracking **environment steps** during rollouts: progress is written to a SQLite database and can be viewed in a Tachikoma terminal dashboard.
+Experiment loggers (TensorBoard, W&B, DearDiary) record metrics after each policy update. [MultiProgressManagers.jl](https://github.com/KristianHolme/MultiProgressManagers.jl) complements them by tracking **environment steps** during rollouts: progress is written to a SQLite database and can be viewed in a Tachikoma terminal dashboard. This can be useful when you are doing many training runs in paralell and want to get an overview of the total progress and progress of individual runs. See the package readme for installation instructions. 
 
 Drill integrates via a package extension: when both `MultiProgressManagers` and `Drill` are loaded, Julia loads `MultiProgressManagersDrillExt`. The helper `create_dril_callback` lives in that extension, so take it with `Base.get_extension` (see the example below). The callback hooks into `on_step` during trajectory collection so the dashboard advances with each parallel-env step. Choose `get_task(manager, i, :local)` for same-process training (shown below) or `:remote` for `Distributed` workers (see the MultiProgressManagers README).
 
@@ -331,8 +331,6 @@ Pkg.add(url = "https://github.com/KristianHolme/MultiProgressManagers.jl")
 
 ### Example
 
-`total_steps` passed to `train!` must be divisible by the number of parallel environments (the callback asserts this). Training uses `verbose = 0` here so ProgressMeter does not compete with the dashboard for the terminal.
-
 ```julia
 using Drill
 using ClassicControlEnvironments
@@ -346,7 +344,6 @@ TOTAL_TIMESTEPS = N_STEPS * N_ENVS * 5  # five PPO updates; divisible by N_ENVS
 SEED = 42
 
 mpm_drill = Base.get_extension(MultiProgressManagers, :MultiProgressManagersDrillExt)
-mpm_drill === nothing && error("MultiProgressManagersDrillExt not loaded; use Drill and MultiProgressManagers in the same process")
 
 rng = Random.Xoshiro(SEED)
 envs = [CartPoleEnv(; rng = Random.Xoshiro(SEED + i)) for i in 1:N_ENVS]
@@ -372,8 +369,6 @@ mktempdir() do dir
     train!(agent, env, alg, TOTAL_TIMESTEPS; callbacks = [progress_cb])
 
     finish!(manager)
-    # Optional: open the dashboard (Tachikoma UI) on this database
-    # view_dashboard(db_path)
 end
 ```
 
@@ -428,7 +423,7 @@ end
 
 # Use the callback during training
 callbacks = [CustomMetricsCallback()]
-train!(agent, env, alg, total_steps; callbacks = callbacks)
+train!(agent, env, alg, total_steps; callbacks)
 ```
 
 ### No Logger (Default)
