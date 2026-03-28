@@ -68,9 +68,9 @@ get_target_entropy(ent_coef::FixedEntropyCoefficient, action_space) = nothing
 """
     SACLayer(observation_space, action_space::Box; kwargs...)
 
-Convenience constructor for SAC: builds a `ContinuousActorCriticLayer` with Q-critic heads (default `critic_type = QCritic()`), Gaussian actor on continuous actions, and optional shared features.
+Convenience constructor for SAC: builds a [`ContinuousActorCriticLayer`](@ref) with Q-critic heads (default `critic_type = QCritic()`), Gaussian actor on continuous actions, and optional shared features.
 
-Keyword arguments match `ContinuousActorCriticLayer` where applicable (`log_std_init`, `hidden_dims`, `activation`, `shared_features`, `critic_type`).
+Keyword arguments match [`ContinuousActorCriticLayer`](@ref) where applicable (`log_std_init`, `hidden_dims`, `activation`, `shared_features`, `critic_type`).
 """
 function SACLayer(
         observation_space::Union{Discrete, Box{T}},
@@ -497,12 +497,12 @@ end
     train!(agent, env, alg::SAC, max_steps; kwargs...)
     train!(agent, replay_buffer, env, alg::SAC, max_steps; callbacks=nothing, ad_type=AutoZygote())
 
-Train a SAC agent on `env`. The four-argument form allocates a `ReplayBuffer` from the environment spaces and capacity `alg.buffer_capacity`.
+Train a SAC agent on `env`. The four-argument form allocates a [`ReplayBuffer`](@ref) from the environment spaces and capacity `alg.buffer_capacity`.
 
 The five-argument form reuses an existing `replay_buffer` (same observation/action spaces as `env`).
 
 # Keyword arguments
-- `callbacks`: Optional vector of `AbstractCallback` hooks.
+- `callbacks`: Optional vector of [`AbstractCallback`](@ref) hooks.
 - `ad_type`: Lux AD backend for gradient computation (default `AutoZygote()`).
 
 Returns `(agent, replay_buffer, training_stats)`.

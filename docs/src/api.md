@@ -5,6 +5,7 @@
 ```@docs
 AbstractEnv
 AbstractParallelEnv
+AbstractParallelEnvWrapper
 reset!
 act!
 observe
@@ -36,10 +37,14 @@ train!
 
 ```@docs
 Agent
+AgentStats
 predict_actions
 predict_values
 steps_taken
 evaluate_agent
+AbstractActionAdapter
+to_env
+from_env
 ```
 
 ## Layers
@@ -66,6 +71,11 @@ BroadcastedParallelEnv
 NormalizeWrapperEnv
 ScalingWrapperEnv
 MonitorWrapperEnv
+EpisodeStats
+RunningMeanStd
+set_training
+is_training
+sync_normalization_stats!
 ```
 
 ## Deployment
@@ -84,6 +94,10 @@ NoTrainingLogger
 log_scalar!
 log_metrics!
 set_step!
+increment_step!
+log_hparams!
+flush!
+close!
 ```
 
 ## Callbacks

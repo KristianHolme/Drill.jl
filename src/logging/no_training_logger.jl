@@ -1,7 +1,7 @@
 """
     NoTrainingLogger
 
-No-op `AbstractTrainingLogger`; all logging methods are silent.
+No-op [`AbstractTrainingLogger`](@ref); all logging methods are silent.
 """
 struct NoTrainingLogger <: AbstractTrainingLogger end
 

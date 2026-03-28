@@ -52,9 +52,9 @@ end
 """
     NormalizeWrapperEnv
 
-`AbstractParallelEnvWrapper` that optionally normalizes observations and/or rewards using running statistics (`RunningMeanStd`), with clipping. Used in training to stabilize value learning.
+[`AbstractParallelEnvWrapper`](@ref) that optionally normalizes observations and/or rewards using running statistics ([`RunningMeanStd`](@ref)), with clipping. Used in training to stabilize value learning.
 
-Toggle training vs inference behavior with `set_training` / `is_training`; sync stats across parallel copies with `sync_normalization_stats!` when needed.
+Toggle training vs inference behavior with [`set_training`](@ref) / [`is_training`](@ref); sync stats across parallel copies with [`sync_normalization_stats!`](@ref) when needed.
 """
 struct NormalizeWrapperEnv{E <: AbstractParallelEnv, T <: AbstractFloat} <: AbstractParallelEnvWrapper{E}
     env::E
@@ -253,8 +253,18 @@ function Random.seed!(env::NormalizeWrapperEnv, seed::Integer)
 end
 
 # Training mode control
+"""
+    set_training(env, training::Bool)
+
+Return an environment with training mode set when applicable (e.g. [`NormalizeWrapperEnv`](@ref)); default no-op for other envs.
+"""
 set_training(env::AbstractEnv, ::Bool) = env #default to no-op
-#TODO: fix/doc this
+
+"""
+    is_training(env) -> Bool
+
+Whether `env` is in training mode (obs/reward normalization updates when wrapped with [`NormalizeWrapperEnv`](@ref)); default `true` for other envs.
+"""
 is_training(env::AbstractEnv) = true
 set_training(env::NormalizeWrapperEnv{E, T}, training::Bool) where {E, T} = @set env.training = training
 is_training(env::NormalizeWrapperEnv{E, T}) where {E, T} = env.training
@@ -303,7 +313,11 @@ function load_normalization_stats!(env::NormalizeWrapperEnv{E, T}, filepath::Str
     return env
 end
 
-#syncs the eval env stats to be same as training env
+"""
+    sync_normalization_stats!(eval_env::NormalizeWrapperEnv, train_env::NormalizeWrapperEnv)
+
+Copy running normalization statistics from `train_env` to `eval_env` so evaluation uses the same obs/reward scaling.
+"""
 function sync_normalization_stats!(eval_env::NormalizeWrapperEnv{E1, T}, train_env::NormalizeWrapperEnv{E2, T}) where {E1, E2, T}
     eval_env.obs_rms.mean .= train_env.obs_rms.mean
     eval_env.obs_rms.var .= train_env.obs_rms.var

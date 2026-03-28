@@ -215,7 +215,7 @@ Rollouts use `alg.n_steps` steps per sub-environment per iteration. Training sto
 
 # Keyword arguments
 - `ad_type`: Lux AD backend for `compute_gradients` (default `AutoZygote()`).
-- `callbacks`: Optional vector of `AbstractCallback` hooks; see `on_training_start`, `on_rollout_start`, etc.
+- `callbacks`: Optional vector of [`AbstractCallback`](@ref) hooks; see [`on_training_start`](@ref), [`on_rollout_start`](@ref), etc.
 
 Returns `nothing` (mutates `agent` in place). On early exit from callbacks, returns `nothing` without completing the full schedule.
 """

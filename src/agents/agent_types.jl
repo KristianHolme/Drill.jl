@@ -1,5 +1,10 @@
 # Agent type definitions
 
+"""
+    AgentStats
+
+Mutable counters for training diagnostics: gradient updates and environment steps (see `steps_taken`).
+"""
 mutable struct AgentStats
     gradient_updates::Int
     steps_taken::Int
@@ -109,7 +114,7 @@ add_gradient_update!(agent::Agent, updates::Int = 1) = add_gradient_update!(agen
 """
     steps_taken(agent::Agent) -> Int
 
-Total environment steps taken by `agent` during training (mirrors `steps_taken` on `AgentStats`).
+Total environment steps taken by `agent` during training (same count as `steps_taken(agent.stats)`).
 """
 steps_taken(agent::Agent) = steps_taken(agent.stats)
 gradient_updates(agent::Agent) = gradient_updates(agent.stats)

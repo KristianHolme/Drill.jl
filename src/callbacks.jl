@@ -1,7 +1,7 @@
 """
     on_training_start(callback, locals) -> Bool
 
-Called once at the start of `train!`. Default: `true` (continue).
+Called once at the start of [`train!`](@ref). Default: `true` (continue).
 """
 function on_training_start(callback::AbstractCallback, locals::Dict)
     return true
