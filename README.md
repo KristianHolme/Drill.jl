@@ -61,7 +61,7 @@ Here's a complete example training a PPO agent on the CartPole environment:
 ```julia
 using Drill
 using Pkg
-Pkg.add(url="ClassicControlEnvironments")
+Pkg.add("ClassicControlEnvironments")
 using ClassicControlEnvironments
 using Random
 
@@ -152,15 +152,16 @@ model = ActorCriticLayer(
 )
 ```
 
-## Benchmarking (AirspeedVelocity.jl)
+## Benchmarking [AirSpeedVelocity.jl](https://github.com/MilesCranmer/AirSpeedVelocity.jl)
+
 
 Benchmarks live in `benchmark/benchmarks.jl` and are used by the CI workflow
 `.github/workflows/benchmarks.yml`.
 
-Run locally:
+To run locally, first install and build [AirSpeedVelocity.jl](https://github.com/MilesCranmer/AirSpeedVelocity.jl) as described in the [Readme file](https://github.com/MilesCranmer/AirSpeedVelocity.jl/tree/main/README.md),then run:
+ 
 
 ```bash
-julia -e 'using Pkg; Pkg.add("AirspeedVelocity")'
 mkdir -p benchmark_results
 benchpkg \
   --path . \
