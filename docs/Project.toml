@@ -1,9 +1,13 @@
 [deps]
-Drill = "49b37b9d-a8e6-4364-9144-4677bcb8a7f0"
-DrillInterface = "d92b6104-cdd8-4875-a041-bad43500bca7"
+ClassicControlEnvironments = "a1069ede-d5f9-41a5-87b2-adf4ef867b86"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterVitepress = "4710194d-e776-4893-9690-8d956a29c365"
+Drill = "49b37b9d-a8e6-4364-9144-4677bcb8a7f0"
+DrillInterface = "d92b6104-cdd8-4875-a041-bad43500bca7"
+MultiProgressManagers = "cc0c738e-a464-4ba6-84fc-30e2ce8f9d3d"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [sources]
-Drill = { path = ".." }
-DrillInterface = { path = "../DrillInterface" }
+Drill = {path = ".."}
+DrillInterface = {path = "../DrillInterface"}
+MultiProgressManagers = {url = "https://github.com/KristianHolme/MultiProgressManagers.jl", rev = "master"}
