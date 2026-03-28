@@ -352,7 +352,6 @@ configs = [
 ]
 
 mpm_drill = Base.get_extension(MultiProgressManagers, :MultiProgressManagersDrillExt)
-mpm_drill === nothing && error("MultiProgressManagersDrillExt not loaded; use Drill and MultiProgressManagers in the same process")
 
 mktempdir() do dir
     db_path = joinpath(dir, "drill_cartpole_sweep.db")
