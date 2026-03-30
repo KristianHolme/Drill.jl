@@ -48,6 +48,9 @@ agent = Agent(model, sac; verbose=1)
 agent, buffer, stats, timer = train!(agent, env, sac, 500_000)
 ```
 
+!!! warning "Reactant and accelerators"
+    [Reactant.jl](https://github.com/EnzymeAD/Reactant.jl) integration is **highly experimental**: compatibility is still evolving, and training on CPU with Reactant is typically **much slower** than the default stack (e.g. Zygote on CPU). Use ordinary CPU training unless you are deliberately experimenting with Reactant or accelerator backends.
+
 ## Key Hyperparameters
 
 ### PPO

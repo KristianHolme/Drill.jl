@@ -23,7 +23,7 @@ hero:
 features:
   - icon: 🚀
     title: Fast & Extensible
-    details: Built on Lux.jl for efficient neural networks with automatic differentiation. Optional Reactant support for GPU/accelerator execution. Pure Julia for easy customization.
+    details: Built on Lux.jl for efficient neural networks with automatic differentiation. Optional experimental Reactant support for accelerators (not recommended for routine use). Pure Julia for easy customization.
   - icon: 🎮
     title: Flexible Environments
     details: Comprehensive interface supporting discrete and continuous action spaces with parallel execution.
