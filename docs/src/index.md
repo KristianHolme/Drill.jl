@@ -23,13 +23,13 @@ hero:
 features:
   - icon: 🚀
     title: Fast & Extensible
-    details: Built on Lux.jl for efficient neural networks with automatic differentiation. Optional Reactant support for GPU/accelerator execution. Pure Julia for easy customization.
+    details: Built on Lux.jl for efficient neural networks with automatic differentiation. Pure Julia for easy customization.
   - icon: 🎮
     title: Flexible Environments
     details: Comprehensive interface supporting discrete and continuous action spaces with parallel execution.
   - icon: 📊
     title: Rich Logging
-    details: TensorBoard and Weights & Biases integration for real-time training monitoring and analysis.
+    details: Integration with TensorBoard, Weights & Biases, DearDiary.jl, and more for real-time training monitoring and analysis.
 ---
 ```
 
