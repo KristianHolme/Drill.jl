@@ -1,5 +1,8 @@
 # Getting Started
 
+!!! warning "Reactant and GPU"
+    [Reactant.jl](https://github.com/EnzymeAD/Reactant.jl) integration is experimental. On CPU it is typically **much slower** than training with the usual CPU stack (without Reactant). Prefer the default setup unless you are explicitly testing Reactant or GPU-related workflows.
+
 ## Quick Example: PPO on CartPole
 
 ```julia
