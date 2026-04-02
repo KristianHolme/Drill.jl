@@ -95,7 +95,7 @@ function sac_actor_loss(
     ent_coef = data.ent_coef
     actions_pi, log_probs_pi, st = action_log_prob(layer, data.observations, ps, st; rng)
     q_values, st = predict_values(layer, data.observations, actions_pi, ps, st)
-    min_q_values = minimum(q_values, dims = 1) |> vec
+    min_q_values = vec(minimum(q_values, dims = 1))
     loss = mean(ent_coef .* log_probs_pi - min_q_values)
     return loss, st, NamedTuple()
 end
