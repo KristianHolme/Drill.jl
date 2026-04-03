@@ -177,6 +177,24 @@ function (objective::SACActorObjective)(model, ps, st, data)
     return sac_actor_loss(objective.alg, model, ps, st, data; rng = objective.rng)
 end
 
+# Lux caches Enzyme compilation on `TrainState`. SAC uses different objectives for the
+# critic and actor; reusing one `TrainState` trips Lux's "changing objective" warning and
+# can pick a bad cache path for the actor. Build a fresh `TrainState` (same parameters and
+# optimizer state) when switching objectives under `AutoEnzyme`.
+function reset_lux_train_state_ad_cache!(ts::Lux.Training.TrainState)
+    return Lux.Training.TrainState(
+        nothing,
+        nothing,
+        ts.allocator_cache,
+        ts.model,
+        ts.parameters,
+        ts.states,
+        ts.optimizer,
+        ts.optimizer_state,
+        ts.step,
+    )
+end
+
 function Agent(
         layer::ContinuousActorCriticLayer,
         alg::SAC;
@@ -356,6 +374,15 @@ function update!(
         batch_data;
         ad_type::Lux.Training.AbstractADType = AutoZygote()
     )
+    if ad_type isa Lux.Training.AutoEnzyme && ad_type.mode === nothing
+        throw(
+            ArgumentError(
+                "SAC with Enzyme requires runtime activity. After `using Enzyme`, pass " *
+                "`ad_type = AutoEnzyme(; mode = set_runtime_activity(Reverse))` to `train!` " *
+                "or `update!` (see README).",
+            ),
+        )
+    end
     layer = agent.layer
     train_state = agent.train_state
     entropy_objective = SACEntropyObjective()
@@ -409,6 +436,9 @@ function update!(
         actions = batch_data.actions,
         target_q_values = target_q_values,
     )
+    if ad_type isa Lux.Training.AutoEnzyme && ad_type.mode !== nothing
+        train_state = reset_lux_train_state_ad_cache!(train_state)
+    end
     critic_grad, critic_loss, critic_stats, train_state = Lux.Training.compute_gradients(
         ad_type,
         critic_objective,
@@ -423,6 +453,9 @@ function update!(
         observations = batch_data.observations,
         ent_coef = ent_coef,
     )
+    if ad_type isa Lux.Training.AutoEnzyme && ad_type.mode !== nothing
+        train_state = reset_lux_train_state_ad_cache!(train_state)
+    end
     actor_loss_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
         ad_type,
         actor_objective,

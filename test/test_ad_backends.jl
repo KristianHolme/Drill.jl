@@ -70,8 +70,7 @@ end
 
     backends = [
         ("Zygote", AutoZygote()),
-        ("Enzyme", AutoEnzyme()),
-        ("Enzyme (with runtime activity)", AutoEnzyme(; mode = set_runtime_activity(Reverse))),
+        ("Enzyme", AutoEnzyme(; mode = set_runtime_activity(Reverse))),
     ]
 
     function test_sac_training(ad_backend)
@@ -83,9 +82,16 @@ end
         train!(agent, continuous_env, alg, 32; ad_type = ad_backend)
         return agent.train_state.parameters != initial_params
     end
-    @testset "$(backends[1][1])" test_sac_training(backends[1][2])
-    @testset "$(backends[2][1])" begin
-        @test_broken test_sac_training(backends[2][2])
+    for (name, ad_backend) in backends
+        @testset "$name" begin
+            @test test_sac_training(ad_backend)
+        end
     end
-    @testset "$(backends[3][1])" test_sac_training(backends[3][2])
+
+    @testset "SAC with AutoEnzyme() requires explicit mode" begin
+        layer = ContinuousActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16], critic_type = QCritic())
+        alg = SAC(; start_steps = 4, batch_size = 4)
+        agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42))
+        @test_throws ArgumentError train!(agent, continuous_env, alg, 32; ad_type = AutoEnzyme())
+    end
 end
