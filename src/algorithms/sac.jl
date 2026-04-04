@@ -177,6 +177,47 @@ function (objective::SACActorObjective)(model, ps, st, data)
     return sac_actor_loss(objective.alg, model, ps, st, data; rng = objective.rng)
 end
 
+"""
+Stable references for Lux `compute_gradients` objectives. New allocations each update make
+Enzyme treat the objective as changing and emit slow-code warnings; reuse one set per agent.
+"""
+struct SACGradientObjectives{A, R}
+    entropy::SACEntropyObjective
+    critic::SACCriticObjective{A, R}
+    actor::SACActorObjective{A, R}
+end
+
+function SACGradientObjectives(alg::SAC, rng::AbstractRNG)
+    return SACGradientObjectives(
+        SACEntropyObjective(),
+        SACCriticObjective(alg, rng),
+        SACActorObjective(alg, rng),
+    )
+end
+
+function _sac_gradient_objectives!(agent::Agent, alg::SAC)
+    if agent.cache === nothing || !haskey(agent.cache, :sac_gradient_objectives)
+        objs = SACGradientObjectives(alg, agent.rng)
+        agent.cache = merge(
+            agent.cache === nothing ? NamedTuple() : agent.cache,
+            (; sac_gradient_objectives = objs),
+        )
+    end
+    return agent.cache.sac_gradient_objectives
+end
+
+"""
+Lux's Enzyme backend caches a wrapped loss inside `TrainState` for fast reuse. SAC calls
+`compute_gradients` with different objectives on the same `train_state`; without clearing
+that cache, the next objective can reuse the previous wrapper (wrong gradients). Stable
+objective instances make that bug deterministic; reset when switching objectives.
+"""
+function _enzyme_reset_trainstate_objective_cache!(ts::Lux.Training.TrainState)
+    ts = @set ts.cache = nothing
+    ts = @set ts.objective_function = nothing
+    return ts
+end
+
 function Agent(
         layer::ContinuousActorCriticLayer,
         alg::SAC;
@@ -209,6 +250,7 @@ function Agent(
         layer, alg, adapter, train_state, optimizer_type, stats_window, logger, verbose, rng,
         AgentStats(0, 0), aux, nothing
     )
+    agent.cache = (; sac_gradient_objectives = SACGradientObjectives(alg, rng))
     return agent
 end
 
@@ -358,9 +400,7 @@ function update!(
     )
     layer = agent.layer
     train_state = agent.train_state
-    entropy_objective = SACEntropyObjective()
-    critic_objective = SACCriticObjective(alg, agent.rng)
-    actor_objective = SACActorObjective(alg, agent.rng)
+    objectives = _sac_gradient_objectives!(agent, alg)
     # Entropy coefficient update if enabled
     ent_loss = nothing
     if alg.ent_coef isa AutoEntropyCoefficient
@@ -379,7 +419,7 @@ function update!(
         ent_data = (; c)
         ent_grad, ent_loss_val, _, ent_train_state = Lux.Training.compute_gradients(
             ad_type,
-            entropy_objective,
+            objectives.entropy,
             ent_data,
             ent_train_state
         )
@@ -409,9 +449,12 @@ function update!(
         actions = batch_data.actions,
         target_q_values = target_q_values,
     )
+    if ad_type isa Lux.Training.AutoEnzyme
+        train_state = _enzyme_reset_trainstate_objective_cache!(train_state)
+    end
     critic_grad, critic_loss, critic_stats, train_state = Lux.Training.compute_gradients(
         ad_type,
-        critic_objective,
+        objectives.critic,
         critic_data,
         train_state
     )
@@ -423,9 +466,12 @@ function update!(
         observations = batch_data.observations,
         ent_coef = ent_coef,
     )
+    if ad_type isa Lux.Training.AutoEnzyme
+        train_state = _enzyme_reset_trainstate_objective_cache!(train_state)
+    end
     actor_loss_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
         ad_type,
-        actor_objective,
+        objectives.actor,
         actor_data,
         train_state
     )
