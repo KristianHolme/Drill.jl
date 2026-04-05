@@ -384,6 +384,7 @@ function update!(
             ent_train_state
         )
         ent_train_state = Lux.Training.apply_gradients!(ent_train_state, ent_grad)
+        ent_train_state = reset_lux_enzyme_train_state_cache!(ent_train_state)
         agent.aux.ent_train_state = ent_train_state
         ent_loss = ent_loss_val
     end
@@ -416,6 +417,7 @@ function update!(
         train_state
     )
     train_state = Lux.Training.apply_gradients(train_state, critic_grad)
+    train_state = reset_lux_enzyme_train_state_cache!(train_state)
 
     # Actor update
     ent_coef = Float32(exp(first(agent.aux.ent_train_state.parameters.log_ent_coef)))
@@ -431,6 +433,7 @@ function update!(
     )
     zero_critic_grads!(actor_loss_grad, layer)
     train_state = Lux.Training.apply_gradients(train_state, actor_loss_grad)
+    train_state = reset_lux_enzyme_train_state_cache!(train_state)
 
     # Target networks update
     if agent.stats.gradient_updates % alg.target_update_interval == 0

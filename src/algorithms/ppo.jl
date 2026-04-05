@@ -364,6 +364,7 @@ function train!(
                     break
                 end
                 @timeit to "apply_gradients" Lux.Training.apply_gradients!(train_state, grads)
+                train_state = reset_lux_enzyme_train_state_cache!(train_state)
 
                 add_gradient_update!(agent)
                 push!(entropy, stats.entropy)

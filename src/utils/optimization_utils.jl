@@ -177,3 +177,24 @@ function nested_all_zero(ps)
     end
     return all_zero[]
 end
+
+"""
+    reset_lux_enzyme_train_state_cache!(ts::Lux.Training.TrainState)
+
+Clear the Lux `TrainState` AD cache after a gradient step when using `Lux.AutoEnzyme`.
+
+Lux's Enzyme backend caches a compiled wrapper keyed to the objective function. Training
+code that calls `compute_gradients` with different objectives on the same `TrainState`
+(e.g. SAC entropy, critic, and actor) or that triggers a cache/objective mismatch would
+otherwise emit a warning about a changing objective. Resetting the cache after
+`apply_gradients` forces the next backward pass to rebind cleanly.
+
+Other AD backends are left unchanged (`cache` is typically `nothing` for Zygote).
+"""
+function reset_lux_enzyme_train_state_cache!(ts::Lux.Training.TrainState)
+    if ts.cache isa Lux.Training.TrainingBackendCache && ts.cache.backend isa Lux.AutoEnzyme
+        ts = @set ts.cache = nothing
+        ts = @set ts.objective_function = nothing
+    end
+    return ts
+end

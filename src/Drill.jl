@@ -68,6 +68,8 @@ export Agent
 include("buffers/buffers.jl")
 export OffPolicyTrajectory, ReplayBuffer, RolloutBuffer, Trajectory
 
+include("utils/optimization_utils.jl")
+
 include("algorithms/traits.jl")
 
 include("algorithms/sac.jl")
