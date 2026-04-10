@@ -6,6 +6,7 @@
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://KristianHolme.github.io/Drill.jl/stable)
 [![](https://img.shields.io/badge/docs-dev-blue.svg)](https://KristianHolme.github.io/Drill.jl/dev)
 [![](https://img.shields.io/badge/%F0%9F%9B%A9%EF%B8%8F_tested_with-JET.jl-233f9a)](https://github.com/aviatesk/JET.jl)
+[![DOI](https://zenodo.org/badge/978281603.svg)](https://doi.org/10.5281/zenodo.19501897)
 
 ## Overview
 
@@ -156,12 +157,10 @@ model = ActorCriticLayer(
 
 ## Benchmarking with [AirSpeedVelocity.jl](https://github.com/MilesCranmer/AirSpeedVelocity.jl)
 
-
 Benchmarks live in `benchmark/benchmarks.jl` and are used by the CI workflow
 `.github/workflows/benchmarks.yml`.
 
 To run locally, first install and build [AirSpeedVelocity.jl](https://github.com/MilesCranmer/AirSpeedVelocity.jl) as described in the readme file,then run:
- 
 
 ```bash
 mkdir -p benchmark_results
