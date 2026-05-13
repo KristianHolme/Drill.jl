@@ -5,7 +5,11 @@
 ```@docs
 AbstractEnv
 AbstractParallelEnv
+AbstractEnvWrapper
 AbstractParallelEnvWrapper
+is_wrapper
+unwrap
+unwrap_all
 reset!
 act!
 observe
@@ -68,6 +72,7 @@ ReplayBuffer
 ```@docs
 MultiThreadedParallelEnv
 BroadcastedParallelEnv
+MultiAgentParallelEnv
 NormalizeWrapperEnv
 ScalingWrapperEnv
 MonitorWrapperEnv

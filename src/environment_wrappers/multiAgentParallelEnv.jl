@@ -1,3 +1,8 @@
+"""
+    MultiAgentParallelEnv(envs::Vector{<:AbstractParallelEnv})
+
+Combine several [`AbstractParallelEnv`](@ref) instances that share the same observation and action spaces into one logical parallel env. [`number_of_envs`](@ref) is the sum of sub-counts; [`observe`](@ref), flags, and infos are flattened in sub-env order. Actions are routed to each sub-parallel-env chunk in parallel.
+"""
 struct MultiAgentParallelEnv{E <: AbstractParallelEnv} <: AbstractParallelEnv
     envs::Vector{E}
     env_counts::Vector{Int}  # Number of sub-envs in each parallel env
