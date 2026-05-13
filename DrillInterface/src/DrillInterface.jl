@@ -168,6 +168,13 @@ function number_of_envs end
 # ------------------------------------------------------------
 # Environment wrappers
 # ------------------------------------------------------------
+"""
+    AbstractEnvWrapper{E <: AbstractEnv} <: AbstractEnv
+
+Wraps a single `AbstractEnv` `E` (transform observations, actions, rewards, or metadata).
+Subtypes remain `AbstractEnv`; implement the same methods as the inner env, plus `unwrap` to expose `E`.
+Compare `AbstractParallelEnvWrapper`.
+"""
 abstract type AbstractEnvWrapper{E <: AbstractEnv} <: AbstractEnv end
 
 """
@@ -207,6 +214,15 @@ Unwrap one layer of environment wrapper to access the underlying environment.
 """
 function unwrap end
 
+"""
+    unwrap_all(env) -> AbstractEnv
+
+Repeatedly call [`unwrap`](@ref) while [`is_wrapper`](@ref) remains true, returning the innermost non-wrapper environment.
+
+The argument must be a wrapper that implements `unwrap` on the first iteration. Packages may add methods (for example to return a vector of sub-environments from a parallel runner).
+
+See also [`unwrap`](@ref).
+"""
 function unwrap_all(env::AbstractEnv)
     wrapped = true
     while wrapped
