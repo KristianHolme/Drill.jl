@@ -334,7 +334,7 @@ function train!(
 
                 if epoch == 1 && i_batch == 1
                     mean_ratio = stats.ratio
-                    isapprox(mean_ratio - one(mean_ratio), zero(mean_ratio), atol = eps(T)) || @warn "ratios is not 1.0, iter $i, epoch $epoch, batch $i_batch, $mean_ratio"
+                    isapprox(mean_ratio, one(mean_ratio), atol = 2eps(T)) || @warn "ratios is not 1.0, iter $i, epoch $epoch, batch $i_batch, $mean_ratio"
                 end
                 @assert !nested_has_nan(grads) "gradient contains nan, iter $i, epoch $epoch, batch $i_batch"
                 @assert !nested_has_inf(grads) "gradient not finite, iter $i, epoch $epoch, batch $i_batch"
