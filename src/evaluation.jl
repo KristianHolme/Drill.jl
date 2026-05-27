@@ -7,48 +7,73 @@ function is_monitored(env::AbstractParallelEnv)
     return monitored
 end
 
-#TODO:update docstring
 """
     evaluate_agent(agent, env; kwargs...)
 
-Evaluate a policy/agent for a specified number of episodes and return performance statistics.
+Roll out a policy for `n_eval_episodes` completed episodes and summarize performance.
+
+Each finished episode contributes one **episode return** (undiscounted sum of per-step
+rewards from `act!` over that episode) and one **episode length** (number of steps).
+Per-step rewards from the environment are never returned directly; they are only
+accumulated into these episode-level totals.
 
 # Arguments
-- `agent`: The agent to evaluate (must implement `predict` method)
-- `env`: The environment to evaluate on (single env or parallel env)
+- `agent`: Agent whose policy is evaluated (must support `predict_actions`)
+- `env`: [`AbstractParallelEnv`](@ref) to evaluate on (vectorized / multi-env rollout)
 
 # Keyword Arguments
-- `n_eval_episodes::Int = 10`: Number of episodes to evaluate
-- `deterministic::Bool = true`: Whether to use deterministic actions
-- `render::Bool = false`: Whether to render the environment
-- `callback::Union{Nothing, Function} = nothing`: Optional callback function called after each step
-- `reward_threshold::Union{Nothing, Real} = nothing`: Minimum expected mean reward (throws error if not met)
-- `return_episode_rewards::Bool = false`: If true, returns individual episode rewards and lengths
-- `warn::Bool = true`: Whether to warn about missing Monitor wrapper
-- `rng::AbstractRNG = Random.default_rng()`: Random number generator for reproducible evaluation
+- `n_eval_episodes::Int = 10`: Number of completed episodes to collect
+- `deterministic::Bool = true`: Use deterministic actions when `true`
+- `reward_threshold::Union{Nothing, Real} = nothing`: If set, error when mean episode return is below this value
+- `return_stats::Bool = true`: If `true`, return aggregate statistics; if `false`, return per-episode vectors
+- `warn::Bool = true`: Warn when the env is not wrapped with [`MonitorWrapperEnv`](@ref)
+- `rng::AbstractRNG = agent.rng`: RNG passed to `predict_actions`
+- `show_progress::Bool = false`: Show a progress bar while collecting episodes
+
+# Episode returns and lengths
+For every completed episode, evaluation records:
+- **Return** `r`: ∑ₜ rewardₜ, the sum of scalar rewards returned by `act!` for each step in that episode (no discounting).
+- **Length** `l`: number of steps in that episode.
+
+How those totals are obtained:
+- **With [`MonitorWrapperEnv`](@ref)**: on episode end, `r` and `l` are read from `infos[i]["episode"]`
+  (the same undiscounted return and step count the monitor accumulated from per-step rewards).
+- **Without a monitor**: the same quantities are computed inside `evaluate_agent` by adding each
+  step's reward to `current_rewards` and incrementing `current_lengths` until the episode terminates.
+
+Aggregate outputs (`mean_reward`, `std_reward`, etc.) are means and standard deviations **across
+episodes** of those episode returns and lengths, not across individual steps.
 
 # Returns
-- If `return_episode_rewards = false`: `(mean_reward::Float64, std_reward::Float64)`
-- If `return_episode_rewards = true`: `(episode_rewards::Vector{Float64}, episode_lengths::Vector{Int})`
+- If `return_stats = true` (default): a `NamedTuple` with
+  `mean_reward`, `std_reward`, `mean_length`, `std_length`.
+  Reward statistics use `eltype(observation_space(env))`; lengths are `Int`-based episode step counts.
+- If `return_stats = false`: `(episode_rewards, episode_lengths)` where
+  `episode_rewards::Vector{T}` has one **episode return** per completed episode (length `n_eval_episodes`)
+  and `episode_lengths::Vector{Int}` has the matching step counts.
 
 # Notes
-- Episodes are distributed evenly across parallel environments to remove bias
-- If environment is wrapped with Monitor, episode statistics from Monitor are used
-- Otherwise, rewards and lengths are tracked manually during evaluation
-- For environments with reward/length modifying wrappers, consider using Monitor wrapper
+- Episodes are collected across parallel sub-environments until `n_eval_episodes` completions are recorded.
+- Wrappers that alter per-step rewards or episode boundaries can change reported returns; prefer
+  [`MonitorWrapperEnv`](@ref) when wrappers sit between the base env and evaluation.
 
 # Examples
 ```julia
-# Basic evaluation
-mean_reward, std_reward = evaluate_agent(agent, env; n_eval_episodes=20)
+# Aggregate statistics (default)
+stats = evaluate_agent(agent, env; n_eval_episodes = 20)
+stats.mean_reward, stats.std_reward
 
-# Get individual episode data
-episode_rewards, episode_lengths = evaluate_agent(agent, env; 
-    return_episode_rewards=true, deterministic=false)
+# Or destructure the four summary values
+mean_reward, std_reward, mean_length, std_length =
+    evaluate_agent(agent, env; n_eval_episodes = 20)
 
-# Evaluation with threshold check
-mean_reward, std_reward = evaluate_agent(agent, env; 
-    reward_threshold=100.0, n_eval_episodes=50)
+# Per-episode vectors (each episode_rewards[i] is that episode's undiscounted return sum)
+episode_rewards, episode_lengths = evaluate_agent(
+    agent, env; n_eval_episodes = 20, return_stats = false
+)
+
+# Fail if mean episode return is too low
+evaluate_agent(agent, env; reward_threshold = 100.0, n_eval_episodes = 50)
 ```
 """
 function evaluate_agent(
