@@ -504,6 +504,7 @@ The five-argument form reuses an existing `replay_buffer` (same observation/acti
 # Keyword arguments
 - `callbacks`: Optional vector of [`AbstractCallback`](@ref) hooks.
 - `ad_type`: Lux AD backend for gradient computation (default `AutoZygote()`).
+- `progress_options`: [`TrainingProgressOptions`](@ref) for the progress bar (colors, output stream). Use [`plain_progress_options`](@ref) for file logging.
 
 Returns `(agent, replay_buffer, training_stats)`.
 """
@@ -515,7 +516,8 @@ function train!(
         max_steps::Int;
         #TODO: remove union?
         callbacks::Union{Vector{<:AbstractCallback}, Nothing} = nothing,
-        ad_type::Lux.Training.AbstractADType = AutoZygote()
+        ad_type::Lux.Training.AbstractADType = AutoZygote(),
+        progress_options::TrainingProgressOptions = TrainingProgressOptions(),
     )
     to = TimerOutput()
     n_envs = number_of_envs(env)
@@ -545,10 +547,7 @@ function train!(
 
     total_steps = n_steps * n_envs + alg.train_freq * n_envs * (iterations - 1)
 
-    progress_meter = Progress(
-        total_steps, desc = "Training...",
-        showspeed = true, enabled = agent.verbose > 0
-    )
+    progress_meter = make_training_progress_meter(total_steps, agent.verbose, progress_options)
 
     agent.verbose > 0 && @info "Starting SAC training with buffer size: $(length(replay_buffer)),
     start_steps: $(alg.start_steps), train_freq: $(alg.train_freq), number_of_envs: $(n_envs),

@@ -44,6 +44,40 @@ end
     end
 end
 
+@testset "Training progress options" begin
+    @testset "plain_progress_options disables colors" begin
+        opts = plain_progress_options()
+        @test opts.color == :normal
+        @test opts.valuecolor == :normal
+        @test opts.output === stderr
+    end
+
+    @testset "make_training_progress_meter respects options" begin
+        io = IOBuffer()
+        opts = plain_progress_options(output = io)
+        meter = make_training_progress_meter(10, 1, opts)
+        @test meter.enabled
+        @test meter.output === io
+        @test meter.color == :normal
+        @test meter.showspeed
+    end
+
+    @testset "make_training_progress_meter disabled when verbose is 0" begin
+        meter = make_training_progress_meter(10, 0)
+        @test !meter.enabled
+    end
+
+    @testset "progress_next! avoids ANSI color codes" begin
+        io = IOBuffer()
+        opts = plain_progress_options(output = io)
+        meter = make_training_progress_meter(4, 2, opts)
+        progress_next!(meter, opts, step = 2, showvalues = [("loss", 0.5)])
+        output = String(take!(io))
+        @test occursin("Training", output)
+        @test !occursin(r"\e\[[0-9;]*m", output)
+    end
+end
+
 @testset "DearDiary logger converts and logs without error" begin
     using DearDiary
     mktempdir() do dir

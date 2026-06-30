@@ -216,6 +216,7 @@ Rollouts use `alg.n_steps` steps per sub-environment per iteration. Training sto
 # Keyword arguments
 - `ad_type`: Lux AD backend for `compute_gradients` (default `AutoZygote()`).
 - `callbacks`: Optional vector of [`AbstractCallback`](@ref) hooks; see [`on_training_start`](@ref), [`on_rollout_start`](@ref), etc.
+- `progress_options`: [`TrainingProgressOptions`](@ref) for the progress bar (colors, output stream). Use [`plain_progress_options`](@ref) for file logging.
 
 Returns `nothing` (mutates `agent` in place). On early exit from callbacks, returns `nothing` without completing the full schedule.
 """
@@ -225,7 +226,8 @@ function train!(
         alg::PPO{T}, #TODO remove alg from here, use agent.alg instead
         max_steps::Int;
         ad_type::Lux.Training.AbstractADType = AutoZygote(),
-        callbacks::Union{Vector{<:AbstractCallback}, Nothing} = nothing
+        callbacks::Union{Vector{<:AbstractCallback}, Nothing} = nothing,
+        progress_options::TrainingProgressOptions = TrainingProgressOptions(),
     ) where {T}
     to = TimerOutput()
     setup_section = begin_timed_section!(to, "setup")
@@ -245,10 +247,7 @@ function train!(
     agent.verbose > 0 && @info "Training with total_steps: $total_steps,
     iterations: $iterations, n_steps: $n_steps, n_envs: $n_envs"
 
-    progress_meter = Progress(
-        total_steps, desc = "Training...",
-        showspeed = true, enabled = agent.verbose > 0
-    )
+    progress_meter = make_training_progress_meter(total_steps, agent.verbose, progress_options)
 
     train_state = agent.train_state
 
@@ -390,8 +389,8 @@ function train!(
         push!(total_losses, mean(losses))
         push!(total_grad_norms, mean(grad_norms))
         if agent.verbose > 1
-            ProgressMeter.next!(
-                progress_meter;
+            progress_next!(
+                progress_meter, progress_options;
                 step = n_steps * n_envs,
                 showvalues = [
                     ("explained_variance", explained_variance),
@@ -404,10 +403,10 @@ function train!(
                     ("fps", total_fps[i]),
                     ("grad_norm", total_grad_norms[i]),
                     ("learning_rate", learning_rate),
-                ]
+                ],
             )
         elseif agent.verbose > 0
-            ProgressMeter.next!(progress_meter, step = n_steps * n_envs)
+            progress_next!(progress_meter, progress_options, step = n_steps * n_envs)
         end
 
         log_scalar!(agent.logger, "train/entropy_loss", total_entropy_losses[i])

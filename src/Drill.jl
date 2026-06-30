@@ -68,6 +68,8 @@ export Agent
 include("buffers/buffers.jl")
 export OffPolicyTrajectory, ReplayBuffer, RolloutBuffer, Trajectory
 
+include("logging/training_progress.jl")
+
 include("algorithms/traits.jl")
 
 include("algorithms/sac.jl")
@@ -102,7 +104,8 @@ export collect_trajectory
 # New logging interface and no-op logger; concrete backends provided via package extensions
 include("logging/logging_utils.jl")
 include("logging/no_training_logger.jl")
-export NoTrainingLogger, get_hparams
+export NoTrainingLogger, get_hparams, TrainingProgressOptions, make_training_progress_meter,
+    plain_progress_options, progress_next!
 
 import DrillInterface: check_env
 
