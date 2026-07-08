@@ -18,19 +18,19 @@ The backend lazily creates iterations when metrics are logged, and caches the cu
 iteration to avoid creating multiple iterations for the same step.
 """
 mutable struct DearDiaryBackend <: AbstractTrainingLogger
-    experiment_id::Int64
+    experiment_id::Union{String, Int64}
     current_step::Int
-    current_iteration_id::Union{Int64, Nothing}
+    current_iteration_id::Union{String, Int64, Nothing}
     hparams_logged::Bool
 end
 
 """
-    DearDiaryBackend(experiment_id::Integer)
+    DearDiaryBackend(experiment_id)
 
 Create a DearDiary logging backend for the given experiment.
 
 # Arguments
-- `experiment_id::Integer`: The ID of the DearDiary experiment to log to.
+- `experiment_id`: The ID of the DearDiary experiment to log to (string UUID in DearDiary 0.10+, integer in earlier versions).
 
 # Example
 ```julia
@@ -50,8 +50,13 @@ function DearDiaryBackend(experiment_id::Integer)
     return DearDiaryBackend(Int64(experiment_id), 0, nothing, false)
 end
 
+function DearDiaryBackend(experiment_id::AbstractString)
+    return DearDiaryBackend(string(experiment_id), 0, nothing, false)
+end
+
 # Convert DearDiary experiment ID directly to backend
 Base.convert(::Type{AbstractTrainingLogger}, experiment_id::Integer) = DearDiaryBackend(experiment_id)
+Base.convert(::Type{AbstractTrainingLogger}, experiment_id::AbstractString) = DearDiaryBackend(experiment_id)
 
 """
     ensure_iteration!(lg::DearDiaryBackend)
@@ -132,7 +137,7 @@ function Drill.log_hparams!(lg::DearDiaryBackend, hparams::AbstractDict{<:Abstra
     return nothing
 end
 
-# DearDiary uses SQLite which handles buffering internally
+# DearDiary uses DuckDB which handles buffering internally
 Drill.flush!(::DearDiaryBackend) = nothing
 
 function Drill.close!(lg::DearDiaryBackend)
