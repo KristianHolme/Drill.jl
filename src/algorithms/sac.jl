@@ -170,7 +170,7 @@ function (objective::SACCriticObjective)(model, ps, st, data)
     loss, new_full_st, stats = sac_critic_loss(
         objective.alg, model, full_ps, full_st, data; rng = objective.rng
     )
-    new_st = (; (k => new_full_st[k] for k in keys(st))...)
+    new_st = project_namedtuple(new_full_st, st)
     return loss, new_st, stats
 end
 
@@ -185,7 +185,7 @@ function (objective::SACActorObjective)(model, ps, st, data)
     loss, new_full_st, stats = sac_actor_loss(
         objective.alg, model, full_ps, full_st, data; rng = objective.rng
     )
-    new_st = (; (k => new_full_st[k] for k in keys(st))...)
+    new_st = project_namedtuple(new_full_st, st)
     return loss, new_st, stats
 end
 

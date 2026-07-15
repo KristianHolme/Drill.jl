@@ -212,10 +212,10 @@ end
     @test size(discrete_buffer.logprobs) == size(continuous_buffer.logprobs)
     @test size(discrete_buffer.values) == size(continuous_buffer.values)
 
-    discrete_ps = discrete_Drill.parameters(agent)
-    discrete_st = discrete_Drill.states(agent)
-    continuous_ps = continuous_Drill.parameters(agent)
-    continuous_st = continuous_Drill.states(agent)
+    discrete_ps = Drill.parameters(discrete_agent)
+    discrete_st = Drill.states(discrete_agent)
+    continuous_ps = Drill.parameters(continuous_agent)
+    continuous_st = Drill.states(continuous_agent)
 
     discrete_onehot_actions = Drill.discrete_to_onehotbatch(discrete_buffer.actions, DrillInterface.action_space(discrete_env))
     discrete_eval_values, discrete_eval_logprobs, discrete_entropy, _ = Drill.evaluate_actions(

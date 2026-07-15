@@ -70,8 +70,8 @@ end
 
         load_layer_params_and_state!(new_agent, alg, saved_path)
 
-        @test new_Drill.parameters(agent) == Drill.parameters(agent)
-        @test new_Drill.states(agent) == Drill.states(agent)
+        @test Drill.parameters(new_agent) == Drill.parameters(agent)
+        @test Drill.states(new_agent) == Drill.states(agent)
 
         observations = [rand(Random.MersenneTwister(42), obs_space) for _ in 1:5]
         original_actions = predict_actions(agent, observations; deterministic = true, rng = Random.MersenneTwister(999))

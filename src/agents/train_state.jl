@@ -13,8 +13,8 @@ abstract type AbstractAlgorithmTrainState end
 
 Single-objective PPO training state wrapping one Lux `TrainState`.
 """
-mutable struct PPOTrainState{TS <: Lux.Training.TrainState} <: AbstractAlgorithmTrainState
-    ts::TS
+mutable struct PPOTrainState <: AbstractAlgorithmTrainState
+    ts::Any
 end
 
 """
@@ -38,19 +38,16 @@ end
 
 Multi-objective SAC training state: separate Lux `TrainState`s for actor, critic, and
 entropy coefficient, plus target-critic parameters/states.
+
+TrainState fields are untyped so Lux can replace them with cached/compiled variants
+whose concrete `TrainState{...}` parameters differ after the first `compute_gradients`.
 """
-mutable struct SACTrainState{
-        ATS <: Lux.Training.TrainState,
-        CTS <: Lux.Training.TrainState,
-        ETS <: Lux.Training.TrainState,
-        TP,
-        TST,
-    } <: AbstractAlgorithmTrainState
-    actor_ts::ATS
-    critic_ts::CTS
-    ent_ts::ETS
-    target_parameters::TP
-    target_states::TST
+mutable struct SACTrainState <: AbstractAlgorithmTrainState
+    actor_ts::Any
+    critic_ts::Any
+    ent_ts::Any
+    target_parameters::Any
+    target_states::Any
 end
 
 # --- parameter / state selection -------------------------------------------------
@@ -142,9 +139,16 @@ function merge_actor_critic_states(actor_st::NamedTuple, critic_st::NamedTuple)
     return merge(actor_st, critic_st)
 end
 
+"""
+Project `src` onto the keys of `template` without generators (Zygote-friendly).
+"""
+function project_namedtuple(src::NamedTuple, ::NamedTuple{names}) where {names}
+    return NamedTuple{names}(map(n -> src[n], names))
+end
+
 function split_states(ts::SACTrainState, st::NamedTuple)
-    actor_st = (; (k => st[k] for k in keys(ts.actor_ts.states))...)
-    critic_st = (; (k => st[k] for k in keys(ts.critic_ts.states))...)
+    actor_st = project_namedtuple(st, ts.actor_ts.states)
+    critic_st = project_namedtuple(st, ts.critic_ts.states)
     return actor_st, critic_st
 end
 
@@ -167,14 +171,17 @@ function states(ts::SACTrainState)
 end
 
 function set_states!(ts::PPOTrainState, st)
-    ts.ts = Accessors.@set ts.ts.states = st
+    inner = ts.ts
+    ts.ts = Accessors.@set inner.states = st
     return ts
 end
 
 function set_states!(ts::SACTrainState, st)
     actor_st, critic_st = split_states(ts, st)
-    ts.actor_ts = Accessors.@set ts.actor_ts.states = actor_st
-    ts.critic_ts = Accessors.@set ts.critic_ts.states = critic_st
+    actor_ts = ts.actor_ts
+    critic_ts = ts.critic_ts
+    ts.actor_ts = Accessors.@set actor_ts.states = actor_st
+    ts.critic_ts = Accessors.@set critic_ts.states = critic_st
     return ts
 end
 
