@@ -158,7 +158,7 @@ function setup_ppo_gradient_data_discrete(; n_envs::Int = DEFAULT_N_ENVS)
         break
     end
     @assert batch_data !== nothing
-    train_state = deepcopy(agent.train_state)
+    train_state = deepcopy(Drill.lux_train_state(agent.train_state))
     return alg, batch_data, train_state
 end
 
@@ -196,7 +196,7 @@ function setup_ppo_gradient_data_continuous(; n_envs::Int = DEFAULT_N_ENVS)
         break
     end
     @assert batch_data !== nothing
-    train_state = deepcopy(agent.train_state)
+    train_state = deepcopy(Drill.lux_train_state(agent.train_state))
     return alg, batch_data, train_state
 end
 
@@ -218,16 +218,12 @@ function setup_sac_gradient_data(; n_envs::Int = DEFAULT_N_ENVS, n_steps::Int = 
         break
     end
     @assert batch_data !== nothing
-    train_state = deepcopy(agent.train_state)
-    ent_train_state = deepcopy(agent.aux.ent_train_state)
+    ts = deepcopy(agent.train_state)
     return (
         agent.layer,
         alg,
         batch_data,
-        train_state,
-        ent_train_state,
-        agent.aux.Q_target_parameters,
-        agent.aux.Q_target_states,
+        ts,
         agent.rng,
     )
 end

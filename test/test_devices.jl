@@ -18,13 +18,13 @@ using .TestSetup
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
     agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42))
 
-    @test Drill.get_device(agent.train_state.parameters) isa typeof(cpu_device())
+    @test Drill.get_device(Drill.parameters(agent)) isa typeof(cpu_device())
     agent_on_cpu = agent |> cpu_device()
     @test agent_on_cpu isa Drill.Agent
 
-    initial_params = deepcopy(agent_on_cpu.train_state.parameters)
+    initial_params = deepcopy(Drill.parameters(agent_on_cpu))
     train!(agent_on_cpu, continuous_env, alg, 32, ad_type = AutoEnzyme())
-    @test agent_on_cpu.train_state.parameters != initial_params
+    @test Drill.parameters(agent_on_cpu) != initial_params
 end
 
 @testset "Device transfer with cpu_device (SAC)" begin
@@ -36,13 +36,13 @@ end
     alg = SAC(; start_steps = 4, batch_size = 4)
     agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42))
 
-    @test Drill.get_device(agent.train_state.parameters) isa typeof(cpu_device())
+    @test Drill.get_device(Drill.parameters(agent)) isa typeof(cpu_device())
     agent_on_cpu = agent |> cpu_device()
     @test agent_on_cpu isa Drill.Agent
 
-    initial_params = deepcopy(agent_on_cpu.train_state.parameters)
+    initial_params = deepcopy(Drill.parameters(agent_on_cpu))
     train!(agent_on_cpu, continuous_env, alg, 32, ad_type = AutoEnzyme(; mode = set_runtime_activity(Reverse)))
-    @test agent_on_cpu.train_state.parameters != initial_params
+    @test Drill.parameters(agent_on_cpu) != initial_params
 end
 
 @testset "Training with Reactant device" begin
@@ -61,6 +61,28 @@ end
     @test true
 end
 
+@testset "SAC training with Reactant device" begin
+    continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
+
+    Reactant.set_default_backend("cpu")
+    device = Lux.reactant_device()
+    layer = ContinuousActorCriticLayer(
+        continuous_obs_space,
+        continuous_action_space;
+        hidden_dims = [16, 16],
+        critic_type = QCritic(),
+    )
+    alg = SAC(; start_steps = 4, batch_size = 4)
+    agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42), device)
+
+    ad_type = AutoEnzyme(; mode = set_runtime_activity(Reverse))
+    initial_params = deepcopy(Drill.parameters(agent))
+    train!(agent, continuous_env, alg, 32; ad_type = ad_type)
+    @test Drill.parameters(agent) != initial_params
+end
+
 @testset "PPO constructor builds TrainState on Reactant device without warning" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
     continuous_obs_space = DrillInterface.observation_space(continuous_env)
@@ -76,7 +98,8 @@ end
     end
 
     @test agent isa Drill.Agent
-    @test Drill.get_device(agent.train_state.parameters) !== nothing
+    @test agent.train_state isa Drill.PPOTrainState
+    @test Drill.get_device(Drill.parameters(agent)) !== nothing
     @test isnothing(agent.cache)
 end
 
@@ -95,8 +118,9 @@ end
     end
 
     @test agent isa Drill.Agent
-    @test Drill.get_device(agent.train_state.parameters) !== nothing
-    @test Drill.get_device(agent.aux.Q_target_parameters) !== nothing
+    @test agent.train_state isa Drill.SACTrainState
+    @test Drill.get_device(Drill.parameters(agent)) !== nothing
+    @test Drill.get_device(agent.train_state.target_parameters) !== nothing
     @test isnothing(agent.cache)
 end
 
@@ -236,6 +260,6 @@ end
         saved_path = save_layer_params_and_state(agent, joinpath(dir, "ppo_agent"))
         load_layer_params_and_state!(agent, alg, saved_path)
         @test Drill.reactant_cache_entry_count(agent) == 0
-        @test Drill.get_device(agent.train_state.parameters) !== nothing
+        @test Drill.get_device(Drill.parameters(agent)) !== nothing
     end
 end

@@ -165,31 +165,32 @@ if ENABLE_AD_BACKEND_BENCHES
                 _, log_probs_pi, _ = Drill.action_log_prob(
                     layer,
                     batch_data.observations,
-                    train_state.parameters,
-                    train_state.states;
+                    Drill.parameters(ts),
+                    Drill.states(ts);
                     rng = rng,
                 )
                 c = mean(log_probs_pi .+ target_entropy)
                 ent_data = (; c)
-                _, _, _, ent_train_state = Lux.Training.compute_gradients(
+                _, _, _, ent_ts = Lux.Training.compute_gradients(
                     $ad_backend,
                     Drill.SACEntropyObjective(),
                     ent_data,
-                    ent_train_state,
+                    ts.ent_ts,
                 )
+                ts.ent_ts = ent_ts
             end
             target_q_values = Drill.compute_target_q_values(
                 alg,
                 layer,
-                train_state.parameters,
-                train_state.states,
+                Drill.parameters(ts),
+                Drill.states(ts),
                 (
                     rewards = batch_data.rewards,
                     next_observations = batch_data.next_observations,
                     terminated = batch_data.terminated,
-                    log_ent_coef = ent_train_state.parameters,
-                    target_ps = target_ps,
-                    target_st = target_st,
+                    log_ent_coef = Drill.entropy_parameters(ts),
+                    target_ps = ts.target_parameters,
+                    target_st = ts.target_states,
                 );
                 rng = rng,
             )
@@ -197,15 +198,18 @@ if ENABLE_AD_BACKEND_BENCHES
                 observations = batch_data.observations,
                 actions = batch_data.actions,
                 target_q_values = target_q_values,
+                actor_ps = ts.actor_ts.parameters,
+                actor_st = ts.actor_ts.states,
             )
             critic_objective = Drill.SACCriticObjective(alg, rng)
-            _, _, _, train_state = Lux.Training.compute_gradients(
+            _, _, _, critic_ts = Lux.Training.compute_gradients(
                 $ad_backend,
                 critic_objective,
                 critic_data,
-                train_state,
+                ts.critic_ts,
             )
-            ent_coef = Float32(exp(first(ent_train_state.parameters.log_ent_coef)))
+            ts.critic_ts = critic_ts
+            ent_coef = Float32(Drill.entropy_coefficient(ts))
             actor_objective = Drill.SACActorObjective(alg, rng)
             Lux.Training.compute_gradients(
                 $ad_backend,
@@ -213,12 +217,13 @@ if ENABLE_AD_BACKEND_BENCHES
                 (
                     observations = batch_data.observations,
                     ent_coef = ent_coef,
+                    critic_ps = ts.critic_ts.parameters,
+                    critic_st = ts.critic_ts.states,
                 ),
-                train_state,
+                ts.actor_ts,
             )
         end setup = begin
-            layer, alg, batch_data, train_state, ent_train_state, target_ps, target_st, rng =
-                BenchUtils.setup_sac_gradient_data()
+            layer, alg, batch_data, ts, rng = BenchUtils.setup_sac_gradient_data()
         end
     end
 end

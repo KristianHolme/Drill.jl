@@ -188,17 +188,17 @@ end
         batch_data = first(data_loader)
 
         @testset "Critic gradient with real data" begin
-            train_state = agent.train_state
+            ts = agent.train_state
 
             target_q_values = Drill.compute_target_q_values(
-                alg, layer, train_state.parameters, train_state.states,
+                alg, layer, Drill.parameters(ts), Drill.states(ts),
                 (
                     next_observations = batch_data.next_observations,
                     terminated = batch_data.terminated,
-                    log_ent_coef = agent.aux.ent_train_state.parameters,
+                    log_ent_coef = Drill.entropy_parameters(ts),
                     rewards = batch_data.rewards,
-                    target_ps = agent.aux.Q_target_parameters,
-                    target_st = agent.aux.Q_target_states,
+                    target_ps = ts.target_parameters,
+                    target_st = ts.target_states,
                 );
                 rng = rng
             )
@@ -207,65 +207,58 @@ end
                 observations = batch_data.observations,
                 actions = batch_data.actions,
                 target_q_values = target_q_values,
+                actor_ps = ts.actor_ts.parameters,
+                actor_st = ts.actor_ts.states,
             )
 
-            critic_grad, critic_loss, critic_stats, train_state = Lux.Training.compute_gradients(
+            critic_grad, critic_loss, critic_stats, _ = Lux.Training.compute_gradients(
                 AutoZygote(),
-                (model, ps, st, data) -> Drill.sac_critic_loss(alg, layer, ps, st, data),
+                Drill.SACCriticObjective(alg, rng),
                 critic_data,
-                train_state
+                ts.critic_ts,
             )
 
             @test !isnothing(critic_grad)
             @test haskey(critic_grad, :critic_head)
+            @test !haskey(critic_grad, :actor_head)
             @test !nested_all_zero(critic_grad.critic_head)
             @test isfinite(critic_loss)
             @test critic_loss isa Float32
             @test critic_loss > 0
 
             critic_grad_norm = nested_norm(critic_grad.critic_head, Float32)
-            actor_grad_norm = nested_norm(critic_grad.actor_head, Float32)
-            @test actor_grad_norm < 1.0f-10
             @test critic_grad_norm > 1.0f-10
             @test critic_grad_norm < 1000.0
         end
 
         @testset "Actor gradient with real data" begin
-            train_state = agent.train_state
+            ts = agent.train_state
 
-            ent_coef = Float32(exp(first(agent.aux.ent_train_state.parameters.log_ent_coef)))
+            ent_coef = Float32(Drill.entropy_coefficient(ts))
             actor_data = (
                 observations = batch_data.observations,
-                actions = batch_data.actions,
-                rewards = batch_data.rewards,
-                terminated = batch_data.terminated,
-                truncated = batch_data.truncated,
-                next_observations = batch_data.next_observations,
                 ent_coef = ent_coef,
+                critic_ps = ts.critic_ts.parameters,
+                critic_st = ts.critic_ts.states,
             )
 
-            actor_grad, actor_loss, _, train_state = Lux.Training.compute_gradients(
+            actor_grad, actor_loss, _, _ = Lux.Training.compute_gradients(
                 AutoZygote(),
-                (model, ps, st, data) -> Drill.sac_actor_loss(alg, layer, ps, st, data),
+                Drill.SACActorObjective(alg, rng),
                 actor_data,
-                train_state
+                ts.actor_ts,
             )
-            Drill.zero_critic_grads!(actor_grad, layer)
 
             @test !isnothing(actor_grad)
             @test haskey(actor_grad, :actor_head)
+            @test !haskey(actor_grad, :critic_head)
             @test !nested_all_zero(actor_grad.actor_head)
-            @test nested_all_zero(actor_grad.critic_head)
             @test isfinite(actor_loss)
             @test actor_loss isa Float32
 
-            @test isfinite(actor_loss)
-
             actor_grad_norm = nested_norm(actor_grad.actor_head, Float32)
-            critic_grad_norm = nested_norm(actor_grad.critic_head, Float32)
             @test actor_grad_norm > 1.0f-10
             @test actor_grad_norm < 1000.0
-            @test critic_grad_norm < 1.0f-10
         end
     end
 end

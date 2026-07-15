@@ -26,9 +26,9 @@ using .TestSetup
             alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
             agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42))
 
-            initial_params = deepcopy(agent.train_state.parameters)
+            initial_params = deepcopy(Drill.parameters(agent))
             train!(agent, continuous_env, alg, 32; ad_type = ad_backend)
-            @test agent.train_state.parameters != initial_params
+            @test Drill.parameters(agent) != initial_params
         end
     end
 end
@@ -56,9 +56,9 @@ end
             alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
             agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42))
 
-            initial_params = deepcopy(agent.train_state.parameters)
+            initial_params = deepcopy(Drill.parameters(agent))
             train!(agent, discrete_env, alg, 32; ad_type = ad_backend)
-            @test agent.train_state.parameters != initial_params
+            @test Drill.parameters(agent) != initial_params
         end
     end
 end
@@ -79,9 +79,9 @@ end
         alg = SAC(; start_steps = 4, batch_size = 4)
         agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42))
 
-        initial_params = deepcopy(agent.train_state.parameters)
+        initial_params = deepcopy(Drill.parameters(agent))
         train!(agent, continuous_env, alg, 32; ad_type = ad_backend)
-        return agent.train_state.parameters != initial_params
+        return Drill.parameters(agent) != initial_params
     end
     @testset "$(backends[1][1])" test_sac_training(backends[1][2])
     @testset "$(backends[2][1])" begin

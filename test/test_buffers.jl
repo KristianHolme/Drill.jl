@@ -22,8 +22,8 @@ using .TestSetup
         obs = roll_buffer.observations
         act = roll_buffer.actions
         logprobs = roll_buffer.logprobs
-        ps = agent.train_state.parameters
-        st = agent.train_state.states
+        ps = Drill.parameters(agent)
+        st = Drill.states(agent)
         _, new_logprobs, _, _ = Drill.evaluate_actions(layer, obs, act, ps, st)
         @test isapprox(vec(logprobs), vec(new_logprobs); atol = 1.0e-5, rtol = 1.0e-5)
     end
@@ -174,8 +174,8 @@ end
     @test size(logprobs) == (n_steps * n_envs,)
     @test size(values) == (n_steps * n_envs,)
 
-    ps = agent.train_state.parameters
-    st = agent.train_state.states
+    ps = Drill.parameters(agent)
+    st = Drill.states(agent)
     onehot_actions = Drill.discrete_to_onehotbatch(actions, DrillInterface.action_space(env))
     eval_values, eval_logprobs, entropy, _ = Drill.evaluate_actions(layer, obs, onehot_actions, ps, st)
 
@@ -212,10 +212,10 @@ end
     @test size(discrete_buffer.logprobs) == size(continuous_buffer.logprobs)
     @test size(discrete_buffer.values) == size(continuous_buffer.values)
 
-    discrete_ps = discrete_agent.train_state.parameters
-    discrete_st = discrete_agent.train_state.states
-    continuous_ps = continuous_agent.train_state.parameters
-    continuous_st = continuous_agent.train_state.states
+    discrete_ps = discrete_Drill.parameters(agent)
+    discrete_st = discrete_Drill.states(agent)
+    continuous_ps = continuous_Drill.parameters(agent)
+    continuous_st = continuous_Drill.states(agent)
 
     discrete_onehot_actions = Drill.discrete_to_onehotbatch(discrete_buffer.actions, DrillInterface.action_space(discrete_env))
     discrete_eval_values, discrete_eval_logprobs, discrete_entropy, _ = Drill.evaluate_actions(

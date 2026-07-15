@@ -44,8 +44,8 @@ Create a lightweight deployment policy from a trained agent.
 """
 function extract_policy(agent)
     layer = agent.layer
-    ps = agent.train_state.parameters
-    st = agent.train_state.states
+    ps = parameters(agent)
+    st = states(agent)
     as = action_space(layer)
     adapter = agent.action_adapter
     return NeuralPolicy(layer, ps, st, as, adapter, nothing)
