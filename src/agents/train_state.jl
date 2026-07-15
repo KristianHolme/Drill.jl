@@ -12,9 +12,13 @@ abstract type AbstractAlgorithmTrainState end
     PPOTrainState
 
 Single-objective PPO training state wrapping one Lux `TrainState`.
+
+The field is typed as the `TrainState` UnionAll (not a fully concrete
+`TrainState{...}`) so Lux may rebind a compiled/cached variant whose type
+parameters differ after the first `compute_gradients`.
 """
 mutable struct PPOTrainState <: AbstractAlgorithmTrainState
-    ts::Any
+    ts::Lux.Training.TrainState
 end
 
 """
@@ -39,15 +43,16 @@ end
 Multi-objective SAC training state: separate Lux `TrainState`s for actor, critic, and
 entropy coefficient, plus target-critic parameters/states.
 
-TrainState fields are untyped so Lux can replace them with cached/compiled variants
-whose concrete `TrainState{...}` parameters differ after the first `compute_gradients`.
+`TrainState` fields use the UnionAll so Lux can replace them with cached/compiled
+variants whose concrete `TrainState{...}` parameters differ after the first
+`compute_gradients`.
 """
 mutable struct SACTrainState <: AbstractAlgorithmTrainState
-    actor_ts::Any
-    critic_ts::Any
-    ent_ts::Any
-    target_parameters::Any
-    target_states::Any
+    actor_ts::Lux.Training.TrainState
+    critic_ts::Lux.Training.TrainState
+    ent_ts::Lux.Training.TrainState
+    target_parameters::NamedTuple
+    target_states::NamedTuple
 end
 
 # --- parameter / state selection -------------------------------------------------
