@@ -141,8 +141,9 @@ env = ScalingWrapperEnv(env)
 
 ### AD backends and Device support (CPU / GPU)
 
-Different backends for automatic differentiation are supported through the `ad_backend` keyword argument to the `train!` function. Currently, [Zygote.jl](https://github.com/FluxML/Zygote.jl) is the default (using the `AutoZygote()` backend). [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl) is also supported by using the `AutoEnzyme()` backend. For the SAC algorithm, runtime activity must be turned on (`AutoEnzyme(; mode = set_runtime_activity(Reverse))`). The corresponding package (Zygote/Enzyme) must be loaded before calling `train!`.
-Work is underway to support GPU training, mainly focusing on [Reactant.jl](https://github.com/EnzymeAD/Reactant.jl) compatibility. Using Reactant is currently highly experimental, and is not recommended.
+Different backends for automatic differentiation are supported through the `ad_type` keyword argument to the `train!` function. Currently, [Zygote.jl](https://github.com/FluxML/Zygote.jl) is the default (using the `AutoZygote()` backend). [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl) is also supported by using the `AutoEnzyme()` backend. For the SAC algorithm, runtime activity must be turned on (`AutoEnzyme(; mode = set_runtime_activity(Reverse))`). The corresponding package (Zygote/Enzyme) must be loaded before calling `train!`.
+
+[Reactant.jl](https://github.com/EnzymeAD/Reactant.jl) support is experimental: put parameters on `reactant_device()` and train with `AutoEnzyme()`. Lux's `TrainState` owns training compilation; Drill only `@compile`s rollout/deployment inference kernels. Multi-objective algorithms (SAC) use one Lux `TrainState` per objective (actor / critic / entropy).
 
 ### Custom Layer Architectures
 

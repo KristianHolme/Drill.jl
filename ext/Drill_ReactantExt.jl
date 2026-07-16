@@ -1,5 +1,11 @@
 module Drill_ReactantExt
 
+# Inference-only Reactant compilation for rollout / deployment kernels.
+# Training compilation is owned by Lux's TrainState cache via
+# `Lux.Training.compute_gradients` / `single_train_step!` with `AutoEnzyme()`
+# when parameters live on a `ReactantDevice`. Do not `@compile` models into
+# TrainState construction.
+
 using Drill
 using Adapt
 using MLDataDevices
@@ -13,6 +19,7 @@ import Drill:
     execute_rollout_action_values,
     execute_rollout_predict_actions,
     execute_rollout_predict_values,
+    parameters,
     reactant_cache_entry_count,
     rollout_action_values_kernel,
     rollout_predict_actions_deterministic_kernel,
@@ -55,7 +62,7 @@ function Drill.reactant_cache_entry_count(x::Union{Drill.Agent, Drill.NeuralPoli
     dev = if hasproperty(x, :params)
         Drill.current_device(x.params)
     else
-        Drill.current_device(x.train_state.parameters)
+        Drill.current_device(parameters(x))
     end
     if !(dev isa ReactantDevice)
         return 0

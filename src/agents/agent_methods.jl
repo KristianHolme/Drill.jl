@@ -17,14 +17,13 @@ Get actions, values, and log probabilities for a vector of observations.
 - `logprobs`: Vector of log probabilities
 """
 function get_action_and_values(
-        agent::Agent{<:AbstractActorCriticLayer, ALG, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any},
+        agent::Agent{<:AbstractActorCriticLayer, ALG, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any, <:Any},
         observations::AbstractVector
     ) where {ALG <: AbstractAlgorithm}
     #TODO add !to name?
     layer = agent.layer
-    train_state = agent.train_state
-    ps = train_state.parameters
-    st = rollout_inference_state(train_state.states)
+    ps = parameters(agent)
+    st = rollout_inference_state(states(agent))
     batched_obs = batch(observations, observation_space(layer))
     dev = current_device(ps)
     batched_obs = batched_obs |> dev
@@ -37,8 +36,7 @@ function get_action_and_values(
         st,
         agent.rng,
     )
-    @reset train_state.states = st
-    agent.train_state = train_state
+    set_states!(agent, st)
     actions = _actions_to_vector(actions_batched)
     actions = _postprocess_actions(actions, action_space(layer))
     return actions, values, logprobs
@@ -57,14 +55,13 @@ Predict value estimates for a vector of observations.
 - `Vector`: Value estimates for each observation
 """
 function predict_values(
-        agent::Agent{<:AbstractActorCriticLayer, ALG, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any},
+        agent::Agent{<:AbstractActorCriticLayer, ALG, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any, <:Any},
         observations::AbstractVector
     ) where {ALG <: AbstractAlgorithm}
     #TODO add !to name?
     layer = agent.layer
-    train_state = agent.train_state
-    ps = train_state.parameters
-    st = rollout_inference_state(train_state.states)
+    ps = parameters(agent)
+    st = rollout_inference_state(states(agent))
     # Convert observations vector to batched matrix for policy
     batched_obs = batch(observations, observation_space(layer))
     dev = current_device(ps)
@@ -77,8 +74,7 @@ function predict_values(
         ps,
         st,
     )
-    @reset train_state.states = st
-    agent.train_state = train_state
+    set_states!(agent, st)
     return values
 end
 
@@ -98,7 +94,7 @@ Predict actions for a vector of observations, processed for environment use.
 - `Vector`: Actions processed for environment use (e.g., 0-based for Discrete spaces), or raw actions if `raw=true` (if supported)
 """
 function predict_actions(
-        agent::Agent{<:AbstractActorCriticLayer, ALG, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any},
+        agent::Agent{<:AbstractActorCriticLayer, ALG, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any, <:Any},
         observations::AbstractVector;
         deterministic::Bool = false,
         rng::AbstractRNG = agent.rng,
@@ -109,9 +105,8 @@ function predict_actions(
     end
     #TODO add !to name?
     layer = agent.layer
-    train_state = agent.train_state
-    ps = train_state.parameters
-    st = rollout_inference_state(train_state.states)
+    ps = parameters(agent)
+    st = rollout_inference_state(states(agent))
     batched_obs = batch(observations, observation_space(layer))
     dev = current_device(ps)
     batched_obs = batched_obs |> dev
@@ -125,8 +120,7 @@ function predict_actions(
         deterministic,
         rng,
     )
-    @reset train_state.states = st
-    agent.train_state = train_state
+    set_states!(agent, st)
     actions_vec = _actions_to_vector(actions_batched)
     adapter = agent.action_adapter
     actions = to_env.(Ref(adapter), actions_vec, Ref(action_space(layer)))
@@ -163,7 +157,7 @@ end
 
 # Implementation for unified Agent (always save from CPU)
 function save_layer_params_and_state(
-        agent::Agent{<:AbstractActorCriticLayer, ALG, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any},
+        agent::Agent{<:AbstractActorCriticLayer, ALG, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any, <:Any},
         path::AbstractString;
         suffix::String = ".jld2"
     ) where {ALG <: AbstractAlgorithm}
@@ -173,9 +167,10 @@ function save_layer_params_and_state(
     save(
         file_path, Dict(
             "layer" => agent_cpu.layer,
-            "parameters" => agent_cpu.train_state.parameters,
-            "states" => agent_cpu.train_state.states,
-            "aux" => agent_cpu.aux
+            "parameters" => parameters(agent_cpu),
+            "states" => states(agent_cpu),
+            "train_state" => agent_cpu.train_state,
+            "aux" => agent_cpu.aux,
         )
     )
     return file_path

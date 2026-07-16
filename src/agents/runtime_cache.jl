@@ -8,6 +8,8 @@ end
 
 canonicalize_device_batch(dev, obs_batch) = obs_batch
 
+# Reactant inference compile-cache size (overridden in Drill_ReactantExt).
+# Training on ReactantDevice uses Lux TrainState's compile cache, not this.
 reactant_cache_entry_count(::Any) = 0
 
 rollout_inference_state(st) = st

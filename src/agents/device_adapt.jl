@@ -4,6 +4,8 @@
 # Mark Agent as a leaf so fmap doesn't recurse into its fields.
 # Our adapt_structure method below handles the actual device transfer.
 MLDataDevices.isleaf(::Agent) = true
+MLDataDevices.isleaf(::PPOTrainState) = true
+MLDataDevices.isleaf(::SACTrainState) = true
 
 function Adapt.adapt_structure(to::MLDataDevices.AbstractDevice, agent::Agent)
     new_train_state = Adapt.adapt(to, agent.train_state)
@@ -25,11 +27,18 @@ function Adapt.adapt_structure(to::MLDataDevices.AbstractDevice, agent::Agent)
     )
 end
 
-function Adapt.adapt_structure(to::MLDataDevices.AbstractDevice, aux::QAux)
-    new_Q_target_parameters = to(aux.Q_target_parameters)
-    new_Q_target_states = to(aux.Q_target_states)
-    new_ent_train_state = Adapt.adapt(to, aux.ent_train_state)
-    return QAux(new_Q_target_parameters, new_Q_target_states, new_ent_train_state)
+function Adapt.adapt_structure(to::MLDataDevices.AbstractDevice, ts::PPOTrainState)
+    return PPOTrainState(Adapt.adapt(to, ts.ts))
+end
+
+function Adapt.adapt_structure(to::MLDataDevices.AbstractDevice, ts::SACTrainState)
+    return SACTrainState(
+        Adapt.adapt(to, ts.actor_ts),
+        Adapt.adapt(to, ts.critic_ts),
+        Adapt.adapt(to, ts.ent_ts),
+        to(ts.target_parameters),
+        to(ts.target_states),
+    )
 end
 
 function Adapt.adapt_structure(::MLDataDevices.AbstractDevice, ::NoAux)

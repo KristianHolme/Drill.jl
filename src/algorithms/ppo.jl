@@ -153,7 +153,7 @@ function Agent(
     ps, st = Lux.setup(rng, layer)
     ps = device(ps)
     st = device(st)
-    train_state = Lux.Training.TrainState(layer, ps, st, optimizer)
+    train_state = PPOTrainState(Lux.Training.TrainState(layer, ps, st, optimizer))
     adapter = action_adapter(alg, action_space(layer))
 
 
@@ -179,7 +179,7 @@ uses_replay(::PPO) = false
 critic_type(::PPO) = VCritic()
 
 function load_layer_params_and_state!(
-        agent::Agent{<:AbstractActorCriticLayer, <:PPO, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any},
+        agent::Agent{<:AbstractActorCriticLayer, <:PPO, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any, <:Any},
         alg::PPO,
         path::AbstractString;
         suffix::String = ".jld2"
@@ -187,18 +187,28 @@ function load_layer_params_and_state!(
     file_path = endswith(path, suffix) ? path : path * suffix
     @info "Loading policy, parameters, and state from $file_path"
     data = load(file_path)
-    dev = get_device(agent.train_state.parameters)
+    dev = get_device(parameters(agent))
     new_layer = data["layer"]
     new_parameters = data["parameters"]
     new_states = data["states"]
-    if dev !== nothing
-        new_parameters = dev(new_parameters)
-        new_states = dev(new_states)
+    if haskey(data, "train_state") && data["train_state"] isa PPOTrainState
+        new_train_state = data["train_state"]
+        if dev !== nothing
+            new_train_state = Adapt.adapt(dev, new_train_state)
+        end
+        agent.layer = new_layer
+        agent.train_state = new_train_state
+    else
+        if dev !== nothing
+            new_parameters = dev(new_parameters)
+            new_states = dev(new_states)
+        end
+        new_optimizer = make_optimizer(agent.optimizer_type, alg)
+        agent.layer = new_layer
+        agent.train_state = PPOTrainState(
+            Lux.Training.TrainState(new_layer, new_parameters, new_states, new_optimizer)
+        )
     end
-    new_optimizer = make_optimizer(agent.optimizer_type, alg)
-    new_train_state = Lux.Training.TrainState(new_layer, new_parameters, new_states, new_optimizer)
-    agent.layer = new_layer
-    agent.train_state = new_train_state
     invalidate_cache!(agent)
     return agent
 end
@@ -220,7 +230,7 @@ Rollouts use `alg.n_steps` steps per sub-environment per iteration. Training sto
 Returns `nothing` (mutates `agent` in place). On early exit from callbacks, returns `nothing` without completing the full schedule.
 """
 function train!(
-        agent::Agent{<:AbstractActorCriticLayer, <:PPO, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any},
+        agent::Agent{<:AbstractActorCriticLayer, <:PPO, <:AbstractActionAdapter, <:AbstractRNG, <:AbstractTrainingLogger, <:Any, <:Any},
         env::AbstractParallelEnv,
         alg::PPO{T}, #TODO remove alg from here, use agent.alg instead
         max_steps::Int;
@@ -250,7 +260,7 @@ function train!(
         showspeed = true, enabled = agent.verbose > 0
     )
 
-    train_state = agent.train_state
+    train_state = lux_train_state(agent.train_state)
 
     total_entropy_losses = Float32[]
     learning_rates = Float32[]
@@ -276,6 +286,7 @@ function train!(
     @timeit to "training_loop" for i in 1:iterations
         learning_rate = alg.learning_rate
         Optimisers.adjust!(agent.train_state, learning_rate)
+        train_state = lux_train_state(agent.train_state)
         push!(learning_rates, learning_rate)
 
         if !isnothing(callbacks)
@@ -316,7 +327,7 @@ function train!(
             ),
             batchsize = alg.batch_size, shuffle = true, parallel = true, rng = agent.rng
         )
-        dev = get_device(agent.train_state.parameters)
+        dev = get_device(parameters(agent))
         continue_training = true
         entropy_losses = Float32[]
         entropy = Float32[]
@@ -364,6 +375,7 @@ function train!(
                     break
                 end
                 @timeit to "apply_gradients" Lux.Training.apply_gradients!(train_state, grads)
+                set_lux_train_state!(agent.train_state, train_state)
 
                 add_gradient_update!(agent)
                 push!(entropy, stats.entropy)
@@ -419,11 +431,12 @@ function train!(
         log_scalar!(agent.logger, "train/loss", total_losses[i])
         log_scalar!(agent.logger, "train/grad_norm", total_grad_norms[i])
         log_scalar!(agent.logger, "train/learning_rate", learning_rate)
-        if haskey(train_state.parameters, :log_std)
-            log_scalar!(agent.logger, "train/std", mean(exp.(train_state.parameters[:log_std])))
+        ps = parameters(agent)
+        if haskey(ps, :log_std)
+            log_scalar!(agent.logger, "train/std", mean(exp.(ps.log_std)))
         end
     end
-    agent.train_state = train_state
+    set_lux_train_state!(agent.train_state, train_state)
 
     learn_stats = (
         entropy_losses = total_entropy_losses,
