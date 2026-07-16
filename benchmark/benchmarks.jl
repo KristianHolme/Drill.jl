@@ -2,16 +2,16 @@ using BenchmarkTools
 using Drill
 using ClassicControlEnvironments
 using Random
-using Zygote
 using Drill.Lux
-using Enzyme: Reverse, set_runtime_activity
-using Reactant
-Reactant.set_default_backend("cpu")
 
 include("bench_utils.jl")
 using .BenchUtils
 
 const SUITE = BenchmarkGroup()
+
+# Prefer a short wall-clock budget so CI stays predictable.
+const BASIC_SECONDS = 1.0
+const BASIC_SAMPLES = 5
 
 rollouts = BenchmarkGroup()
 SUITE["rollouts"] = rollouts
@@ -20,13 +20,13 @@ rollouts["rollout_buffer"] = @benchmarkable begin
     Drill.collect_rollout!(buffer, agent, alg, env)
 end setup = begin
     env, agent, alg, buffer = BenchUtils.setup_rollout_collection()
-end
+end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 rollouts["replay_buffer"] = @benchmarkable begin
     Drill.collect_rollout!(buffer, agent, alg, env, n_steps)
 end setup = begin
     env, agent, alg, buffer, n_steps = BenchUtils.setup_replay_collection()
-end
+end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 training = BenchmarkGroup()
 SUITE["training"] = training
@@ -35,13 +35,13 @@ training["ppo_cartpole"] = @benchmarkable begin
     train!(agent, env, alg, max_steps)
 end setup = begin
     env, agent, alg, max_steps = BenchUtils.setup_training_ppo()
-end
+end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 training["sac_pendulum"] = @benchmarkable begin
     train!(agent, env, alg, max_steps)
 end setup = begin
     env, agent, alg, max_steps = BenchUtils.setup_training_sac()
-end
+end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 # Device benchmarks: compare CPU vs Reactant (when available). Same workload (DEVICE_BENCH_MAX_STEPS).
 # Run with: BenchmarkTools.run(SUITE["devices"]). With Reactant: run Reactant entries; without, only CPU runs.
@@ -52,16 +52,24 @@ devices["ppo_cpu"] = @benchmarkable begin
     train!(agent, env, alg, max_steps)
 end setup = begin
     env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device()
+end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
+
+const HAS_REACTANT = try
+    @eval using Reactant
+    Reactant.set_default_backend("cpu")
+    true
+catch
+    false
 end
 
-if isdefined(Lux, :reactant_device)
+if HAS_REACTANT && isdefined(Lux, :reactant_device)
     devices["ppo_reactant"] = @benchmarkable begin
         train!(agent, env, alg, max_steps; ad_type = ad_backend)
     end setup = begin
         env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device(; device = Lux.reactant_device())
         ad_backend = AutoEnzyme()
         (env, agent, alg, max_steps, ad_backend)
-    end
+    end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
     # Reactant with CPU backend (no GPU): compare compiled Reactant vs plain CPU.
     devices["ppo_reactant_cpu_backend"] = @benchmarkable begin
         train!(agent, env, alg, max_steps; ad_type = ad_backend)
@@ -72,7 +80,7 @@ if isdefined(Lux, :reactant_device)
         env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device(; device = Lux.reactant_device())
         ad_backend = AutoEnzyme()
         (env, agent, alg, max_steps, ad_backend)
-    end
+    end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 end
 
 wrappers = BenchmarkGroup()
@@ -82,51 +90,65 @@ wrappers["broadcasted_act"] = @benchmarkable begin
     act!(env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end
+end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 wrappers["monitor_act"] = @benchmarkable begin
     act!(monitor_env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end
+end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 wrappers["normalize_act"] = @benchmarkable begin
     act!(normalize_env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end
+end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 wrappers["broadcasted_reset"] = @benchmarkable begin
     reset!(env)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end
+end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 wrappers["monitor_reset"] = @benchmarkable begin
     reset!(monitor_env)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end
+end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 wrappers["normalize_reset"] = @benchmarkable begin
     reset!(normalize_env)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
-end
+end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 wrappers["multithreaded_act"] = @benchmarkable begin
     act!(threaded_env, actions)
 end setup = begin
     threaded_env, actions = BenchUtils.setup_threaded_envs()
-end
+end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 wrappers["multithreaded_reset"] = @benchmarkable begin
     reset!(threaded_env)
 end setup = begin
     threaded_env, actions = BenchUtils.setup_threaded_envs()
+end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
+
+const HAS_ZYGOTE = try
+    @eval using Zygote
+    true
+catch
+    false
 end
 
-const ENABLE_AD_BACKEND_BENCHES = true
+const HAS_ENZYME = try
+    @eval using Enzyme: Reverse, set_runtime_activity
+    true
+catch
+    false
+end
+
+const ENABLE_AD_BACKEND_BENCHES = HAS_ZYGOTE && HAS_ENZYME
 if ENABLE_AD_BACKEND_BENCHES
     ad_backends = BenchmarkGroup()
     SUITE["ad_backends"] = ad_backends
@@ -146,7 +168,7 @@ if ENABLE_AD_BACKEND_BENCHES
             Lux.Training.compute_gradients($ad_backend, alg, batch_data, train_state)
         end setup = begin
             alg, batch_data, train_state = BenchUtils.setup_ppo_gradient_data_discrete()
-        end
+        end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
     end
 
     for (name, ad_backend) in ad_backend_types
@@ -154,7 +176,7 @@ if ENABLE_AD_BACKEND_BENCHES
             Lux.Training.compute_gradients($ad_backend, alg, batch_data, train_state)
         end setup = begin
             alg, batch_data, train_state = BenchUtils.setup_ppo_gradient_data_continuous()
-        end
+        end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
     end
 
     for (name, ad_backend) in ad_backend_types[[1, 3]] #dont use enzyme without runtime activity
@@ -163,6 +185,6 @@ if ENABLE_AD_BACKEND_BENCHES
             BenchUtils.bench_sac_ad!($ad_backend, state)
         end setup = begin
             state = BenchUtils.setup_sac_gradient_data()
-        end
+        end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
     end
 end

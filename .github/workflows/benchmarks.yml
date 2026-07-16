@@ -15,4 +15,7 @@ jobs:
       - uses: MilesCranmer/AirspeedVelocity.jl@action-v1
         with:
           julia-version: "1"
-          extra-pkgs: "ClassicControlEnvironments,Zygote,Enzyme,Reactant"
+          # Basic suite only (rollouts / training / wrappers). Request a full run with `/bench-full`.
+          filter: "rollouts,training,wrappers"
+          extra-pkgs: "ClassicControlEnvironments"
+          mode: "time,memory"
