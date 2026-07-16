@@ -158,10 +158,31 @@ model = ActorCriticLayer(
 
 ## Benchmarking with [AirSpeedVelocity.jl](https://github.com/MilesCranmer/AirSpeedVelocity.jl)
 
-Benchmarks live in `benchmark/benchmarks.jl` and are used by the CI workflow
-`.github/workflows/benchmarks.yml`.
+Benchmarks live in `benchmark/benchmarks.jl`.
 
-To run locally, first install and build [AirSpeedVelocity.jl](https://github.com/MilesCranmer/AirSpeedVelocity.jl) as described in the readme file,then run:
+### CI
+
+- **Basic suite** (automatic on every PR): `rollouts`, `training`, and `wrappers` via [`.github/workflows/benchmarks.yml`](.github/workflows/benchmarks.yml). Heavy packages (Zygote, Enzyme, Reactant) are not installed for this path.
+- **Full suite** (on demand): comment `/bench-full` on a PR (OWNER/MEMBER/COLLABORATOR), or run the **Full benchmarks** workflow from the Actions tab. This includes `devices` and `ad_backends` and installs Zygote, Enzyme, and Reactant. See [`.github/workflows/benchmarks-full.yml`](.github/workflows/benchmarks-full.yml).
+
+### Local
+
+First install and build [AirSpeedVelocity.jl](https://github.com/MilesCranmer/AirSpeedVelocity.jl) as described in its readme, then:
+
+Basic suite (matches PR CI):
+
+```bash
+mkdir -p benchmark_results
+benchpkg \
+  --path . \
+  --rev dirty,main \
+  --script benchmark/benchmarks.jl \
+  --output-dir benchmark_results \
+  --filter rollouts,training,wrappers \
+  --add ClassicControlEnvironments
+```
+
+Full suite:
 
 ```bash
 mkdir -p benchmark_results

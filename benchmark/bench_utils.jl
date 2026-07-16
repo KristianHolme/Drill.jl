@@ -8,8 +8,8 @@ using Statistics: mean
 
 const DEFAULT_SEED = 42
 const DEFAULT_N_ENVS = 2
-const DEFAULT_ROLLOUT_STEPS = 64
-const DEFAULT_TRAIN_STEPS = 256
+const DEFAULT_ROLLOUT_STEPS = 32
+const DEFAULT_TRAIN_STEPS = 64
 const DEFAULT_SAMPLES = 1000
 
 function make_cartpole_env(; n_envs::Int = DEFAULT_N_ENVS, seed::Int = DEFAULT_SEED)
@@ -96,7 +96,7 @@ function setup_training_sac(; n_envs::Int = DEFAULT_N_ENVS, max_steps::Int = DEF
 end
 
 # Same workload for device benchmarks (small steps, fixed seed) so CPU vs Reactant are comparable.
-const DEVICE_BENCH_MAX_STEPS = 128
+const DEVICE_BENCH_MAX_STEPS = 64
 
 function setup_training_ppo_device(; n_envs::Int = DEFAULT_N_ENVS, device = nothing)
     env = make_cartpole_env(; n_envs = n_envs)

@@ -1,0 +1,140 @@
+name: Full benchmarks
+
+on:
+  issue_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Pull request number to benchmark"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  bench-full:
+    if: >
+      (github.event_name == 'issue_comment' &&
+       github.event.issue.pull_request &&
+       contains(github.event.comment.body, '/bench-full') &&
+       contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve PR
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_PR_URL: ${{ github.event.issue.pull_request.url }}
+          DISPATCH_PR: ${{ github.event.inputs.pr_number }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [[ "$EVENT_NAME" == "issue_comment" ]]; then
+            pr_json=$(gh api "$COMMENT_PR_URL")
+          else
+            pr_json=$(gh api "repos/${REPO}/pulls/${DISPATCH_PR}")
+          fi
+          echo "number=$(jq -r '.number' <<<"$pr_json")" >> "$GITHUB_OUTPUT"
+          echo "sha=$(jq -r '.head.sha' <<<"$pr_json")" >> "$GITHUB_OUTPUT"
+          echo "ref=$(jq -r '.head.ref' <<<"$pr_json")" >> "$GITHUB_OUTPUT"
+
+      - name: React to request
+        if: github.event_name == 'issue_comment'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github+json" \
+            "/repos/${{ github.repository }}/issues/comments/${{ github.event.comment.id }}/reactions" \
+            -f content='rocket' || true
+
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ steps.pr.outputs.sha }}
+          persist-credentials: false
+
+      - name: Setup Julia
+        uses: julia-actions/setup-julia@v3
+        with:
+          version: "1"
+
+      - name: Cache Julia packages
+        uses: julia-actions/cache@v3
+
+      - name: Install and build AirspeedVelocity
+        shell: bash
+        run: |
+          export JULIA_NUM_THREADS=2
+          julia -e 'ENV["JULIA_PKG_PRECOMPILE_AUTO"]=0; using Pkg; pkg"add AirspeedVelocity@0.6"'
+          julia -e 'ENV["JULIA_PKG_PRECOMPILE_AUTO"]=0; import Pkg; Pkg.build("AirspeedVelocity")'
+          echo "$HOME/.julia/bin" >> "$GITHUB_PATH"
+
+      - name: Run full benchmarks
+        shell: bash
+        env:
+          JULIA_NUM_THREADS: "2"
+        run: |
+          set -euo pipefail
+          mkdir -p results
+          default_branch="${{ github.event.repository.default_branch }}"
+          benchpkg Drill \
+            --url="${{ github.event.repository.clone_url }}" \
+            --output-dir=results/ \
+            --rev="${default_branch},${{ steps.pr.outputs.sha }}" \
+            --bench-on="${default_branch}" \
+            --script=benchmark/benchmarks.jl \
+            --add=ClassicControlEnvironments,Zygote,Enzyme,Reactant
+
+      - name: Create comment body
+        shell: bash
+        run: |
+          set -euo pipefail
+          default_branch="${{ github.event.repository.default_branch }}"
+          {
+            echo "## Full Benchmark Results (Julia v1)"
+            echo ""
+            echo "Triggered by \`/bench-full\` (or workflow_dispatch). Includes devices and AD backend suites."
+            echo ""
+            echo "<details><summary>Time benchmarks</summary>"
+            echo ""
+            benchpkgtable Drill \
+              --input-dir=results/ \
+              --mode=time \
+              --ratio \
+              --rev="${default_branch},${{ steps.pr.outputs.sha }}"
+            echo ""
+            echo "</details>"
+            echo ""
+            echo "<details><summary>Memory benchmarks</summary>"
+            echo ""
+            benchpkgtable Drill \
+              --input-dir=results/ \
+              --mode=memory \
+              --ratio \
+              --rev="${default_branch},${{ steps.pr.outputs.sha }}"
+            echo ""
+            echo "</details>"
+          } > body.md
+
+      - name: Find existing full-benchmark comment
+        uses: peter-evans/find-comment@v4
+        id: find
+        with:
+          issue-number: ${{ steps.pr.outputs.number }}
+          comment-author: "github-actions[bot]"
+          body-includes: "Full Benchmark Results (Julia v1)"
+
+      - name: Create or update comment
+        uses: peter-evans/create-or-update-comment@v5
+        with:
+          comment-id: ${{ steps.find.outputs.comment-id }}
+          issue-number: ${{ steps.pr.outputs.number }}
+          body-path: body.md
+          edit-mode: replace
