@@ -17,5 +17,6 @@ jobs:
           julia-version: "1"
           # Basic suite only (rollouts / training / wrappers). Request a full run with `/bench-full`.
           filter: "rollouts,training,wrappers"
-          extra-pkgs: "ClassicControlEnvironments"
+          # Zygote must be loaded for Lux AutoZygote in the training suite.
+          extra-pkgs: "ClassicControlEnvironments,Zygote"
           mode: "time,memory"

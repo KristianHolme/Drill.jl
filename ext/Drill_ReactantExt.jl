@@ -119,7 +119,7 @@ function Drill.execute_rollout_action_values(
     key = cache_key(:rollout_action_values, obs; mode = :stochastic)
     compiled = lookup_or_compile!(
         cache, key, () -> begin
-                return @compile rollout_action_values_kernel(model, obs, ps, st, rrng)
+            return @compile rollout_action_values_kernel(model, obs, ps, st, rrng)
         end
     )
     return compiled(model, obs, ps, st, rrng)
@@ -179,7 +179,7 @@ function Drill.execute_rollout_predict_values(
     key = cache_key(:rollout_predict_values, obs; mode = :deterministic)
     compiled = lookup_or_compile!(
         cache, key, () -> begin
-                return @compile rollout_predict_values_kernel(model, obs, ps, st)
+            return @compile rollout_predict_values_kernel(model, obs, ps, st)
         end
     )
     return compiled(model, obs, ps, st)

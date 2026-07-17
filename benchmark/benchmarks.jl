@@ -3,6 +3,8 @@ using Drill
 using ClassicControlEnvironments
 using Random
 using Drill.Lux
+# Lux AutoZygote requires Zygote to be loaded before compute_gradients.
+using Zygote
 
 include("bench_utils.jl")
 using .BenchUtils
@@ -17,30 +19,30 @@ rollouts = BenchmarkGroup()
 SUITE["rollouts"] = rollouts
 
 rollouts["rollout_buffer"] = @benchmarkable begin
-    Drill.collect_rollout!(buffer, agent, alg, env)
+    Drill.collect_rollout!(buffer, cache, alg, env)
 end setup = begin
-    env, agent, alg, buffer = BenchUtils.setup_rollout_collection()
+    env, cache, alg, buffer = BenchUtils.setup_rollout_collection()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 rollouts["replay_buffer"] = @benchmarkable begin
-    Drill.collect_rollout!(buffer, agent, alg, env, n_steps)
+    Drill.collect_rollout!(buffer, cache, alg, env, n_steps)
 end setup = begin
-    env, agent, alg, buffer, n_steps = BenchUtils.setup_replay_collection()
+    env, cache, alg, buffer, n_steps = BenchUtils.setup_replay_collection()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 training = BenchmarkGroup()
 SUITE["training"] = training
 
 training["ppo_cartpole"] = @benchmarkable begin
-    train!(agent, env, alg, max_steps)
+    solve!(cache)
 end setup = begin
-    env, agent, alg, max_steps = BenchUtils.setup_training_ppo()
+    env, cache, alg, max_steps = BenchUtils.setup_training_ppo()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 training["sac_pendulum"] = @benchmarkable begin
-    train!(agent, env, alg, max_steps)
+    solve!(cache)
 end setup = begin
-    env, agent, alg, max_steps = BenchUtils.setup_training_sac()
+    env, cache, alg, max_steps = BenchUtils.setup_training_sac()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 # Device benchmarks: compare CPU vs Reactant (when available). Same workload (DEVICE_BENCH_MAX_STEPS).
@@ -49,9 +51,9 @@ devices = BenchmarkGroup()
 SUITE["devices"] = devices
 
 devices["ppo_cpu"] = @benchmarkable begin
-    train!(agent, env, alg, max_steps)
+    solve!(cache)
 end setup = begin
-    env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device()
+    env, cache, alg, max_steps = BenchUtils.setup_training_ppo_device()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
 const HAS_REACTANT = try
@@ -64,22 +66,22 @@ end
 
 if HAS_REACTANT && isdefined(Lux, :reactant_device)
     devices["ppo_reactant"] = @benchmarkable begin
-        train!(agent, env, alg, max_steps; ad_type = ad_backend)
+        solve!(cache)
     end setup = begin
-        env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device(; device = Lux.reactant_device())
-        ad_backend = AutoEnzyme()
-        (env, agent, alg, max_steps, ad_backend)
+        env, cache, alg, max_steps = BenchUtils.setup_training_ppo_device(; device = Lux.reactant_device())
+        cache.ad_type = AutoEnzyme()
+        (env, cache, alg, max_steps)
     end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
     # Reactant with CPU backend (no GPU): compare compiled Reactant vs plain CPU.
     devices["ppo_reactant_cpu_backend"] = @benchmarkable begin
-        train!(agent, env, alg, max_steps; ad_type = ad_backend)
+        solve!(cache)
     end setup = begin
         if isdefined(Main, :Reactant) && isdefined(Main.Reactant, :set_default_backend)
             Main.Reactant.set_default_backend("cpu")
         end
-        env, agent, alg, max_steps = BenchUtils.setup_training_ppo_device(; device = Lux.reactant_device())
-        ad_backend = AutoEnzyme()
-        (env, agent, alg, max_steps, ad_backend)
+        env, cache, alg, max_steps = BenchUtils.setup_training_ppo_device(; device = Lux.reactant_device())
+        cache.ad_type = AutoEnzyme()
+        (env, cache, alg, max_steps)
     end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 end
 
@@ -180,7 +182,6 @@ if ENABLE_AD_BACKEND_BENCHES
     end
 
     for (name, ad_backend) in ad_backend_types[[1, 3]] #dont use enzyme without runtime activity
-        # Body lives in BenchUtils so `--bench-on=main` can compare legacy and TrainState-bundle APIs.
         ad_backends["sac"][name] = @benchmarkable begin
             BenchUtils.bench_sac_ad!($ad_backend, state)
         end setup = begin

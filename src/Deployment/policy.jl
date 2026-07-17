@@ -41,7 +41,7 @@ end
 
 Create a lightweight deployment policy from a trained layer and parameters.
 """
-function extract_policy(layer, ps, st, adapter::AbstractActionAdapter; action_space=nothing)
+function extract_policy(layer, ps, st, adapter::AbstractActionAdapter; action_space = nothing)
     as = action_space === nothing ? layer_action_space(layer) : action_space
     return NeuralPolicy(layer, ps, st, as, adapter, nothing)
 end
