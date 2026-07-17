@@ -10,23 +10,26 @@ using Statistics: mean, std
 import DrillInterface: AbstractSpace, Box, Discrete, action_space
 
 import ..Adapters: ClampAdapter, DiscreteAdapter, TanhScaleAdapter
-import ..Layers: AbstractActorCriticLayer, ContinuousActorCriticLayer,
+import ..Models: AbstractActorCriticModel, ContinuousActorCriticModel,
     CriticType, QCritic, VCritic, SeparateFeatures, SharedFeatures,
     action_log_prob, evaluate_actions, predict_values
-import ..Buffers: ReplayBuffer, RolloutBuffer
+import ..Buffers: OnPolicyBuffer, OffPolicyBuffer
 import ..Utils: discrete_to_onehotbatch, merge_params
 
 include("types.jl")
 include("entropy.jl")
 include("traits.jl")
 include("train_state.jl")
-include("PPO/ppo_impl.jl")
-include("SAC/sac_impl.jl")
+include("ppo.jl")
+include("sac.jl")
+
+function train_step! end
 
 export AbstractAlgorithm, OffPolicyAlgorithm, OnPolicyAlgorithm
 export AbstractEntropyTarget, AutoEntropyTarget, FixedEntropyTarget
 export AbstractEntropyCoefficient, AutoEntropyCoefficient, FixedEntropyCoefficient
-export PPO, SAC, SACLayer
+export PPO, SAC, SACModel
+export train_step!
 export AbstractAdvantageStrategy, NormalizeAdvantages, RawAdvantages
 export AbstractClipVFStrategy, ClipVF, NoClipVF
 export AbstractKLTargetStrategy, KLTarget, NoKLTarget

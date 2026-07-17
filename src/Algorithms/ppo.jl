@@ -196,7 +196,7 @@ function maybe_clip_range(old_values, values, strategy::ClipVF)
     return clip_range(old_values, values, strategy.value)
 end
 
-function (alg::PPO{T})(layer::AbstractActorCriticLayer, ps, st, batch_data) where {T}
+function (alg::PPO{T})(layer::AbstractActorCriticModel, ps, st, batch_data) where {T}
     observations = batch_data[1]
     actions = batch_data[2]
     advantages = batch_data[3]

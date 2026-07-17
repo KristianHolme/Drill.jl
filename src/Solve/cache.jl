@@ -1,4 +1,4 @@
-mutable struct RLCache{P, A, M, AD, TS, B, L, R, C, ST, TO, OT}
+mutable struct RLCache{P, A, M, AD, TS, B, L, R, C, ST, TO}
     prob::P
     alg::A
     model::M
@@ -17,7 +17,6 @@ mutable struct RLCache{P, A, M, AD, TS, B, L, R, C, ST, TO, OT}
     stats::ST
     timer::TO
     inference_cache::Any
-    optimizer_type::OT
     workspace::Dict{Symbol, Any}
 end
 

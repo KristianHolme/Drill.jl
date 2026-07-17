@@ -63,7 +63,7 @@ function _runtime_model(x)
     if x isa Drill.RLCache
         return x.model
     elseif x isa Drill.NeuralPolicy
-        return x.layer
+        return x.model
     end
     return x
 end

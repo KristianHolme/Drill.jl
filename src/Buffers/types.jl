@@ -1,9 +1,6 @@
 abstract type AbstractBuffer end
-abstract type BufferKind end
-struct OnPolicyBuffer <: BufferKind end
-struct OffPolicyBuffer <: BufferKind end
-
-function buffer_kind end
+abstract type OnPolicyBuffer <: AbstractBuffer end
+abstract type OffPolicyBuffer <: AbstractBuffer end
 
 mutable struct Trajectory{T <: AbstractFloat, O, A}
     observations::Vector{O}
@@ -22,8 +19,9 @@ end
 On-policy rollout storage: stacked observations, actions, rewards, GAE advantages, returns, old log-probs and values for one PPO update.
 
 Typically constructed via `RolloutBuffer(observation_space, action_space, n_steps, n_envs)`.
+Episode boundaries are recorded in `episode_ends` (last flat index of each packed episode).
 """
-mutable struct RolloutBuffer{T <: AbstractFloat, S, AS, O, A} <: AbstractBuffer
+mutable struct RolloutBuffer{T <: AbstractFloat, S, AS, O, A} <: OnPolicyBuffer
     observation_space::S
     action_space::AS
     observations::Array{O}
@@ -36,7 +34,7 @@ mutable struct RolloutBuffer{T <: AbstractFloat, S, AS, O, A} <: AbstractBuffer
     terminateds::Vector{Bool}
     truncateds::Vector{Bool}
     bootstrap_values::Vector{Union{Nothing, T}}
-    trajectories::Vector{Trajectory}
+    episode_ends::Vector{Int}
     n_steps::Int
     n_envs::Int
 end
@@ -65,7 +63,7 @@ A circular buffer for storing multiple trajectories of off-policy experience dat
 - If `truncated = true`, then there should be a `truncated_observation`  
 - If `terminated = false` and `truncated = false`, then we stopped in the middle of an episode, so there should be a `truncated_observation`
 """
-struct ReplayBuffer{T, O, OBS, AC} <: AbstractBuffer
+struct ReplayBuffer{T, O, OBS, AC} <: OffPolicyBuffer
     observation_space::O
     action_space::Box
     observations::CircularBuffer{OBS}
@@ -75,6 +73,3 @@ struct ReplayBuffer{T, O, OBS, AC} <: AbstractBuffer
     truncated::CircularBuffer{Bool}
     truncated_observations::CircularBuffer{Union{Nothing, OBS}}
 end
-
-buffer_kind(::RolloutBuffer) = OnPolicyBuffer()
-buffer_kind(::ReplayBuffer) = OffPolicyBuffer()

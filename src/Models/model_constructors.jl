@@ -1,6 +1,6 @@
 # Actor-critic layer constructor functions
 
-function ContinuousActorCriticLayer(
+function ContinuousActorCriticModel(
         observation_space::Union{Discrete, Box{T}},
         action_space::Box{T};
         log_std_init = T(0),
@@ -30,7 +30,7 @@ function ContinuousActorCriticLayer(
     # Choose feature sharing type based on boolean flag
     F = shared_features ? SharedFeatures : SeparateFeatures
 
-    return ContinuousActorCriticLayer{
+    return ContinuousActorCriticModel{
         typeof(observation_space),
         typeof(action_space),
         StateIndependantNoise,
@@ -50,7 +50,7 @@ function ContinuousActorCriticLayer(
     )
 end
 
-function DiscreteActorCriticLayer(
+function DiscreteActorCriticModel(
         observation_space::Union{Discrete, Box},
         action_space::Discrete; hidden_dims = [64, 64], activation = tanh,
         shared_features::Bool = true
@@ -75,7 +75,7 @@ function DiscreteActorCriticLayer(
     # Choose feature sharing type based on boolean flag
     F = shared_features ? SharedFeatures : SeparateFeatures
 
-    return DiscreteActorCriticLayer{
+    return DiscreteActorCriticModel{
         typeof(observation_space),
         typeof(action_space),
         F,
@@ -91,12 +91,12 @@ end
 
 # Unified constructor name
 """
-    ActorCriticLayer(observation_space, action_space::Box; kwargs...) -> ContinuousActorCriticLayer
-    ActorCriticLayer(observation_space, action_space::Discrete; kwargs...) -> DiscreteActorCriticLayer
+    ActorCriticModel(observation_space, action_space::Box; kwargs...) -> ContinuousActorCriticModel
+    ActorCriticModel(observation_space, action_space::Discrete; kwargs...) -> DiscreteActorCriticModel
 
-Unified constructor that forwards to `ContinuousActorCriticLayer` or `DiscreteActorCriticLayer` depending on the action space type.
+Unified constructor that forwards to `ContinuousActorCriticModel` or `DiscreteActorCriticModel` depending on the action space type.
 """
-ActorCriticLayer(observation_space::Union{Discrete, Box}, action_space::Box; kwargs...) =
-    ContinuousActorCriticLayer(observation_space, action_space; kwargs...)
-ActorCriticLayer(observation_space::Union{Discrete, Box}, action_space::Discrete; kwargs...) =
-    DiscreteActorCriticLayer(observation_space, action_space; kwargs...)
+ActorCriticModel(observation_space::Union{Discrete, Box}, action_space::Box; kwargs...) =
+    ContinuousActorCriticModel(observation_space, action_space; kwargs...)
+ActorCriticModel(observation_space::Union{Discrete, Box}, action_space::Discrete; kwargs...) =
+    DiscreteActorCriticModel(observation_space, action_space; kwargs...)

@@ -22,8 +22,8 @@ Whether the algorithm uses a replay buffer for training.
 """
 uses_replay(::AbstractAlgorithm) = false
 
-compatible(::OnPolicyAlgorithm, ::RolloutBuffer) = true
-compatible(::OffPolicyAlgorithm, ::ReplayBuffer) = true
+compatible(::OnPolicyAlgorithm, ::OnPolicyBuffer) = true
+compatible(::OffPolicyAlgorithm, ::OffPolicyBuffer) = true
 compatible(alg, buffer) = false
 
 """

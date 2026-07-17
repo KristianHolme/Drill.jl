@@ -7,34 +7,34 @@ using ComponentArrays
 include("setup.jl")
 using .TestSetup
 
-@testset "DiscreteActorCriticLayer construction" begin
+@testset "DiscreteActorCriticModel construction" begin
     obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
     action_space = Discrete(4, 0)
 
-    layer = DiscreteActorCriticLayer(obs_space, action_space)
+    layer = DiscreteActorCriticModel(obs_space, action_space)
 
-    @test layer isa DiscreteActorCriticLayer
+    @test layer isa DiscreteActorCriticModel
     @test isequal(layer.observation_space, obs_space)
     @test isequal(layer.action_space, action_space)
-    @test typeof(layer) <: DiscreteActorCriticLayer{<:Any, <:Any, SharedFeatures}
+    @test typeof(layer) <: DiscreteActorCriticModel{<:Any, <:Any, SharedFeatures}
 
-    layer_custom = DiscreteActorCriticLayer(
+    layer_custom = DiscreteActorCriticModel(
         obs_space, action_space;
         hidden_dims = [32, 16],
         activation = relu,
         shared_features = false
     )
-    @test typeof(layer_custom) <: DiscreteActorCriticLayer{<:Any, <:Any, SeparateFeatures}
+    @test typeof(layer_custom) <: DiscreteActorCriticModel{<:Any, <:Any, SeparateFeatures}
 
     action_space_1 = Discrete(3, 1)
-    layer_1based = DiscreteActorCriticLayer(obs_space, action_space_1)
+    layer_1based = DiscreteActorCriticModel(obs_space, action_space_1)
     @test layer_1based.action_space == action_space_1
 end
 
-@testset "DiscreteActorCriticLayer parameter initialization" begin
+@testset "DiscreteActorCriticModel parameter initialization" begin
     obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
     action_space = Discrete(5, 0)
-    layer = DiscreteActorCriticLayer(obs_space, action_space)
+    layer = DiscreteActorCriticModel(obs_space, action_space)
 
     rng = Random.MersenneTwister(42)
     params = Lux.initialparameters(rng, layer)
@@ -54,10 +54,10 @@ end
     @test haskey(states, :critic_head)
 end
 
-@testset "DiscreteActorCriticLayer prediction" begin
+@testset "DiscreteActorCriticModel prediction" begin
     obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
     action_space = Discrete(3, 0)
-    layer = DiscreteActorCriticLayer(obs_space, action_space)
+    layer = DiscreteActorCriticModel(obs_space, action_space)
 
     rng = Random.MersenneTwister(42)
     params = Lux.initialparameters(rng, layer)
@@ -85,10 +85,10 @@ end
     @test all(a -> a isa Integer, batch_actions)
 end
 
-@testset "DiscreteActorCriticLayer action evaluation" begin
+@testset "DiscreteActorCriticModel action evaluation" begin
     obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
     action_space = Discrete(4, 0)
-    layer = DiscreteActorCriticLayer(obs_space, action_space)
+    layer = DiscreteActorCriticModel(obs_space, action_space)
 
     rng = Random.MersenneTwister(42)
     params = Lux.initialparameters(rng, layer)
@@ -123,7 +123,7 @@ end
     @test all(eval_batch_log_probs .≈ batch_log_probs)
 end
 
-@testset "DiscreteActorCriticLayer indexing consistency" begin
+@testset "DiscreteActorCriticModel indexing consistency" begin
     obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
 
     spaces_to_test = [
@@ -133,7 +133,7 @@ end
     ]
 
     for action_space in spaces_to_test
-        layer = DiscreteActorCriticLayer(obs_space, action_space)
+        layer = DiscreteActorCriticModel(obs_space, action_space)
 
         rng = Random.MersenneTwister(42)
         params = Lux.initialparameters(rng, layer)
@@ -158,13 +158,13 @@ end
     end
 end
 
-@testset "DiscreteActorCriticLayer vs ContinuousActorCriticLayer interface" begin
+@testset "DiscreteActorCriticModel vs ContinuousActorCriticModel interface" begin
     obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
     discrete_action_space = Discrete(4, 0)
     continuous_action_space = Box(Float32[-1.0], Float32[1.0])
 
-    discrete_layer = DiscreteActorCriticLayer(obs_space, discrete_action_space)
-    continuous_layer = ContinuousActorCriticLayer(obs_space, continuous_action_space)
+    discrete_layer = DiscreteActorCriticModel(obs_space, discrete_action_space)
+    continuous_layer = ContinuousActorCriticModel(obs_space, continuous_action_space)
 
     rng = Random.MersenneTwister(42)
 
@@ -202,10 +202,10 @@ end
     @test length(continuous_eval_log_probs) == 1
 end
 
-@testset "DiscreteActorCriticLayer edge cases" begin
+@testset "DiscreteActorCriticModel edge cases" begin
     obs_space = Box(Float32[-1.0], Float32[1.0])
     single_action_space = Discrete(1, 0)
-    layer = DiscreteActorCriticLayer(obs_space, single_action_space)
+    layer = DiscreteActorCriticModel(obs_space, single_action_space)
 
     rng = Random.MersenneTwister(42)
     params = Lux.initialparameters(rng, layer)
@@ -222,7 +222,7 @@ end
     @test processed_action[1] == 0
 
     large_action_space = Discrete(100, 0)
-    large_layer = DiscreteActorCriticLayer(obs_space, large_action_space)
+    large_layer = DiscreteActorCriticModel(obs_space, large_action_space)
 
     large_params = Lux.initialparameters(rng, large_layer)
     large_states = Lux.initialstates(rng, large_layer)
@@ -236,7 +236,7 @@ end
     @test large_processed[1] ∈ large_action_space
 
     neg_action_space = Discrete(5, -2)
-    neg_layer = DiscreteActorCriticLayer(obs_space, neg_action_space)
+    neg_layer = DiscreteActorCriticModel(obs_space, neg_action_space)
 
     neg_params = Lux.initialparameters(rng, neg_layer)
     neg_states = Lux.initialstates(rng, neg_layer)
@@ -253,7 +253,7 @@ end
 @testset "Basic Q-value actor critic layer" begin
     obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
     action_space = Box(Float32[-1.0], Float32[1.0])
-    layer = ContinuousActorCriticLayer(
+    layer = ContinuousActorCriticModel(
         obs_space, action_space, activation = relu,
         critic_type = QCritic(), shared_features = false
     )

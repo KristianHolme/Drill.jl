@@ -22,7 +22,7 @@ using .TestSetup
 
     for (name, ad_backend) in backends
         @testset "$name" begin
-            layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
+            layer = ActorCriticModel(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
             alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
             cache = init(
                 RLProblem(continuous_env, layer),
@@ -59,7 +59,7 @@ end
 
     for (name, ad_backend) in backends
         @testset "$name" begin
-            layer = ActorCriticLayer(discrete_obs_space, discrete_action_space; hidden_dims = [16, 16])
+            layer = ActorCriticModel(discrete_obs_space, discrete_action_space; hidden_dims = [16, 16])
             alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
             cache = init(
                 RLProblem(discrete_env, layer),
@@ -89,7 +89,7 @@ end
     ]
 
     function test_sac_training(ad_backend)
-        layer = ContinuousActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16], critic_type = QCritic())
+        layer = ContinuousActorCriticModel(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16], critic_type = QCritic())
         alg = SAC(; start_steps = 4, batch_size = 4)
         cache = init(
             RLProblem(continuous_env, layer),

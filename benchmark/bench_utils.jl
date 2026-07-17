@@ -30,7 +30,7 @@ end
 function make_ppo_cache(env::AbstractParallelEnv; seed::Int = DEFAULT_SEED, device = nothing, max_steps::Int = DEFAULT_TRAIN_STEPS)
     rng = Random.Xoshiro(seed)
     alg = PPO(; n_steps = 32, batch_size = 32, epochs = 1, learning_rate = 1.0f-3)
-    layer = ActorCriticLayer(
+    layer = ActorCriticModel(
         observation_space(env),
         action_space(env);
         hidden_dims = [32, 32]
@@ -67,7 +67,7 @@ function make_sac_cache(env::AbstractParallelEnv; seed::Int = DEFAULT_SEED, max_
         train_freq = 1,
         gradient_steps = 1,
     )
-    layer = SACLayer(
+    layer = SACModel(
         observation_space(env),
         action_space(env);
         hidden_dims = [32, 32]
@@ -246,7 +246,7 @@ function setup_sac_gradient_data(; n_envs::Int = DEFAULT_N_ENVS, n_steps::Int = 
     end
     @assert batch_data !== nothing
     return (;
-        layer = cache.model,
+        model = cache.model,
         alg = alg,
         batch_data = batch_data,
         ts = deepcopy(cache.train_state),
@@ -255,15 +255,15 @@ function setup_sac_gradient_data(; n_envs::Int = DEFAULT_N_ENVS, n_steps::Int = 
 end
 
 function bench_sac_ad!(ad_backend, state)
-    layer = state.layer
+    model = state.model
     alg = state.alg
     batch_data = state.batch_data
     ts = state.ts
     rng = state.rng
     if alg.ent_coef isa AutoEntropyCoefficient
-        target_entropy = Drill.get_target_entropy(alg.ent_coef, action_space(layer))
+        target_entropy = Drill.get_target_entropy(alg.ent_coef, action_space(model))
         _, log_probs_pi, _ = Drill.action_log_prob(
-            layer,
+            model,
             batch_data.observations,
             Drill.parameters(ts),
             Drill.states(ts);
@@ -281,7 +281,7 @@ function bench_sac_ad!(ad_backend, state)
     end
     target_q_values = Drill.compute_target_q_values(
         alg,
-        layer,
+        model,
         Drill.parameters(ts),
         Drill.states(ts),
         (

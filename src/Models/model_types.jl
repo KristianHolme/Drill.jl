@@ -1,13 +1,13 @@
 # Concrete actor-critic layer type definitions
 
 """
-    ContinuousActorCriticLayer
+    ContinuousActorCriticModel
 
 Actor–critic Lux model for continuous (`Box`) or discrete observations with continuous actions: feature extractor, stochastic actor (with learnable log-std where applicable), and value or Q heads according to `critic_type`.
 
-Use `ContinuousActorCriticLayer(observation_space, action_space::Box; kwargs...)` to build a layer.
+Use `ContinuousActorCriticModel(observation_space, action_space::Box; kwargs...)` to build a layer.
 """
-struct ContinuousActorCriticLayer{
+struct ContinuousActorCriticModel{
         O <: AbstractSpace,
         A <: Box,
         N <: AbstractNoise,
@@ -17,7 +17,7 @@ struct ContinuousActorCriticLayer{
         AH <: AbstractLuxLayer,
         CH <: AbstractLuxLayer,
         LS,
-    } <: AbstractActorCriticLayer
+    } <: AbstractActorCriticModel
     observation_space::O
     action_space::A
     feature_extractor::FE
@@ -27,13 +27,13 @@ struct ContinuousActorCriticLayer{
 end
 
 """
-    DiscreteActorCriticLayer
+    DiscreteActorCriticModel
 
 Actor–critic Lux model for discrete actions: feature extractor, categorical policy head, and value head.
 
-Use `DiscreteActorCriticLayer(observation_space, action_space::Discrete; kwargs...)`.
+Use `DiscreteActorCriticModel(observation_space, action_space::Discrete; kwargs...)`.
 """
-struct DiscreteActorCriticLayer{O <: AbstractSpace, A <: Discrete, F <: FeatureSharing, FE <: AbstractLuxLayer, AH <: AbstractLuxLayer, CH <: AbstractLuxLayer} <: AbstractActorCriticLayer
+struct DiscreteActorCriticModel{O <: AbstractSpace, A <: Discrete, F <: FeatureSharing, FE <: AbstractLuxLayer, AH <: AbstractLuxLayer, CH <: AbstractLuxLayer} <: AbstractActorCriticModel
     observation_space::O
     action_space::A
     feature_extractor::FE

@@ -11,7 +11,7 @@ using .TestSetup
     env = MonitorWrapperEnv(env)
     env = NormalizeWrapperEnv(env, gamma = alg.gamma)
 
-    layer = ActorCriticLayer(observation_space(env), action_space(env))
+    layer = ActorCriticModel(observation_space(env), action_space(env))
     cache = init(RLProblem(env, layer), alg; max_steps = 3000, verbosity = 0)
 
     function test_cache(cache, keys_to_check::Vector{Symbol})
@@ -61,7 +61,7 @@ end
         env = MonitorWrapperEnv(env)
         env = NormalizeWrapperEnv(env, gamma = alg.gamma)
 
-        layer = ActorCriticLayer(observation_space(env), action_space(env))
+        layer = ActorCriticModel(observation_space(env), action_space(env))
         cache = init(RLProblem(env, layer), alg; max_steps = 3000, verbosity = 0)
         return cache, env, alg
     end

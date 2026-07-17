@@ -3,10 +3,10 @@
 """
     NeuralPolicy
 
-Lightweight inference policy holding a trained layer, Lux parameters/states, the environment action space, and an [`AbstractActionAdapter`](@ref). Built via [`extract_policy`](@ref); callable on batched or single observations to produce environment actions.
+Lightweight inference policy holding a trained model, Lux parameters/states, the environment action space, and an [`AbstractActionAdapter`](@ref). Built via [`extract_policy`](@ref); callable on batched or single observations to produce environment actions.
 """
 mutable struct NeuralPolicy{L, AD, S} <: AbstractPolicy
-    layer::L
+    model::L
     params
     states::S
     action_space
@@ -14,19 +14,19 @@ mutable struct NeuralPolicy{L, AD, S} <: AbstractPolicy
     cache
 end
 
-function NeuralPolicy(layer::L, params, states::S, action_space, adapter::AD) where {L, AD, S}
-    return NeuralPolicy(layer, params, states, action_space, adapter, nothing)
+function NeuralPolicy(model::L, params, states::S, action_space, adapter::AD) where {L, AD, S}
+    return NeuralPolicy(model, params, states, action_space, adapter, nothing)
 end
 
 # Mark NeuralPolicy as a leaf so fmap doesn't recurse into its fields.
 # Our adapt_structure method below handles the actual device transfer.
-isleaf(::NeuralPolicy) = true
+MLDataDevices.isleaf(::NeuralPolicy) = true
 
-function adapt_structure(to::AbstractDevice, np::NeuralPolicy)
+function Adapt.adapt_structure(to::AbstractDevice, np::NeuralPolicy)
     new_params = to(np.params)
     new_states = to(np.states)
     return NeuralPolicy(
-        np.layer,
+        np.model,
         new_params,
         new_states,
         np.action_space,
@@ -36,14 +36,14 @@ function adapt_structure(to::AbstractDevice, np::NeuralPolicy)
 end
 
 """
-    extract_policy(layer, ps, st, adapter) -> NeuralPolicy
-    extract_policy(layer, ps, st, adapter, norm_env::NormalizeWrapperEnv) -> NormWrapperPolicy
+    extract_policy(model, ps, st, adapter) -> NeuralPolicy
+    extract_policy(model, ps, st, adapter, norm_env::NormalizeWrapperEnv) -> NormWrapperPolicy
 
-Create a lightweight deployment policy from a trained layer and parameters.
+Create a lightweight deployment policy from a trained model and parameters.
 """
-function extract_policy(layer, ps, st, adapter::AbstractActionAdapter; action_space = nothing)
-    as = action_space === nothing ? layer_action_space(layer) : action_space
-    return NeuralPolicy(layer, ps, st, as, adapter, nothing)
+function extract_policy(model, ps, st, adapter::AbstractActionAdapter; action_space = nothing)
+    as = action_space === nothing ? Models.action_space(model) : action_space
+    return NeuralPolicy(model, ps, st, as, adapter, nothing)
 end
 
 function extract_policy(cache::RLCache)
@@ -52,12 +52,12 @@ function extract_policy(cache::RLCache)
         parameters(cache),
         states(cache),
         cache.adapter;
-        action_space = layer_action_space(cache.model),
+        action_space = Models.action_space(cache.model),
     )
 end
 
-function extract_policy(layer, ps, st, adapter::AbstractActionAdapter, norm_env::NormalizeWrapperEnv)
-    policy = extract_policy(layer, ps, st, adapter)
+function extract_policy(model, ps, st, adapter::AbstractActionAdapter, norm_env::NormalizeWrapperEnv)
+    policy = extract_policy(model, ps, st, adapter)
     obs_rms = norm_env.obs_rms
     eps = norm_env.epsilon
     clip_obs = norm_env.clip_obs
@@ -71,11 +71,11 @@ end
 
 function (np::NeuralPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = default_rng())
     single_obs = false
-    if !(obs isa AbstractVector{<:AbstractArray}) && size(obs) == size(layer_observation_space(np.layer))
+    if !(obs isa AbstractVector{<:AbstractArray}) && size(obs) == size(Models.observation_space(np.model))
         single_obs = true
         obs_batch = reshape(obs, :, 1)
     else
-        obs_batch = batch(obs, layer_observation_space(np.layer))
+        obs_batch = batch(obs, Models.observation_space(np.model))
     end
     dev = current_device(np.params)
     obs_batch = obs_batch |> dev
@@ -114,7 +114,7 @@ end
 
 function (nwp::NormWrapperPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = default_rng())
     single_obs = false
-    if size(obs) == size(layer_observation_space(nwp.policy.layer))
+    if size(obs) == size(Models.observation_space(nwp.policy.model))
         single_obs = true
         obs = [obs]
     end

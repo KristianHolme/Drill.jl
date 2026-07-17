@@ -27,7 +27,6 @@ function adapt_structure(to::AbstractDevice, cache::RLCache)
         cache.stats,
         cache.timer,
         nothing,
-        cache.optimizer_type,
         cache.workspace,
     )
 end

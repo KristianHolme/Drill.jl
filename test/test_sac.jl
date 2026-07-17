@@ -16,7 +16,7 @@ using .TestSetup
             obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
             action_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
 
-            layer = ContinuousActorCriticLayer(obs_space, action_space; hidden_dims = [4, 4], critic_type = QCritic())
+            layer = ContinuousActorCriticModel(obs_space, action_space; hidden_dims = [4, 4], critic_type = QCritic())
             ps = Lux.initialparameters(rng, layer)
             st = Lux.initialstates(rng, layer)
 
@@ -33,7 +33,7 @@ using .TestSetup
                 obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
                 action_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
 
-                layer = ContinuousActorCriticLayer(obs_space, action_space; hidden_dims = [4, 4], critic_type = QCritic())
+                layer = ContinuousActorCriticModel(obs_space, action_space; hidden_dims = [4, 4], critic_type = QCritic())
                 ps = Lux.initialparameters(rng, layer)
                 st = Lux.initialstates(rng, layer)
 
@@ -46,7 +46,7 @@ using .TestSetup
                 obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
                 action_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
 
-                layer = ContinuousActorCriticLayer(obs_space, action_space; hidden_dims = [6, 4], critic_type = QCritic())
+                layer = ContinuousActorCriticModel(obs_space, action_space; hidden_dims = [6, 4], critic_type = QCritic())
                 ps = Lux.initialparameters(rng, layer)
                 st = Lux.initialstates(rng, layer)
 
@@ -74,7 +74,7 @@ using .TestSetup
                     action_space = Box(Float32[-1.0], Float32[1.0], (action_dim,))
 
                     hidden_dim = max(obs_dim, action_dim) * 2
-                    layer = ContinuousActorCriticLayer(
+                    layer = ContinuousActorCriticModel(
                         obs_space, action_space;
                         hidden_dims = [hidden_dim, hidden_dim],
                         critic_type = QCritic()
@@ -95,7 +95,7 @@ using .TestSetup
             obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
             action_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
 
-            layer = ContinuousActorCriticLayer(obs_space, action_space; hidden_dims = [4, 4], critic_type = QCritic())
+            layer = ContinuousActorCriticModel(obs_space, action_space; hidden_dims = [4, 4], critic_type = QCritic())
             ps = Lux.initialparameters(rng, layer)
             st = Lux.initialstates(rng, layer)
 
@@ -120,7 +120,7 @@ using .TestSetup
 
             for hidden_dims in hidden_configs
                 @testset "Hidden dims: $(hidden_dims)" begin
-                    layer = ContinuousActorCriticLayer(
+                    layer = ContinuousActorCriticModel(
                         obs_space, action_space;
                         hidden_dims = hidden_dims,
                         critic_type = QCritic()
@@ -140,7 +140,7 @@ using .TestSetup
             obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
             action_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
 
-            layer = ContinuousActorCriticLayer(obs_space, action_space; hidden_dims = [64, 64], critic_type = QCritic())
+            layer = ContinuousActorCriticModel(obs_space, action_space; hidden_dims = [64, 64], critic_type = QCritic())
             ps = Lux.initialparameters(rng, layer)
             st = Lux.initialstates(rng, layer)
 
@@ -169,7 +169,7 @@ end
         obs_space = DrillInterface.observation_space(env)
         action_space = DrillInterface.action_space(env)
 
-        layer = ContinuousActorCriticLayer(
+        layer = ContinuousActorCriticModel(
             obs_space, action_space; hidden_dims = [8, 4],
             critic_type = QCritic()
         )

@@ -14,8 +14,7 @@ include("trajectory.jl")
 include("rollout.jl")
 include("replay.jl")
 
-export AbstractBuffer
-export BufferKind, OnPolicyBuffer, OffPolicyBuffer, buffer_kind
+export AbstractBuffer, OnPolicyBuffer, OffPolicyBuffer
 export RolloutBuffer, Trajectory, OffPolicyTrajectory, ReplayBuffer
 export compute_advantages!, compute_gae!, get_data_loader, pack_trajectories!
 

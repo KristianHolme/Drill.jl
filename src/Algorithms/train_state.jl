@@ -58,7 +58,7 @@ end
 # --- parameter / state selection -------------------------------------------------
 
 function select_actor_parameters(
-        ::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, SeparateFeatures},
+        ::ContinuousActorCriticModel{<:Any, <:Any, <:Any, <:Any, SeparateFeatures},
         ps::NamedTuple,
     )
     return (;
@@ -69,7 +69,7 @@ function select_actor_parameters(
 end
 
 function select_critic_parameters(
-        ::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, SeparateFeatures},
+        ::ContinuousActorCriticModel{<:Any, <:Any, <:Any, <:Any, SeparateFeatures},
         ps::NamedTuple,
     )
     return (;
@@ -79,7 +79,7 @@ function select_critic_parameters(
 end
 
 function select_actor_parameters(
-        ::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, SharedFeatures},
+        ::ContinuousActorCriticModel{<:Any, <:Any, <:Any, <:Any, SharedFeatures},
         ps::NamedTuple,
     )
     # Shared encoder is owned by the critic TrainState; actor merges it as Const via data.
@@ -90,7 +90,7 @@ function select_actor_parameters(
 end
 
 function select_critic_parameters(
-        ::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, SharedFeatures},
+        ::ContinuousActorCriticModel{<:Any, <:Any, <:Any, <:Any, SharedFeatures},
         ps::NamedTuple,
     )
     return (;
@@ -100,7 +100,7 @@ function select_critic_parameters(
 end
 
 function select_actor_states(
-        ::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, SeparateFeatures},
+        ::ContinuousActorCriticModel{<:Any, <:Any, <:Any, <:Any, SeparateFeatures},
         st::NamedTuple,
     )
     return (;
@@ -110,7 +110,7 @@ function select_actor_states(
 end
 
 function select_critic_states(
-        ::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, SeparateFeatures},
+        ::ContinuousActorCriticModel{<:Any, <:Any, <:Any, <:Any, SeparateFeatures},
         st::NamedTuple,
     )
     return (;
@@ -120,14 +120,14 @@ function select_critic_states(
 end
 
 function select_actor_states(
-        ::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, SharedFeatures},
+        ::ContinuousActorCriticModel{<:Any, <:Any, <:Any, <:Any, SharedFeatures},
         st::NamedTuple,
     )
     return (; actor_head = st.actor_head)
 end
 
 function select_critic_states(
-        ::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, SharedFeatures},
+        ::ContinuousActorCriticModel{<:Any, <:Any, <:Any, <:Any, SharedFeatures},
         st::NamedTuple,
     )
     return (;

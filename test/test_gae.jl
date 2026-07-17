@@ -24,7 +24,7 @@ end
 
     env = BroadcastedParallelEnv([CustomEnv(max_steps)])
 
-    layer = ConstantValueLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
+    layer = ConstantValueModel(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
     cache = make_cache(env, layer, alg)
 
@@ -80,7 +80,7 @@ end
 
     for (gamma, gae_lambda) in test_cases
         env = BroadcastedParallelEnv([CustomEnv(max_steps)])
-        layer = ConstantValueLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
+        layer = ConstantValueModel(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
         alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
         cache = make_cache(env, layer, alg)
 
@@ -112,7 +112,7 @@ end
 
     env = BroadcastedParallelEnv([CustomEnv(max_steps)])
 
-    layer = ConstantValueLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
+    layer = ConstantValueModel(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
     cache = make_cache(env, layer, alg)
 
@@ -158,7 +158,7 @@ end
 
     env = BroadcastedParallelEnv([CustomEnv(max_steps)])
 
-    layer = ConstantValueLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
+    layer = ConstantValueModel(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = n_total_steps, batch_size = n_total_steps, epochs = 1)
     cache = make_cache(env, layer, alg)
 
@@ -189,7 +189,7 @@ end
 
     env = BroadcastedParallelEnv([InfiniteHorizonEnv()])
 
-    layer = ConstantValueLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
+    layer = ConstantValueModel(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
     cache = make_cache(env, layer, alg)
 
@@ -217,7 +217,7 @@ end
     constant_value = 0.3f0
 
     env = BroadcastedParallelEnv([CustomEnv(max_steps)])
-    layer = ConstantValueLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
+    layer = ConstantValueModel(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
     cache = make_cache(env, layer, alg)
 

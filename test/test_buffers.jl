@@ -20,7 +20,7 @@ end
 @testset "Buffer logprobs consistency" begin
     pend_env() = PendulumEnv()
     env = MultiThreadedParallelEnv([pend_env() for _ in 1:4])
-    layer = ActorCriticLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env))
+    layer = ActorCriticModel(DrillInterface.observation_space(env), DrillInterface.action_space(env))
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 1)
     cache = make_cache(env, layer, alg)
     n_steps = alg.n_steps
@@ -72,20 +72,20 @@ end
     ppo = PPO(; n_steps = 4, batch_size = 4, epochs = 1)
     sac = SAC(; buffer_capacity = 8, batch_size = 2, start_steps = 0)
 
-    @test buffer_kind(roll_buffer) isa OnPolicyBuffer
-    @test buffer_kind(replay_buffer) isa OffPolicyBuffer
+    @test isa(roll_buffer, OnPolicyBuffer)
+    @test isa(replay_buffer, OffPolicyBuffer)
     @test compatible(ppo, roll_buffer)
     @test !compatible(ppo, replay_buffer)
     @test compatible(sac, replay_buffer)
     @test !compatible(sac, roll_buffer)
 
     env = BroadcastedParallelEnv([SimpleRewardEnv(4)])
-    ppo_layer = ConstantValueLayer(
+    ppo_layer = ConstantValueModel(
         DrillInterface.observation_space(env),
         DrillInterface.action_space(env),
         0.5f0,
     )
-    sac_layer = SACLayer(
+    sac_layer = SACModel(
         DrillInterface.observation_space(env),
         DrillInterface.action_space(env),
     )
@@ -171,7 +171,7 @@ end
     @test isequal(env_obs_space, obs_space)
     @test isequal(env_act_space, act_space)
 
-    layer = ConstantValueLayer(env_obs_space, env_act_space, 0.5f0)
+    layer = ConstantValueModel(env_obs_space, env_act_space, 0.5f0)
     alg = PPO(n_steps = n_steps, batch_size = 16, epochs = 1)
     cache = make_cache(env, layer, alg)
 
@@ -197,7 +197,7 @@ end
 @testset "RolloutBuffer with discrete actions" begin
     cartpole_env() = CartPoleEnv()
     env = MultiThreadedParallelEnv([cartpole_env() for _ in 1:4])
-    layer = DiscreteActorCriticLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env))
+    layer = DiscreteActorCriticModel(DrillInterface.observation_space(env), DrillInterface.action_space(env))
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 1)
     cache = make_cache(env, layer, alg)
 
@@ -239,11 +239,11 @@ end
 @testset "Discrete vs continuous buffer comparison" begin
     alg = PPO(n_steps = 4, batch_size = 4, epochs = 1)
     discrete_env = MultiThreadedParallelEnv([CartPoleEnv() for _ in 1:2])
-    discrete_layer = DiscreteActorCriticLayer(DrillInterface.observation_space(discrete_env), DrillInterface.action_space(discrete_env))
+    discrete_layer = DiscreteActorCriticModel(DrillInterface.observation_space(discrete_env), DrillInterface.action_space(discrete_env))
     discrete_cache = make_cache(discrete_env, discrete_layer, alg)
 
     continuous_env = MultiThreadedParallelEnv([PendulumEnv() for _ in 1:2])
-    continuous_layer = ContinuousActorCriticLayer(DrillInterface.observation_space(continuous_env), DrillInterface.action_space(continuous_env))
+    continuous_layer = ContinuousActorCriticModel(DrillInterface.observation_space(continuous_env), DrillInterface.action_space(continuous_env))
     continuous_cache = make_cache(continuous_env, continuous_layer, alg)
 
     discrete_buffer = RolloutBuffer(DrillInterface.observation_space(discrete_env), DrillInterface.action_space(discrete_env), 4, 2)
@@ -290,7 +290,7 @@ end
     function get_rollout(env::AbstractEnv)
         obs_space = DrillInterface.observation_space(env)
         act_space = DrillInterface.action_space(env)
-        layer = ActorCriticLayer(obs_space, act_space)
+        layer = ActorCriticModel(obs_space, act_space)
         alg = PPO()
         cache = make_cache(env, layer, alg)
         roll_buffer = RolloutBuffer(obs_space, act_space, n_steps, DrillInterface.number_of_envs(env))
@@ -331,7 +331,7 @@ end
 
     alg = SAC()
     env = BroadcastedParallelEnv([SimpleRewardEnv(8) for _ in 1:n_envs])
-    layer = ContinuousActorCriticLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env), critic_type = QCritic())
+    layer = ContinuousActorCriticModel(DrillInterface.observation_space(env), DrillInterface.action_space(env), critic_type = QCritic())
     cache = init(RLProblem(env, layer), alg; max_steps = train_freq * 4, verbosity = 0, rng)
     buffer = ReplayBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), buffer_capacity)
     @test capacity(buffer) == buffer_capacity

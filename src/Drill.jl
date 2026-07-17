@@ -1,9 +1,19 @@
 module Drill
 
+import Adapt
 import DataStructures
 import DrillInterface
 import Lux
+import MLDataDevices
+import ProgressMeter
+using ProgressMeter: Progress, next!
+using Random: AbstractRNG, default_rng
 using Reexport: @reexport
+using Statistics: mean, std
+
+import DrillInterface: AbstractParallelEnv, AbstractParallelEnvWrapper, AbstractPolicy,
+    act!, action_space, batch, number_of_envs, observation_space, observe, reset!, unwrap
+import MLDataDevices: AbstractDevice, cpu_device
 
 include("DrillDistributions/DrillDistributions.jl")
 @reexport using .DrillDistributions
@@ -21,28 +31,32 @@ include("Utils/Utils.jl")
 include("Adapters/Adapters.jl")
 @reexport using .Adapters
 
-include("Layers/Layers.jl")
-@reexport using .Layers
+include("Models/Models.jl")
+@reexport using .Models
 
 include("Buffers/Buffers.jl")
 @reexport using .Buffers
 
-include("Callbacks/Callbacks.jl")
-@reexport using .Callbacks
+include("callbacks.jl")
 
 include("Algorithms/Algorithms.jl")
 @reexport using .Algorithms
 
-include("Problem/Problem.jl")
-@reexport using .Problem
+include("problem.jl")
 
 include("Solve/Solve.jl")
 @reexport using .Solve
 
-include("Deployment/Deployment.jl")
-@reexport using .Deployment
+# Algorithm train steps need RLCache / collect APIs from Solve.
+Base.include(Algorithms, joinpath(@__DIR__, "Algorithms", "ppo_step.jl"))
+Base.include(Algorithms, joinpath(@__DIR__, "Algorithms", "sac_step.jl"))
 
-include("Evaluation/Evaluation.jl")
-@reexport using .Evaluation
+include("deployment.jl")
+include("evaluate.jl")
+
+export AbstractCallback, on_training_start, on_rollout_start, on_step, on_rollout_end, on_training_end
+export RLProblem, check_compatible
+export NeuralPolicy, NormWrapperPolicy, extract_policy
+export evaluate
 
 end

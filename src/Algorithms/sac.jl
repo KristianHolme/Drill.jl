@@ -47,7 +47,7 @@ function get_gradient_steps(alg::SAC, train_freq::Int = alg.train_freq, n_envs::
     return alg.gradient_steps
 end
 
-function SACLayer(
+function SACModel(
         observation_space::Union{Discrete, Box{T}},
         action_space::Box{T};
         log_std_init::T = T(-3),
@@ -56,7 +56,7 @@ function SACLayer(
         shared_features::Bool = false,
         critic_type::CriticType = QCritic(),
     ) where {T}
-    return ContinuousActorCriticLayer(
+    return ContinuousActorCriticModel(
         observation_space,
         action_space;
         log_std_init,
@@ -77,7 +77,7 @@ end
 
 function sac_actor_loss(
         ::SAC,
-        layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic},
+        layer::ContinuousActorCriticModel{<:Any, <:Any, <:Any, QCritic},
         ps,
         st,
         data;
@@ -93,7 +93,7 @@ end
 
 function compute_target_q_values(
         alg::SAC,
-        layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic},
+        layer::ContinuousActorCriticModel{<:Any, <:Any, <:Any, QCritic},
         ps,
         st,
         data;
@@ -115,7 +115,7 @@ end
 
 function sac_critic_loss(
         alg::SAC,
-        layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, QCritic},
+        layer::ContinuousActorCriticModel{<:Any, <:Any, <:Any, QCritic},
         ps,
         st,
         data;
@@ -129,7 +129,7 @@ function sac_critic_loss(
     return critic_loss, new_st, stats
 end
 
-function (alg::SAC)(::ContinuousActorCriticLayer, ps, st, batch_data)
+function (alg::SAC)(::ContinuousActorCriticModel, ps, st, batch_data)
     error("SAC algorithm object should not be called directly. Use SAC objectives instead.")
 end
 

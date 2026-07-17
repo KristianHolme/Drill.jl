@@ -12,17 +12,13 @@ end
     modules = (
         Drill,
         Drill.Adapters,
-        Drill.Layers,
+        Drill.Models,
         Drill.Buffers,
-        Drill.Callbacks,
         Drill.DrillLogging,
         Drill.Algorithms,
-        Drill.Problem,
         Drill.Solve,
         Drill.Wrappers,
         Drill.Utils,
-        Drill.Deployment,
-        Drill.Evaluation,
     )
     for m in modules
         @test check_no_implicit_imports(m) === nothing

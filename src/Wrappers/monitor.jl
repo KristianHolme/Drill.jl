@@ -14,7 +14,7 @@ end
 """
     MonitorWrapperEnv(env, stats_window=100)
 
-Wraps a parallel environment to track per-env episode returns and lengths in rolling buffers ([`EpisodeStats`](@ref)), exposing them via `get_info` for logging and [`evaluate_agent`](@ref).
+Wraps a parallel environment to track per-env episode returns and lengths in rolling buffers ([`EpisodeStats`](@ref)), exposing them via `get_info` for logging and [`evaluate`](@ref).
 
 Use when you want stable episode metrics under vectorized resets.
 """

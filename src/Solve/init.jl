@@ -36,7 +36,7 @@ function _default_buffer(prob::RLProblem, alg::SAC)
     return ReplayBuffer(observation_space(prob.env), action_space(prob.env), alg.buffer_capacity)
 end
 
-function _init_train_state(model, alg::PPO, ps, st)
+function _init_train_state(model, alg::PPO, ps, st, device)
     optimizer = make_optimizer(alg)
     return PPOTrainState(Training.TrainState(model, ps, st, optimizer))
 end
@@ -57,6 +57,19 @@ function _init_train_state(model, alg::SAC, ps, st, device)
     return SACTrainState(actor_ts, critic_ts, ent_ts, deepcopy(critic_ps), deepcopy(critic_st))
 end
 
+function init_workspace!(cache::RLCache, ::AbstractAlgorithm)
+    return nothing
+end
+
+function init_workspace!(cache::RLCache, alg::SAC)
+    n_envs = number_of_envs(cache.prob.env)
+    total_start_steps = alg.start_steps > 0 ? alg.start_steps : alg.train_freq * n_envs
+    adjusted_total_start_steps = max(1, div(total_start_steps, n_envs)) * n_envs
+    cache.workspace[:next_collect_steps] = div(adjusted_total_start_steps, n_envs)
+    cache.workspace[:sac_iteration] = 0
+    return nothing
+end
+
 function init(
         prob::RLProblem,
         alg::AbstractAlgorithm;
@@ -75,11 +88,7 @@ function init(
     ps, st = _initial_ps_st(prob, rng)
     ps = device(ps)
     st = device(st)
-    train_state = if alg isa SAC
-        _init_train_state(prob.model, alg, ps, st, device)
-    else
-        _init_train_state(prob.model, alg, ps, st)
-    end
+    train_state = _init_train_state(prob.model, alg, ps, st, device)
     selected_buffer = buffer === nothing ? _default_buffer(prob, alg) : buffer
     if buffer !== nothing && !compatible(alg, selected_buffer)
         throw(ArgumentError("Buffer $(typeof(selected_buffer)) is incompatible with algorithm $(typeof(alg))."))
@@ -106,15 +115,8 @@ function init(
         Dict{Symbol, Any}(),
         TimerOutput(),
         nothing,
-        alg.optimizer,
         Dict{Symbol, Any}(),
     )
-    if alg isa SAC
-        n_envs = number_of_envs(prob.env)
-        total_start_steps = alg.start_steps > 0 ? alg.start_steps : alg.train_freq * n_envs
-        adjusted_total_start_steps = max(1, div(total_start_steps, n_envs)) * n_envs
-        cache.workspace[:next_collect_steps] = div(adjusted_total_start_steps, n_envs)
-        cache.workspace[:sac_iteration] = 0
-    end
+    init_workspace!(cache, alg)
     return cache
 end

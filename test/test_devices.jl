@@ -14,7 +14,7 @@ using .TestSetup
     continuous_obs_space = DrillInterface.observation_space(continuous_env)
     continuous_action_space = DrillInterface.action_space(continuous_env)
 
-    layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
+    layer = ActorCriticModel(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
     cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42))
 
@@ -33,7 +33,7 @@ end
     continuous_obs_space = DrillInterface.observation_space(continuous_env)
     continuous_action_space = DrillInterface.action_space(continuous_env)
 
-    layer = ContinuousActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16], critic_type = QCritic())
+    layer = ContinuousActorCriticModel(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16], critic_type = QCritic())
     alg = SAC(; start_steps = 4, batch_size = 4)
     cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42))
 
@@ -54,7 +54,7 @@ end
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
-    layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
+    layer = ActorCriticModel(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
     cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
 
@@ -74,7 +74,7 @@ end
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
-    layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
+    layer = ActorCriticModel(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
 
     cache = @test_logs min_level = Base.CoreLogging.Warn begin
@@ -94,7 +94,7 @@ end
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
-    layer = ContinuousActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16], critic_type = QCritic())
+    layer = ContinuousActorCriticModel(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16], critic_type = QCritic())
     alg = SAC(; start_steps = 4, batch_size = 4)
 
     cache = @test_logs min_level = Base.CoreLogging.Warn begin
@@ -115,7 +115,7 @@ end
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
-    layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
+    layer = ActorCriticModel(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
     cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
     observations = observe(continuous_env)
@@ -154,7 +154,7 @@ end
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
-    layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
+    layer = ActorCriticModel(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
     cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
     deployment_layer = extract_policy(cache)
@@ -180,7 +180,7 @@ end
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
-    layer = ContinuousActorCriticLayer(
+    layer = ContinuousActorCriticModel(
         continuous_obs_space,
         continuous_action_space;
         hidden_dims = [16, 16],
@@ -206,7 +206,7 @@ end
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
-    layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
+    layer = ActorCriticModel(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
     cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
     observations = observe(continuous_env)
@@ -232,7 +232,7 @@ end
 
     Reactant.set_default_backend("cpu")
     device = Lux.reactant_device()
-    layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
+    layer = ActorCriticModel(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
     cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
     observations = observe(continuous_env)
@@ -241,8 +241,8 @@ end
     @test Drill.reactant_cache_entry_count(cache) > 0
 
     mktempdir() do dir
-        saved_path = save_layer_params_and_state(cache, joinpath(dir, "ppo_agent"))
-        load_layer_params_and_state!(cache, alg, saved_path)
+        saved_path = save_model_params_and_state(cache, joinpath(dir, "ppo_agent"))
+        load_model_params_and_state!(cache, alg, saved_path)
         @test Drill.reactant_cache_entry_count(cache) == 0
         @test Drill.get_device(Drill.parameters(cache)) !== nothing
     end

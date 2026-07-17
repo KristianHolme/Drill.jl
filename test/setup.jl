@@ -6,7 +6,7 @@ using Random
 using Drill.Lux
 
 export CustomEnv, InfiniteHorizonEnv, TrackingTargetEnv, SimpleRewardEnv,
-    ConstantValueLayer, ConstantObsWrapper, CustomShapedBoxEnv, RandomDiscreteEnv,
+    ConstantValueModel, ConstantObsWrapper, CustomShapedBoxEnv, RandomDiscreteEnv,
     compute_expected_gae
 
 # Custom environment that gives a reward of 1.0 only at the final timestep of an episode.
@@ -228,39 +228,39 @@ function DrillInterface.observe(env::SimpleRewardEnv)
 end
 
 # Custom layer that returns constant values for predictable GAE testing.
-struct ConstantValueLayer <: Drill.AbstractActorCriticLayer
+struct ConstantValueModel <: Drill.AbstractActorCriticModel
     observation_space::Box{Float32}
     action_space::Box{Float32}
     constant_value::Float32
 end
 
-function Lux.initialparameters(rng::AbstractRNG, layer::ConstantValueLayer)
+function Lux.initialparameters(rng::AbstractRNG, layer::ConstantValueModel)
     return NamedTuple()
 end
 
-function Lux.initialstates(rng::AbstractRNG, layer::ConstantValueLayer)
+function Lux.initialstates(rng::AbstractRNG, layer::ConstantValueModel)
     return NamedTuple()
 end
 
-function Lux.parameterlength(layer::ConstantValueLayer)
+function Lux.parameterlength(layer::ConstantValueModel)
     return 0
 end
 
-function Lux.statelength(layer::ConstantValueLayer)
+function Lux.statelength(layer::ConstantValueModel)
     return 0
 end
 
-function Drill.predict_values(layer::ConstantValueLayer, observations::AbstractArray)
+function Drill.predict_values(layer::ConstantValueModel, observations::AbstractArray)
     batch_size = size(observations)[end]
     return fill(layer.constant_value, batch_size)
 end
 
-function Drill.predict_values(layer::ConstantValueLayer, observations::AbstractArray, ps, st)
+function Drill.predict_values(layer::ConstantValueModel, observations::AbstractArray, ps, st)
     batch_size = size(observations)[end]
     return fill(layer.constant_value, batch_size), st
 end
 
-function (layer::ConstantValueLayer)(obs::AbstractArray, ps, st; rng::AbstractRNG = Random.default_rng())
+function (layer::ConstantValueModel)(obs::AbstractArray, ps, st; rng::AbstractRNG = Random.default_rng())
     batch_size = size(obs)[end]
     actions = rand(rng, action_space(layer), batch_size)
     values = fill(layer.constant_value, batch_size)
@@ -268,13 +268,13 @@ function (layer::ConstantValueLayer)(obs::AbstractArray, ps, st; rng::AbstractRN
     return actions, values, logprobs, st
 end
 
-function Drill.predict_actions(layer::ConstantValueLayer, obs::AbstractArray, ps, st; deterministic::Bool = false, rng::AbstractRNG = Random.default_rng())
+function Drill.predict_actions(layer::ConstantValueModel, obs::AbstractArray, ps, st; deterministic::Bool = false, rng::AbstractRNG = Random.default_rng())
     batch_size = size(obs)[end]
     actions = rand(rng, action_space(layer), batch_size)
     return actions, st
 end
 
-function Drill.evaluate_actions(layer::ConstantValueLayer, obs::AbstractArray, actions::AbstractArray, ps, st)
+function Drill.evaluate_actions(layer::ConstantValueModel, obs::AbstractArray, actions::AbstractArray, ps, st)
     batch_size = size(obs)[end]
     values = fill(layer.constant_value, batch_size)
     logprobs = fill(0.0f0, batch_size)
