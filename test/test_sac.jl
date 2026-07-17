@@ -174,12 +174,12 @@ end
             critic_type = QCritic()
         )
         alg = SAC(; start_steps = 4, batch_size = 4)
-        agent = Agent(layer, alg; rng = rng, verbose = 0)
+        cache = init(RLProblem(env, layer), alg; max_steps = 32, rng, verbosity = 0)
 
         replay_buffer = ReplayBuffer(obs_space, action_space, 100)
 
         n_steps = 4
-        fps, _ = Drill.collect_rollout!(replay_buffer, agent, alg, env, n_steps)
+        fps, _ = Drill.collect_rollout!(replay_buffer, cache, alg, env, n_steps)
 
         @test fps > 0
         @test length(replay_buffer) > 0
@@ -188,7 +188,7 @@ end
         batch_data = first(data_loader)
 
         @testset "Critic gradient with real data" begin
-            ts = agent.train_state
+            ts = cache.train_state
 
             target_q_values = Drill.compute_target_q_values(
                 alg, layer, Drill.parameters(ts), Drill.states(ts),
@@ -232,7 +232,7 @@ end
         end
 
         @testset "Actor gradient with real data" begin
-            ts = agent.train_state
+            ts = cache.train_state
 
             ent_coef = Float32(Drill.entropy_coefficient(ts))
             actor_data = (

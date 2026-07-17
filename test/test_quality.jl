@@ -1,10 +1,15 @@
 using Test
 using Drill
 using Aqua
+using ExplicitImports
 using JET
 
 @testset "Code quality (Aqua.jl)" begin
     Aqua.test_all(Drill)
+end
+
+@testset "Explicit imports inventory" begin
+    @test ExplicitImports.explicit_imports(Drill) isa Vector
 end
 
 @testset "Code linting (JET.jl)" begin

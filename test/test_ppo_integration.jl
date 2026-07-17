@@ -24,16 +24,23 @@ using .TestSetup
 
     layer = ActorCriticLayer(obs_space, act_space; hidden_dims = [64, 64])
     alg = PPO(; n_steps = 64, batch_size = 32, epochs = 10, learning_rate = 3.0f-3)
-    agent = Agent(layer, alg; verbose = 0, rng = Random.MersenneTwister(42), logger = NoTrainingLogger())
+    max_steps = alg.n_steps * n_envs * 50
+    cache = init(
+        RLProblem(train_env, layer),
+        alg;
+        max_steps,
+        verbosity = 0,
+        rng = Random.MersenneTwister(42),
+        logger = NoTrainingLogger(),
+    )
 
-    baseline_stats = evaluate_agent(agent, baseline_env; n_eval_episodes = 64, deterministic = true, warn = false)
+    baseline_stats = evaluate(cache, baseline_env; n_eval_episodes = 64, deterministic = true, warn = false)
     baseline_mean_step = baseline_stats.mean_reward / baseline_stats.mean_length
     @test baseline_mean_step < 0.6f0
 
-    max_steps = alg.n_steps * n_envs * 50
-    train!(agent, train_env, alg, max_steps)
+    solve!(cache)
 
-    trained_stats = evaluate_agent(agent, trained_eval_env; n_eval_episodes = 64, deterministic = true, warn = false)
+    trained_stats = evaluate(cache, trained_eval_env; n_eval_episodes = 64, deterministic = true, warn = false)
 
     trained_mean_step = trained_stats.mean_reward / trained_stats.mean_length
     @test trained_mean_step > baseline_mean_step + 0.2f0
@@ -56,26 +63,40 @@ end
 
     layer = ActorCriticLayer(obs_space, act_space; hidden_dims = [32, 32])
     alg = PPO(; n_steps = 16, batch_size = 16, epochs = 2, learning_rate = 5.0f-4)
-    agent = Agent(layer, alg; verbose = 0, rng = Random.MersenneTwister(77), logger = NoTrainingLogger())
 
     max_steps = alg.n_steps * n_envs * 10
-    train!(agent, train_env, alg, max_steps)
+    cache = init(
+        RLProblem(train_env, layer),
+        alg;
+        max_steps,
+        verbosity = 0,
+        rng = Random.MersenneTwister(77),
+        logger = NoTrainingLogger(),
+    )
+    solve!(cache)
 
     mktempdir() do dir
         path = joinpath(dir, "ppo_agent")
-        saved_path = save_layer_params_and_state(agent, path)
+        saved_path = save_layer_params_and_state(cache, path)
 
         new_layer = ActorCriticLayer(obs_space, act_space; hidden_dims = [32, 32])
-        new_agent = Agent(new_layer, alg; verbose = 0, rng = Random.MersenneTwister(88), logger = NoTrainingLogger())
+        new_cache = init(
+            RLProblem(train_env, new_layer),
+            alg;
+            max_steps,
+            verbosity = 0,
+            rng = Random.MersenneTwister(88),
+            logger = NoTrainingLogger(),
+        )
 
-        load_layer_params_and_state!(new_agent, alg, saved_path)
+        load_layer_params_and_state!(new_cache, alg, saved_path)
 
-        @test Drill.parameters(new_agent) == Drill.parameters(agent)
-        @test Drill.states(new_agent) == Drill.states(agent)
+        @test Drill.parameters(new_cache) == Drill.parameters(cache)
+        @test Drill.states(new_cache) == Drill.states(cache)
 
         observations = [rand(Random.MersenneTwister(42), obs_space) for _ in 1:5]
-        original_actions = predict_actions(agent, observations; deterministic = true, rng = Random.MersenneTwister(999))
-        loaded_actions = predict_actions(new_agent, observations; deterministic = true, rng = Random.MersenneTwister(999))
+        original_actions = predict_actions(cache, observations; deterministic = true, rng = Random.MersenneTwister(999))
+        loaded_actions = predict_actions(new_cache, observations; deterministic = true, rng = Random.MersenneTwister(999))
         @test original_actions == loaded_actions
     end
 end

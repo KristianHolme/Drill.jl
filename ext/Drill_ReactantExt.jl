@@ -43,20 +43,46 @@ function ReactantInferenceCache()
     return ReactantInferenceCache(Dict{ReactantCompileKey, Any}())
 end
 
-function ensure_reactant_cache!(x)
-    if x.cache isa ReactantInferenceCache
-        return x.cache
+function _get_cache(x)
+    if x isa Drill.RLCache
+        return x.inference_cache
     end
-    x.cache = ReactantInferenceCache()
     return x.cache
+end
+
+function _set_cache!(x, cache)
+    if x isa Drill.RLCache
+        x.inference_cache = cache
+    else
+        x.cache = cache
+    end
+    return cache
+end
+
+function _runtime_model(x)
+    if x isa Drill.RLCache
+        return x.model
+    elseif x isa Drill.NeuralPolicy
+        return x.layer
+    end
+    return x
+end
+
+function ensure_reactant_cache!(x)
+    cache = _get_cache(x)
+    if cache isa ReactantInferenceCache
+        return cache
+    end
+    return _set_cache!(x, ReactantInferenceCache())
 end
 
 function cache_key(surface::Symbol, obs; mode::Symbol)
     return ReactantCompileKey(surface, typeof(obs), size(obs), mode)
 end
 
-function Drill.reactant_cache_entry_count(x::Union{Drill.Agent, Drill.NeuralPolicy})
-    if !(x.cache isa ReactantInferenceCache)
+function Drill.reactant_cache_entry_count(x::Union{Drill.RLCache, Drill.NeuralPolicy})
+    cache = _get_cache(x)
+    if !(cache isa ReactantInferenceCache)
         return 0
     end
     dev = if hasproperty(x, :params)
@@ -67,7 +93,7 @@ function Drill.reactant_cache_entry_count(x::Union{Drill.Agent, Drill.NeuralPoli
     if !(dev isa ReactantDevice)
         return 0
     end
-    return length(x.cache.entries)
+    return length(cache.entries)
 end
 
 function lookup_or_compile!(cache::ReactantInferenceCache, key::ReactantCompileKey, compiler)
@@ -81,46 +107,48 @@ end
 
 function Drill.execute_rollout_action_values(
         dev::ReactantDevice,
-        agent,
+        cache_owner,
         obs,
         ps,
         st,
         rng,
     )
-    cache = ensure_reactant_cache!(agent)
+    cache = ensure_reactant_cache!(cache_owner)
+    model = _runtime_model(cache_owner)
     rrng = Adapt.adapt(dev, rng)
     key = cache_key(:rollout_action_values, obs; mode = :stochastic)
     compiled = lookup_or_compile!(
         cache, key, () -> begin
-            return @compile rollout_action_values_kernel(agent.layer, obs, ps, st, rrng)
+                return @compile rollout_action_values_kernel(model, obs, ps, st, rrng)
         end
     )
-    return compiled(agent.layer, obs, ps, st, rrng)
+    return compiled(model, obs, ps, st, rrng)
 end
 
 function Drill.execute_rollout_predict_actions(
         dev::ReactantDevice,
-        agent,
+        cache_owner,
         obs,
         ps,
         st;
         deterministic::Bool,
         rng,
     )
-    cache = ensure_reactant_cache!(agent)
+    cache = ensure_reactant_cache!(cache_owner)
+    model = _runtime_model(cache_owner)
     if deterministic
         key = cache_key(:rollout_predict_actions, obs; mode = :deterministic)
         compiled = lookup_or_compile!(
             cache, key, () -> begin
                 return @compile rollout_predict_actions_deterministic_kernel(
-                    agent.layer,
+                    model,
                     obs,
                     ps,
                     st,
                 )
             end
         )
-        return compiled(agent.layer, obs, ps, st)
+        return compiled(model, obs, ps, st)
     end
 
     rrng = Adapt.adapt(dev, rng)
@@ -128,7 +156,7 @@ function Drill.execute_rollout_predict_actions(
     compiled = lookup_or_compile!(
         cache, key, () -> begin
             return @compile rollout_predict_actions_stochastic_kernel(
-                agent.layer,
+                model,
                 obs,
                 ps,
                 st,
@@ -136,49 +164,51 @@ function Drill.execute_rollout_predict_actions(
             )
         end
     )
-    return compiled(agent.layer, obs, ps, st, rrng)
+    return compiled(model, obs, ps, st, rrng)
 end
 
 function Drill.execute_rollout_predict_values(
         dev::ReactantDevice,
-        agent,
+        cache_owner,
         obs,
         ps,
         st,
     )
-    cache = ensure_reactant_cache!(agent)
+    cache = ensure_reactant_cache!(cache_owner)
+    model = _runtime_model(cache_owner)
     key = cache_key(:rollout_predict_values, obs; mode = :deterministic)
     compiled = lookup_or_compile!(
         cache, key, () -> begin
-            return @compile rollout_predict_values_kernel(agent.layer, obs, ps, st)
+                return @compile rollout_predict_values_kernel(model, obs, ps, st)
         end
     )
-    return compiled(agent.layer, obs, ps, st)
+    return compiled(model, obs, ps, st)
 end
 
 function Drill.execute_deployment_predict_actions(
         dev::ReactantDevice,
-        layer,
+        cache_owner,
         obs,
         ps,
         st;
         deterministic::Bool,
         rng,
     )
-    cache = ensure_reactant_cache!(layer)
+    cache = ensure_reactant_cache!(cache_owner)
+    layer = _runtime_model(cache_owner)
     if deterministic
         key = cache_key(:deployment_predict_actions, obs; mode = :deterministic)
         compiled = lookup_or_compile!(
             cache, key, () -> begin
                 return @compile deployment_predict_actions_deterministic_kernel(
-                    layer.layer,
+                    layer,
                     obs,
                     ps,
                     st,
                 )
             end
         )
-        return compiled(layer.layer, obs, ps, st)
+        return compiled(layer, obs, ps, st)
     end
 
     rrng = Adapt.adapt(dev, rng)
@@ -186,7 +216,7 @@ function Drill.execute_deployment_predict_actions(
     compiled = lookup_or_compile!(
         cache, key, () -> begin
             return @compile deployment_predict_actions_stochastic_kernel(
-                layer.layer,
+                layer,
                 obs,
                 ps,
                 st,
@@ -194,7 +224,7 @@ function Drill.execute_deployment_predict_actions(
             )
         end
     )
-    return compiled(layer.layer, obs, ps, st, rrng)
+    return compiled(layer, obs, ps, st, rrng)
 end
 
 end

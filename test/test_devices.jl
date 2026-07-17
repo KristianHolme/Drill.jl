@@ -16,15 +16,16 @@ using .TestSetup
 
     layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
-    agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42))
+    cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42))
 
-    @test Drill.get_device(Drill.parameters(agent)) isa typeof(cpu_device())
-    agent_on_cpu = agent |> cpu_device()
-    @test agent_on_cpu isa Drill.Agent
+    @test Drill.get_device(Drill.parameters(cache)) isa typeof(cpu_device())
+    cache_on_cpu = cache |> cpu_device()
+    @test cache_on_cpu isa Drill.RLCache
 
-    initial_params = deepcopy(Drill.parameters(agent_on_cpu))
-    train!(agent_on_cpu, continuous_env, alg, 32, ad_type = AutoEnzyme())
-    @test Drill.parameters(agent_on_cpu) != initial_params
+    initial_params = deepcopy(Drill.parameters(cache_on_cpu))
+    cache_on_cpu.ad_type = AutoEnzyme()
+    solve!(cache_on_cpu)
+    @test Drill.parameters(cache_on_cpu) != initial_params
 end
 
 @testset "Device transfer with cpu_device (SAC)" begin
@@ -34,15 +35,16 @@ end
 
     layer = ContinuousActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16], critic_type = QCritic())
     alg = SAC(; start_steps = 4, batch_size = 4)
-    agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42))
+    cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42))
 
-    @test Drill.get_device(Drill.parameters(agent)) isa typeof(cpu_device())
-    agent_on_cpu = agent |> cpu_device()
-    @test agent_on_cpu isa Drill.Agent
+    @test Drill.get_device(Drill.parameters(cache)) isa typeof(cpu_device())
+    cache_on_cpu = cache |> cpu_device()
+    @test cache_on_cpu isa Drill.RLCache
 
-    initial_params = deepcopy(Drill.parameters(agent_on_cpu))
-    train!(agent_on_cpu, continuous_env, alg, 32, ad_type = AutoEnzyme(; mode = set_runtime_activity(Reverse)))
-    @test Drill.parameters(agent_on_cpu) != initial_params
+    initial_params = deepcopy(Drill.parameters(cache_on_cpu))
+    cache_on_cpu.ad_type = AutoEnzyme(; mode = set_runtime_activity(Reverse))
+    solve!(cache_on_cpu)
+    @test Drill.parameters(cache_on_cpu) != initial_params
 end
 
 @testset "Training with Reactant device" begin
@@ -54,10 +56,11 @@ end
     device = Lux.reactant_device()
     layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
-    agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42), device)
+    cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
 
     ad_type = AutoEnzyme()
-    train!(agent, continuous_env, alg, 32; ad_type = ad_type)
+    cache.ad_type = ad_type
+    solve!(cache)
     @test true
 end
 
@@ -74,14 +77,14 @@ end
     layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
 
-    agent = @test_logs min_level = Base.CoreLogging.Warn begin
-        Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42), device)
+    cache = @test_logs min_level = Base.CoreLogging.Warn begin
+        init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
     end
 
-    @test agent isa Drill.Agent
-    @test agent.train_state isa Drill.PPOTrainState
-    @test Drill.get_device(Drill.parameters(agent)) !== nothing
-    @test isnothing(agent.cache)
+    @test cache isa Drill.RLCache
+    @test cache.train_state isa Drill.PPOTrainState
+    @test Drill.get_device(Drill.parameters(cache)) !== nothing
+    @test isnothing(cache.inference_cache)
 end
 
 @testset "SAC constructor builds TrainState on Reactant device without warning" begin
@@ -94,15 +97,15 @@ end
     layer = ContinuousActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16], critic_type = QCritic())
     alg = SAC(; start_steps = 4, batch_size = 4)
 
-    agent = @test_logs min_level = Base.CoreLogging.Warn begin
-        Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42), device)
+    cache = @test_logs min_level = Base.CoreLogging.Warn begin
+        init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
     end
 
-    @test agent isa Drill.Agent
-    @test agent.train_state isa Drill.SACTrainState
-    @test Drill.get_device(Drill.parameters(agent)) !== nothing
-    @test Drill.get_device(agent.train_state.target_parameters) !== nothing
-    @test isnothing(agent.cache)
+    @test cache isa Drill.RLCache
+    @test cache.train_state isa Drill.SACTrainState
+    @test Drill.get_device(Drill.parameters(cache)) !== nothing
+    @test Drill.get_device(cache.train_state.target_parameters) !== nothing
+    @test isnothing(cache.inference_cache)
 end
 
 @testset "Reactant rollout inference populates and reuses cache" begin
@@ -114,20 +117,20 @@ end
     device = Lux.reactant_device()
     layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
-    agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42), device)
+    cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
     observations = observe(continuous_env)
 
-    @test Drill.reactant_cache_entry_count(agent) == 0
+    @test Drill.reactant_cache_entry_count(cache) == 0
 
-    actions_1 = predict_actions(agent, observations; deterministic = true, rng = Random.Xoshiro(11))
-    cache_size_1 = Drill.reactant_cache_entry_count(agent)
+    actions_1 = predict_actions(cache, observations; deterministic = true, rng = Random.Xoshiro(11))
+    cache_size_1 = Drill.reactant_cache_entry_count(cache)
 
-    actions_2 = predict_actions(agent, observations; deterministic = true, rng = Random.Xoshiro(11))
-    cache_size_2 = Drill.reactant_cache_entry_count(agent)
-    values_only = predict_values(agent, observations)
-    cache_size_values = Drill.reactant_cache_entry_count(agent)
-    stochastic_actions = predict_actions(agent, observations; deterministic = false, rng = Random.Xoshiro(13))
-    cache_size_stochastic = Drill.reactant_cache_entry_count(agent)
+    actions_2 = predict_actions(cache, observations; deterministic = true, rng = Random.Xoshiro(11))
+    cache_size_2 = Drill.reactant_cache_entry_count(cache)
+    values_only = predict_values(cache, observations)
+    cache_size_values = Drill.reactant_cache_entry_count(cache)
+    stochastic_actions = predict_actions(cache, observations; deterministic = false, rng = Random.Xoshiro(13))
+    cache_size_stochastic = Drill.reactant_cache_entry_count(cache)
 
     @test !isempty(actions_1)
     @test actions_1 == actions_2
@@ -138,10 +141,10 @@ end
     @test length(stochastic_actions) == length(observations)
     @test cache_size_stochastic > cache_size_values
 
-    _, values, logprobs = Drill.get_action_and_values(agent, observations)
+    _, values, logprobs = Drill.get_action_and_values(cache, observations)
     @test length(values) == length(observations)
     @test length(logprobs) == length(observations)
-    @test Drill.reactant_cache_entry_count(agent) > cache_size_stochastic
+    @test Drill.reactant_cache_entry_count(cache) > cache_size_stochastic
 end
 
 @testset "Reactant deployment inference populates cache and recompiles on shape change" begin
@@ -153,8 +156,8 @@ end
     device = Lux.reactant_device()
     layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
-    agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42), device)
-    deployment_layer = extract_policy(agent)
+    cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
+    deployment_layer = extract_policy(cache)
     observations = observe(continuous_env)
 
     @test Drill.reactant_cache_entry_count(deployment_layer) == 0
@@ -184,13 +187,13 @@ end
         critic_type = QCritic(),
     )
     alg = SAC(; start_steps = 4, batch_size = 4)
-    agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42), device)
+    cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
     observations = observe(continuous_env)
 
-    @test Drill.reactant_cache_entry_count(agent) == 0
+    @test Drill.reactant_cache_entry_count(cache) == 0
 
-    actions = predict_actions(agent, observations; deterministic = true, rng = Random.Xoshiro(17))
-    cache_size = Drill.reactant_cache_entry_count(agent)
+    actions = predict_actions(cache, observations; deterministic = true, rng = Random.Xoshiro(17))
+    cache_size = Drill.reactant_cache_entry_count(cache)
 
     @test length(actions) == length(observations)
     @test cache_size > 0
@@ -205,16 +208,16 @@ end
     device = Lux.reactant_device()
     layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
-    agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42), device)
+    cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
     observations = observe(continuous_env)
 
-    predict_actions(agent, observations; deterministic = true, rng = Random.Xoshiro(7))
-    @test Drill.reactant_cache_entry_count(agent) > 0
+    predict_actions(cache, observations; deterministic = true, rng = Random.Xoshiro(7))
+    @test Drill.reactant_cache_entry_count(cache) > 0
 
-    agent_cpu = agent |> cpu_device()
-    @test Drill.reactant_cache_entry_count(agent_cpu) == 0
+    cache_cpu = cache |> cpu_device()
+    @test Drill.reactant_cache_entry_count(cache_cpu) == 0
 
-    deployment_layer = extract_policy(agent)
+    deployment_layer = extract_policy(cache)
     deployment_layer(observations; deterministic = true, rng = Random.Xoshiro(7))
     @test Drill.reactant_cache_entry_count(deployment_layer) > 0
 
@@ -231,16 +234,16 @@ end
     device = Lux.reactant_device()
     layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
-    agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42), device)
+    cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
     observations = observe(continuous_env)
 
-    predict_actions(agent, observations; deterministic = true, rng = Random.Xoshiro(19))
-    @test Drill.reactant_cache_entry_count(agent) > 0
+    predict_actions(cache, observations; deterministic = true, rng = Random.Xoshiro(19))
+    @test Drill.reactant_cache_entry_count(cache) > 0
 
     mktempdir() do dir
-        saved_path = save_layer_params_and_state(agent, joinpath(dir, "ppo_agent"))
-        load_layer_params_and_state!(agent, alg, saved_path)
-        @test Drill.reactant_cache_entry_count(agent) == 0
-        @test Drill.get_device(Drill.parameters(agent)) !== nothing
+        saved_path = save_layer_params_and_state(cache, joinpath(dir, "ppo_agent"))
+        load_layer_params_and_state!(cache, alg, saved_path)
+        @test Drill.reactant_cache_entry_count(cache) == 0
+        @test Drill.get_device(Drill.parameters(cache)) !== nothing
     end
 end

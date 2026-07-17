@@ -7,23 +7,33 @@ using Statistics
 include("setup.jl")
 using .TestSetup
 
+function make_cache(env, layer, alg; max_steps = alg.n_steps * DrillInterface.number_of_envs(env))
+    return init(RLProblem(env, layer), alg; max_steps, verbosity = 0)
+end
+
+function collect_and_prepare!(roll_buffer, cache, alg, env)
+    Drill.collect_rollout!(roll_buffer, cache, alg, env)
+    Drill.prepare_rollout!(roll_buffer, alg)
+    return roll_buffer
+end
+
 @testset "Buffer logprobs consistency" begin
     pend_env() = PendulumEnv()
     env = MultiThreadedParallelEnv([pend_env() for _ in 1:4])
     layer = ActorCriticLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env))
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 1)
-    agent = Agent(layer, alg; verbose = 0)
+    cache = make_cache(env, layer, alg)
     n_steps = alg.n_steps
     n_envs = DrillInterface.number_of_envs(env)
-    roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), alg.gae_lambda, alg.gamma, n_steps, n_envs)
+    roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), n_steps, n_envs)
 
     for i in 1:10
-        Drill.collect_rollout!(roll_buffer, agent, alg, env)
+        collect_and_prepare!(roll_buffer, cache, alg, env)
         obs = roll_buffer.observations
         act = roll_buffer.actions
         logprobs = roll_buffer.logprobs
-        ps = Drill.parameters(agent)
-        st = Drill.states(agent)
+        ps = Drill.parameters(cache)
+        st = Drill.states(cache)
         _, new_logprobs, _, _ = Drill.evaluate_actions(layer, obs, act, ps, st)
         @test isapprox(vec(logprobs), vec(new_logprobs); atol = 1.0e-5, rtol = 1.0e-5)
     end
@@ -33,7 +43,7 @@ end
     obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
     act_space = Box(Float32[-1.0], Float32[1.0])
 
-    roll_buffer = RolloutBuffer(obs_space, act_space, 0.95f0, 0.99f0, 8, 2)
+    roll_buffer = RolloutBuffer(obs_space, act_space, 8, 2)
 
     roll_buffer.observations .= 1.0f0
     roll_buffer.actions .= 2.0f0
@@ -111,7 +121,7 @@ end
     gamma = 0.99f0
     gae_lambda = 0.95f0
 
-    roll_buffer = RolloutBuffer(obs_space, act_space, gae_lambda, gamma, n_steps, n_envs)
+    roll_buffer = RolloutBuffer(obs_space, act_space, n_steps, n_envs)
 
     env = MultiThreadedParallelEnv([SimpleRewardEnv(8) for _ in 1:n_envs])
     env_obs_space = DrillInterface.observation_space(env)
@@ -121,9 +131,9 @@ end
 
     layer = ConstantValueLayer(env_obs_space, env_act_space, 0.5f0)
     alg = PPO(n_steps = n_steps, batch_size = 16, epochs = 1)
-    agent = Agent(layer, alg; verbose = 0)
+    cache = make_cache(env, layer, alg)
 
-    Drill.collect_rollout!(roll_buffer, agent, alg, env)
+    collect_and_prepare!(roll_buffer, cache, alg, env)
 
     @test size(roll_buffer.observations) == (obs_space.shape..., n_steps * n_envs)
     @test size(roll_buffer.actions) == (act_space.shape..., n_steps * n_envs)
@@ -147,13 +157,13 @@ end
     env = MultiThreadedParallelEnv([cartpole_env() for _ in 1:4])
     layer = DiscreteActorCriticLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env))
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 1)
-    agent = Agent(layer, alg; verbose = 0)
+    cache = make_cache(env, layer, alg)
 
     n_steps = alg.n_steps
     n_envs = DrillInterface.number_of_envs(env)
-    roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), alg.gae_lambda, alg.gamma, n_steps, n_envs)
+    roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), n_steps, n_envs)
 
-    Drill.collect_rollout!(roll_buffer, agent, alg, env)
+    collect_and_prepare!(roll_buffer, cache, alg, env)
 
     actions = roll_buffer.actions
     @test size(actions) == (1, n_steps * n_envs)
@@ -174,8 +184,8 @@ end
     @test size(logprobs) == (n_steps * n_envs,)
     @test size(values) == (n_steps * n_envs,)
 
-    ps = Drill.parameters(agent)
-    st = Drill.states(agent)
+    ps = Drill.parameters(cache)
+    st = Drill.states(cache)
     onehot_actions = Drill.discrete_to_onehotbatch(actions, DrillInterface.action_space(env))
     eval_values, eval_logprobs, entropy, _ = Drill.evaluate_actions(layer, obs, onehot_actions, ps, st)
 
@@ -188,17 +198,17 @@ end
     alg = PPO(n_steps = 4, batch_size = 4, epochs = 1)
     discrete_env = MultiThreadedParallelEnv([CartPoleEnv() for _ in 1:2])
     discrete_layer = DiscreteActorCriticLayer(DrillInterface.observation_space(discrete_env), DrillInterface.action_space(discrete_env))
-    discrete_agent = Agent(discrete_layer, alg; verbose = 0)
+    discrete_cache = make_cache(discrete_env, discrete_layer, alg)
 
     continuous_env = MultiThreadedParallelEnv([PendulumEnv() for _ in 1:2])
     continuous_layer = ContinuousActorCriticLayer(DrillInterface.observation_space(continuous_env), DrillInterface.action_space(continuous_env))
-    continuous_agent = Agent(continuous_layer, alg; verbose = 0)
+    continuous_cache = make_cache(continuous_env, continuous_layer, alg)
 
-    discrete_buffer = RolloutBuffer(DrillInterface.observation_space(discrete_env), DrillInterface.action_space(discrete_env), alg.gae_lambda, alg.gamma, 4, 2)
-    continuous_buffer = RolloutBuffer(DrillInterface.observation_space(continuous_env), DrillInterface.action_space(continuous_env), alg.gae_lambda, alg.gamma, 4, 2)
+    discrete_buffer = RolloutBuffer(DrillInterface.observation_space(discrete_env), DrillInterface.action_space(discrete_env), 4, 2)
+    continuous_buffer = RolloutBuffer(DrillInterface.observation_space(continuous_env), DrillInterface.action_space(continuous_env), 4, 2)
 
-    Drill.collect_rollout!(discrete_buffer, discrete_agent, alg, discrete_env)
-    Drill.collect_rollout!(continuous_buffer, continuous_agent, alg, continuous_env)
+    collect_and_prepare!(discrete_buffer, discrete_cache, alg, discrete_env)
+    collect_and_prepare!(continuous_buffer, continuous_cache, alg, continuous_env)
 
     discrete_actions = discrete_buffer.actions
     @test eltype(discrete_actions) <: Integer
@@ -212,10 +222,10 @@ end
     @test size(discrete_buffer.logprobs) == size(continuous_buffer.logprobs)
     @test size(discrete_buffer.values) == size(continuous_buffer.values)
 
-    discrete_ps = Drill.parameters(discrete_agent)
-    discrete_st = Drill.states(discrete_agent)
-    continuous_ps = Drill.parameters(continuous_agent)
-    continuous_st = Drill.states(continuous_agent)
+    discrete_ps = Drill.parameters(discrete_cache)
+    discrete_st = Drill.states(discrete_cache)
+    continuous_ps = Drill.parameters(continuous_cache)
+    continuous_st = Drill.states(continuous_cache)
 
     discrete_onehot_actions = Drill.discrete_to_onehotbatch(discrete_buffer.actions, DrillInterface.action_space(discrete_env))
     discrete_eval_values, discrete_eval_logprobs, discrete_entropy, _ = Drill.evaluate_actions(
@@ -240,9 +250,9 @@ end
         act_space = DrillInterface.action_space(env)
         layer = ActorCriticLayer(obs_space, act_space)
         alg = PPO()
-        agent = Agent(layer, alg; verbose = 0)
-        roll_buffer = RolloutBuffer(obs_space, act_space, alg.gae_lambda, alg.gamma, n_steps, DrillInterface.number_of_envs(env))
-        Drill.collect_rollout!(roll_buffer, agent, alg, env)
+        cache = make_cache(env, layer, alg)
+        roll_buffer = RolloutBuffer(obs_space, act_space, n_steps, DrillInterface.number_of_envs(env))
+        collect_and_prepare!(roll_buffer, cache, alg, env)
         return roll_buffer
     end
 
@@ -280,15 +290,15 @@ end
     alg = SAC()
     env = BroadcastedParallelEnv([SimpleRewardEnv(8) for _ in 1:n_envs])
     layer = ContinuousActorCriticLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env), critic_type = QCritic())
-    agent = Agent(layer, alg)
+    cache = init(RLProblem(env, layer), alg; max_steps = train_freq * 4, verbosity = 0, rng)
     buffer = ReplayBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), buffer_capacity)
     @test capacity(buffer) == buffer_capacity
     @test !isfull(buffer)
 
-    Drill.collect_rollout!(buffer, agent, alg, env, n_steps)
+    Drill.collect_rollout!(buffer, cache, alg, env, n_steps)
     @test size(buffer) == n_steps * n_envs
 
-    Drill.collect_rollout!(buffer, agent, alg, env, train_freq)
+    Drill.collect_rollout!(buffer, cache, alg, env, train_freq)
     @test size(buffer) == buffer_capacity
     @test isfull(buffer)
 
