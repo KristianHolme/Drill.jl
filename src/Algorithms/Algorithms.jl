@@ -42,6 +42,7 @@ export select_actor_parameters, select_critic_parameters, select_actor_states,
     project_namedtuple
 export make_optimizer, init_entropy_coefficient
 export prepare_training_actions, maybe_normalize_batch_data, maybe_clip_range
+export process_action
 export SACEntropyObjective, SACCriticObjective, SACActorObjective
 export sac_actor_loss, sac_critic_loss, compute_target_q_values, get_target_entropy,
     get_gradient_steps

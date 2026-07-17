@@ -26,6 +26,7 @@ include("monitor.jl")
 export BroadcastedParallelEnv, MultiThreadedParallelEnv, MultiAgentParallelEnv
 export ScalingWrapperEnv, NormalizeWrapperEnv, MonitorWrapperEnv
 export RunningMeanStd, EpisodeStats
+export update!, update_from_moments!
 export is_training, set_training
 export get_original_obs, get_original_rewards
 export normalize_obs!, normalize_rewards!, unnormalize_obs!, unnormalize_rewards!

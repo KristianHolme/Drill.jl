@@ -56,6 +56,7 @@ export init, solve!, step!, solve
 export save_layer_params_and_state, load_layer_params_and_state!
 export current_device, canonicalize_device_batch, rollout_inference_state,
     deployment_inference_state, reactant_cache_entry_count
+export get_device, cpu_device
 export rollout_action_values_kernel, rollout_predict_actions_kernel,
     rollout_predict_actions_deterministic_kernel, rollout_predict_actions_stochastic_kernel,
     rollout_predict_values_kernel
