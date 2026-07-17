@@ -24,7 +24,7 @@ function load_layer_params_and_state!(
     data = load(file_path)
     cache.model = data["layer"]
     if haskey(data, "train_state")
-        cache.train_state = Adapt.adapt(dev, data["train_state"])
+        cache.train_state = adapt(dev, data["train_state"])
     else
         ps = dev(data["parameters"])
         st = dev(data["states"])

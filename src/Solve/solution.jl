@@ -2,7 +2,7 @@ struct RLSolution{U, P, A, ST, TS, B, TO}
     u::U
     prob::P
     alg::A
-    retcode::SciMLBase.ReturnCode.T
+    retcode::ReturnCode.T
     stats::ST
     train_state::TS
     buffer::B

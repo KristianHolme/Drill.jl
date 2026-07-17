@@ -6,7 +6,7 @@ Probs shape: (num_classes, batch_size). Kernel-friendly (tensor ops only) for Re
 struct BatchedCategorical <: AbstractDiscreteDistribution
 end
 
-function Random.rand(rng::AbstractRNG, ::BatchedCategorical, probs::AbstractMatrix{T}) where {T}
+function rand(rng::AbstractRNG, ::BatchedCategorical, probs::AbstractMatrix{T}) where {T}
     epsval = eps(T)
     U = rand(rng, T, 1, size(probs, 2))
     U = @. clamp(U, epsval, one(T) - epsval)

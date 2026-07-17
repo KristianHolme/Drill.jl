@@ -96,9 +96,9 @@ end
 
 number_of_envs(env::MultiAgentParallelEnv) = env.total_envs
 
-function Random.seed!(env::MultiAgentParallelEnv, seed::Integer)
+function seed!(env::MultiAgentParallelEnv, seed::Integer)
     for (i, sub_env) in enumerate(env.envs)
-        Random.seed!(sub_env, seed + i - 1)
+        seed!(sub_env, seed + i - 1)
     end
     return env
 end

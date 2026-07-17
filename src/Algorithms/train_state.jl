@@ -177,7 +177,7 @@ end
 
 function set_states!(ts::PPOTrainState, st)
     inner = ts.ts
-    ts.ts = Accessors.@set inner.states = st
+    ts.ts = @set inner.states = st
     return ts
 end
 
@@ -185,8 +185,8 @@ function set_states!(ts::SACTrainState, st)
     actor_st, critic_st = split_states(ts, st)
     actor_ts = ts.actor_ts
     critic_ts = ts.critic_ts
-    ts.actor_ts = Accessors.@set actor_ts.states = actor_st
-    ts.critic_ts = Accessors.@set critic_ts.states = critic_st
+    ts.actor_ts = @set actor_ts.states = actor_st
+    ts.critic_ts = @set critic_ts.states = critic_st
     return ts
 end
 

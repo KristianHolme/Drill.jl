@@ -247,8 +247,8 @@ function get_info(env::NormalizeWrapperEnv)
     return infos
 end
 
-function Random.seed!(env::NormalizeWrapperEnv, seed::Integer)
-    Random.seed!(env.env, seed)
+function seed!(env::NormalizeWrapperEnv, seed::Integer)
+    seed!(env.env, seed)
     return env
 end
 

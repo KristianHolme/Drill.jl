@@ -1,7 +1,8 @@
 module Buffers
 
-using DataStructures
-using DrillInterface: AbstractEnv, AbstractParallelEnv, AbstractSpace, Box, Discrete
+using DataStructures: CircularBuffer
+import DataStructures: capacity, isfull
+using DrillInterface: AbstractSpace, Box
 import DrillInterface: action_space, observation_space, reset!
 using DrillInterface: batch
 using MLUtils: DataLoader
@@ -14,6 +15,7 @@ include("rollout.jl")
 include("replay.jl")
 
 export AbstractBuffer
+export BufferKind, OnPolicyBuffer, OffPolicyBuffer, buffer_kind
 export RolloutBuffer, Trajectory, OffPolicyTrajectory, ReplayBuffer
 export compute_advantages!, compute_gae!, get_data_loader, pack_trajectories!
 

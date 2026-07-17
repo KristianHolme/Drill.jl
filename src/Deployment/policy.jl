@@ -20,9 +20,9 @@ end
 
 # Mark NeuralPolicy as a leaf so fmap doesn't recurse into its fields.
 # Our adapt_structure method below handles the actual device transfer.
-MLDataDevices.isleaf(::NeuralPolicy) = true
+isleaf(::NeuralPolicy) = true
 
-function Adapt.adapt_structure(to::MLDataDevices.AbstractDevice, np::NeuralPolicy)
+function adapt_structure(to::AbstractDevice, np::NeuralPolicy)
     new_params = to(np.params)
     new_states = to(np.states)
     return NeuralPolicy(
@@ -69,7 +69,7 @@ function invalidate_cache!(np::NeuralPolicy)
     return np
 end
 
-function (np::NeuralPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = Random.default_rng())
+function (np::NeuralPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = default_rng())
     single_obs = false
     if !(obs isa AbstractVector{<:AbstractArray}) && size(obs) == size(layer_observation_space(np.layer))
         single_obs = true
@@ -112,7 +112,7 @@ struct NormWrapperPolicy{P <: AbstractPolicy, T <: AbstractFloat} <: AbstractPol
     clip_obs::T
 end
 
-function (nwp::NormWrapperPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = Random.default_rng())
+function (nwp::NormWrapperPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = default_rng())
     single_obs = false
     if size(obs) == size(layer_observation_space(nwp.policy.layer))
         single_obs = true

@@ -1,6 +1,6 @@
 # Forward pass implementations for actor-critic layers
 
-function (layer::ContinuousActorCriticLayer)(obs::AbstractArray, ps, st; rng::AbstractRNG = Random.default_rng())
+function (layer::ContinuousActorCriticLayer)(obs::AbstractArray, ps, st; rng::AbstractRNG = default_rng())
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
     action_means, st = get_actions_from_features(layer, actor_feats, ps, st)
     values, st = get_values_from_features(layer, critic_feats, ps, st)
@@ -13,7 +13,7 @@ end
 function (layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCritic, <:Any, <:Any, <:Any, <:Any})(
         obs::AbstractArray,
         actions::AbstractArray, ps, st;
-        rng::AbstractRNG = Random.default_rng()
+        rng::AbstractRNG = default_rng()
     ) where {N <: AbstractNoise}
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
     action_means, st = get_actions_from_features(layer, actor_feats, ps, st)
@@ -24,7 +24,7 @@ function (layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCritic, <:Any, <:A
     return actions, values, vec(log_probs), st
 end
 
-function (layer::DiscreteActorCriticLayer)(obs::AbstractArray, ps, st; rng::AbstractRNG = Random.default_rng())
+function (layer::DiscreteActorCriticLayer)(obs::AbstractArray, ps, st; rng::AbstractRNG = default_rng())
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
     action_logits, st = get_actions_from_features(layer, actor_feats, ps, st)
     values, st = get_values_from_features(layer, critic_feats, ps, st)

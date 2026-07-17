@@ -8,8 +8,26 @@ using JET
     Aqua.test_all(Drill)
 end
 
-@testset "Explicit imports inventory" begin
-    @test ExplicitImports.explicit_imports(Drill) isa Vector
+@testset "ExplicitImports" begin
+    modules = (
+        Drill,
+        Drill.Adapters,
+        Drill.Layers,
+        Drill.Buffers,
+        Drill.Callbacks,
+        Drill.DrillLogging,
+        Drill.Algorithms,
+        Drill.Problem,
+        Drill.Solve,
+        Drill.Wrappers,
+        Drill.Utils,
+        Drill.Deployment,
+        Drill.Evaluation,
+    )
+    for m in modules
+        @test check_no_implicit_imports(m) === nothing
+        @test check_no_stale_explicit_imports(m) === nothing
+    end
 end
 
 @testset "Code linting (JET.jl)" begin

@@ -123,7 +123,7 @@ function collect_trajectories(
                 current_trajectories[j] = OffPolicyTrajectory(obs_space, act_space)
             end
         end
-        !isnothing(progress_meter) && ProgressMeter.next!(progress_meter, step = number_of_envs(env))
+        !isnothing(progress_meter) && next!(progress_meter, step = number_of_envs(env))
     end
     return trajectories, true
 end

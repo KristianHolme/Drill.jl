@@ -81,7 +81,7 @@ function sac_actor_loss(
         ps,
         st,
         data;
-        rng::AbstractRNG = Random.default_rng(),
+        rng::AbstractRNG = default_rng(),
     )
     ent_coef = data.ent_coef
     actions_pi, log_probs_pi, st = action_log_prob(layer, data.observations, ps, st; rng)
@@ -97,7 +97,7 @@ function compute_target_q_values(
         ps,
         st,
         data;
-        rng::AbstractRNG = Random.default_rng(),
+        rng::AbstractRNG = default_rng(),
     )
     next_obs = data.next_observations
     ent_coef = exp(first(data.log_ent_coef.log_ent_coef))
@@ -119,7 +119,7 @@ function sac_critic_loss(
         ps,
         st,
         data;
-        rng::AbstractRNG = Random.default_rng(),
+        rng::AbstractRNG = default_rng(),
     )
     current_q_values, new_st = predict_values(layer, data.observations, data.actions, ps, st)
     T = eltype(current_q_values)

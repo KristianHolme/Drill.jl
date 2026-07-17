@@ -1,10 +1,9 @@
 module Drill
 
-using DataStructures
-using Lux
-using MLDataDevices: AbstractDevice, cpu_device, get_device
-using Reexport
-using DrillInterface: act!, observe, reset!, terminated, truncated
+import DataStructures
+import DrillInterface
+import Lux
+using Reexport: @reexport
 
 include("DrillDistributions/DrillDistributions.jl")
 @reexport using .DrillDistributions

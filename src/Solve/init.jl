@@ -38,7 +38,7 @@ end
 
 function _init_train_state(model, alg::PPO, ps, st)
     optimizer = make_optimizer(alg)
-    return PPOTrainState(Lux.Training.TrainState(model, ps, st, optimizer))
+    return PPOTrainState(Training.TrainState(model, ps, st, optimizer))
 end
 
 function _init_train_state(model, alg::SAC, ps, st, device)
@@ -46,9 +46,9 @@ function _init_train_state(model, alg::SAC, ps, st, device)
     critic_ps = select_critic_parameters(model, ps)
     actor_st = select_actor_states(model, st)
     critic_st = select_critic_states(model, st)
-    actor_ts = Lux.Training.TrainState(model, actor_ps, actor_st, make_optimizer(alg))
-    critic_ts = Lux.Training.TrainState(model, critic_ps, critic_st, make_optimizer(alg))
-    ent_ts = Lux.Training.TrainState(
+    actor_ts = Training.TrainState(model, actor_ps, actor_st, make_optimizer(alg))
+    critic_ts = Training.TrainState(model, critic_ps, critic_st, make_optimizer(alg))
+    ent_ts = Training.TrainState(
         EntropyCoefficientLayer(),
         device(init_entropy_coefficient(alg.ent_coef)),
         NamedTuple(),
@@ -57,7 +57,7 @@ function _init_train_state(model, alg::SAC, ps, st, device)
     return SACTrainState(actor_ts, critic_ts, ent_ts, deepcopy(critic_ps), deepcopy(critic_st))
 end
 
-function CommonSolve.init(
+function init(
         prob::RLProblem,
         alg::AbstractAlgorithm;
         max_steps::Int,
@@ -66,10 +66,10 @@ function CommonSolve.init(
         logger = NoTrainingLogger(),
         verbosity::Int = 1,
         verbose::Union{Nothing, Int} = nothing,
-        rng::AbstractRNG = Random.default_rng(),
+        rng::AbstractRNG = default_rng(),
         buffer = nothing,
-        ad_type::Lux.Training.AbstractADType = AutoZygote(),
-        device = MLDataDevices.cpu_device(),
+        ad_type::Training.AbstractADType = AutoZygote(),
+        device = cpu_device(),
     )
     check_compatible(prob, alg)
     ps, st = _initial_ps_st(prob, rng)
@@ -81,6 +81,9 @@ function CommonSolve.init(
         _init_train_state(prob.model, alg, ps, st)
     end
     selected_buffer = buffer === nothing ? _default_buffer(prob, alg) : buffer
+    if buffer !== nothing && !compatible(alg, selected_buffer)
+        throw(ArgumentError("Buffer $(typeof(selected_buffer)) is incompatible with algorithm $(typeof(alg))."))
+    end
     selected_adapter = prob.adapter === nothing ? action_adapter(alg, action_space(prob.env)) : prob.adapter
     selected_callbacks = _normalize_callbacks(; callback, callbacks)
     selected_logger = convert(AbstractTrainingLogger, logger)
@@ -99,7 +102,7 @@ function CommonSolve.init(
         0,
         0,
         ad_type,
-        SciMLBase.ReturnCode.Default,
+        ReturnCode.Default,
         Dict{Symbol, Any}(),
         TimerOutput(),
         nothing,

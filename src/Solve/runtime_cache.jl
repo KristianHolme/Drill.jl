@@ -39,7 +39,7 @@ function rollout_predict_actions_deterministic_kernel(layer, obs_batch, ps, st)
         ps,
         st;
         deterministic = true,
-        rng = Random.default_rng(),
+        rng = default_rng(),
     )
 end
 
@@ -69,7 +69,7 @@ function deployment_predict_actions_deterministic_kernel(layer, obs_batch, ps, s
         ps,
         st;
         deterministic = true,
-        rng = Random.default_rng(),
+        rng = default_rng(),
     )
 end
 
@@ -78,7 +78,7 @@ function deployment_predict_actions_stochastic_kernel(layer, obs_batch, ps, st, 
 end
 
 function execute_rollout_action_values(
-        dev::MLDataDevices.AbstractDevice,
+        dev::AbstractDevice,
         model,
         obs_batch,
         ps,
@@ -89,7 +89,7 @@ function execute_rollout_action_values(
 end
 
 function execute_rollout_predict_actions(
-        dev::MLDataDevices.AbstractDevice,
+        dev::AbstractDevice,
         model,
         obs_batch,
         ps,
@@ -104,7 +104,7 @@ function execute_rollout_predict_actions(
 end
 
 function execute_rollout_predict_values(
-        dev::MLDataDevices.AbstractDevice,
+        dev::AbstractDevice,
         model,
         obs_batch,
         ps,
@@ -114,7 +114,7 @@ function execute_rollout_predict_values(
 end
 
 function execute_deployment_predict_actions(
-        dev::MLDataDevices.AbstractDevice,
+        dev::AbstractDevice,
         model,
         obs_batch,
         ps,

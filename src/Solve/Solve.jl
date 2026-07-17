@@ -1,19 +1,20 @@
 module Solve
 
-using Adapt
-using CommonSolve
-using FileIO
-using JLD2
-using Lux
+import CommonSolve: init, solve, solve!, step!
+import Adapt: adapt, adapt_structure
+using FileIO: load, save
+import JLD2
+import Lux
+using Lux: Training
 using Lux.Training: AutoZygote
-using MLDataDevices
+import MLDataDevices: AbstractDevice, cpu_device, get_device, isleaf
 using MLUtils: DataLoader
-using Optimisers
-using ProgressMeter
-using Random
-using SciMLBase
-using Statistics
-using TimerOutputs
+using Optimisers: adjust!
+using ProgressMeter: Progress, next!
+using Random: AbstractRNG, default_rng
+using SciMLBase: ReturnCode
+using Statistics: mean, var
+using TimerOutputs: @timeit, TimerOutput, print_timer
 
 import DrillInterface: AbstractParallelEnv, Box, Discrete, act!, action_space, batch,
     number_of_envs, observation_space, observe
@@ -21,7 +22,7 @@ import DrillInterface: AbstractParallelEnv, Box, Discrete, act!, action_space, b
 import ..Adapters: AbstractActionAdapter, to_env
 import ..Algorithms: AbstractAlgorithm, AutoEntropyCoefficient, OffPolicyAlgorithm,
     OnPolicyAlgorithm, PPO, SAC, PPOTrainState, SACTrainState, EntropyCoefficientLayer, action_adapter,
-    compute_target_q_values, entropy_coefficient, entropy_parameters, get_gradient_steps,
+    compatible, compute_target_q_values, entropy_coefficient, entropy_parameters, get_gradient_steps,
     get_target_entropy, init_entropy_coefficient, lux_train_state, make_optimizer, maybe_normalize_batch_data,
     parameters, prepare_training_actions, select_actor_parameters, select_actor_states,
     select_critic_parameters, select_critic_states, set_lux_train_state!, set_states!,
@@ -32,11 +33,9 @@ import ..Callbacks: AbstractCallback, on_rollout_end, on_rollout_start, on_step,
     on_training_end, on_training_start
 import ..DrillLogging: AbstractTrainingLogger, NoTrainingLogger, increment_step!,
     log_scalar!, log_stats, set_step!
-import ..Layers: AbstractActorCriticLayer, ContinuousActorCriticLayer, action_log_prob,
-    predict_actions, predict_values, action_space as layer_action_space
+import ..Layers: action_log_prob, predict_actions, predict_values, action_space as layer_action_space
 import ..Problem: RLProblem, check_compatible
-import ..Utils: discrete_to_onehotbatch, nested_has_inf, nested_has_nan, nested_norm,
-    nested_scale!, polyak_update!
+import ..Utils: nested_has_inf, nested_has_nan, nested_norm, nested_scale!, polyak_update!
 
 include("runtime_cache.jl")
 include("cache.jl")

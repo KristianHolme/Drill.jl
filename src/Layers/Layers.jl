@@ -1,9 +1,8 @@
 module Layers
 
-using Lux
-using Lux: AbstractLuxLayer, Chain, ReshapeLayer, orthogonal
-using Random
-using LinearAlgebra
+import Lux
+using Lux: AbstractLuxLayer, Chain, Dense, ReshapeLayer, orthogonal, zeros32
+using Random: AbstractRNG, default_rng
 
 import DrillInterface: AbstractSpace, Box, Discrete, action_space, observation_space
 using DrillInterface: batch

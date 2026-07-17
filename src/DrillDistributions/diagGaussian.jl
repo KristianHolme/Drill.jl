@@ -10,13 +10,13 @@ struct DiagGaussian{T <: Real, M <: AbstractArray{T}, S <: AbstractArray{T}} <: 
     end
 end
 
-function Random.rand(rng::AbstractRNG, d::DiagGaussian{T, M, S}) where {T, M, S}
+function rand(rng::AbstractRNG, d::DiagGaussian{T, M, S}) where {T, M, S}
     # Ensure the random values are of type T for type stability
     noise = randn(rng, T, size(d.mean))
     return d.mean .+ exp.(d.log_std) .* noise
 end
 
-function Random.rand(rng::AbstractRNG, d::DiagGaussian, n::Integer)
+function rand(rng::AbstractRNG, d::DiagGaussian, n::Integer)
     return [rand(rng, d) for _ in 1:n]
 end
 
@@ -53,7 +53,7 @@ end
 struct BatchedDiagGaussian <: AbstractContinuousDistribution
 end
 
-function Random.rand(rng::AbstractRNG, ::BatchedDiagGaussian, mean::AbstractArray{T}, log_std::AbstractArray{T}) where {T}
+function rand(rng::AbstractRNG, ::BatchedDiagGaussian, mean::AbstractArray{T}, log_std::AbstractArray{T}) where {T}
     noise = randn(rng, T, size(mean))
     return mean .+ exp.(log_std) .* noise
 end

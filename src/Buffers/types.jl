@@ -1,4 +1,9 @@
 abstract type AbstractBuffer end
+abstract type BufferKind end
+struct OnPolicyBuffer <: BufferKind end
+struct OffPolicyBuffer <: BufferKind end
+
+function buffer_kind end
 
 mutable struct Trajectory{T <: AbstractFloat, O, A}
     observations::Vector{O}
@@ -70,3 +75,6 @@ struct ReplayBuffer{T, O, OBS, AC} <: AbstractBuffer
     truncated::CircularBuffer{Bool}
     truncated_observations::CircularBuffer{Union{Nothing, OBS}}
 end
+
+buffer_kind(::RolloutBuffer) = OnPolicyBuffer()
+buffer_kind(::ReplayBuffer) = OffPolicyBuffer()

@@ -64,6 +64,48 @@ end
     @test all(iszero, roll_buffer.values)
 end
 
+@testset "Buffer compatibility traits" begin
+    obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
+    act_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
+    roll_buffer = RolloutBuffer(obs_space, act_space, 4, 1)
+    replay_buffer = ReplayBuffer(obs_space, act_space, 8)
+    ppo = PPO(; n_steps = 4, batch_size = 4, epochs = 1)
+    sac = SAC(; buffer_capacity = 8, batch_size = 2, start_steps = 0)
+
+    @test buffer_kind(roll_buffer) isa OnPolicyBuffer
+    @test buffer_kind(replay_buffer) isa OffPolicyBuffer
+    @test compatible(ppo, roll_buffer)
+    @test !compatible(ppo, replay_buffer)
+    @test compatible(sac, replay_buffer)
+    @test !compatible(sac, roll_buffer)
+
+    env = BroadcastedParallelEnv([SimpleRewardEnv(4)])
+    ppo_layer = ConstantValueLayer(
+        DrillInterface.observation_space(env),
+        DrillInterface.action_space(env),
+        0.5f0,
+    )
+    sac_layer = SACLayer(
+        DrillInterface.observation_space(env),
+        DrillInterface.action_space(env),
+    )
+
+    @test_throws ArgumentError init(
+        RLProblem(env, ppo_layer),
+        ppo;
+        max_steps = 4,
+        buffer = replay_buffer,
+        verbosity = 0,
+    )
+    @test_throws ArgumentError init(
+        RLProblem(env, sac_layer),
+        sac;
+        max_steps = 4,
+        buffer = roll_buffer,
+        verbosity = 0,
+    )
+end
+
 @testset "Buffer trajectory bootstrap handling" begin
     max_steps = 6
     gamma = 0.9f0

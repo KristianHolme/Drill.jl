@@ -1,6 +1,6 @@
 # High-level actor-critic layer methods
 
-function predict_actions(layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any, <:Any, <:Any}, obs::AbstractArray, ps, st; deterministic::Bool = false, rng::AbstractRNG = Random.default_rng())
+function predict_actions(layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, <:Any, <:Any, <:Any, <:Any, <:Any}, obs::AbstractArray, ps, st; deterministic::Bool = false, rng::AbstractRNG = default_rng())
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
     action_means, st = get_actions_from_features(layer, actor_feats, ps, st)
     d = _distribution_type(layer)
@@ -12,7 +12,7 @@ function predict_actions(layer::ContinuousActorCriticLayer{<:Any, <:Any, <:Any, 
     return actions, st
 end
 
-function predict_actions(layer::DiscreteActorCriticLayer, obs::AbstractArray, ps, st; deterministic::Bool = false, rng::AbstractRNG = Random.default_rng())
+function predict_actions(layer::DiscreteActorCriticLayer, obs::AbstractArray, ps, st; deterministic::Bool = false, rng::AbstractRNG = default_rng())
     actor_feats, critic_feats, st = extract_features(layer, obs, ps, st)
     action_logits, st = get_actions_from_features(layer, actor_feats, ps, st)
     probs = Lux.softmax(action_logits)
@@ -71,7 +71,7 @@ function predict_values(layer::ContinuousActorCriticLayer{<:Any, <:Any, N, QCrit
     return values, st #dont return vec(values) as this is a matrix
 end
 
-function action_log_prob(layer::ContinuousActorCriticLayer, obs::AbstractArray, ps, st; rng::AbstractRNG = Random.default_rng())
+function action_log_prob(layer::ContinuousActorCriticLayer, obs::AbstractArray, ps, st; rng::AbstractRNG = default_rng())
     actor_feats, _, st = extract_features(layer, obs, ps, st)
     action_means, st = get_actions_from_features(layer, actor_feats, ps, st)
     d = _distribution_type(layer)

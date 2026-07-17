@@ -13,7 +13,7 @@ mutable struct RLCache{P, A, M, AD, TS, B, L, R, C, ST, TO, OT}
     steps_taken::Int
     gradient_updates::Int
     ad_type
-    retcode::SciMLBase.ReturnCode.T
+    retcode::ReturnCode.T
     stats::ST
     timer::TO
     inference_cache::Any

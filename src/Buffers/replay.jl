@@ -46,7 +46,7 @@ function Base.length(buffer::ReplayBuffer)
 end
 Base.size(buffer::ReplayBuffer) = length(buffer)
 
-function DataStructures.isfull(buffer::ReplayBuffer)
+function isfull(buffer::ReplayBuffer)
     obs_full = isfull(buffer.observations)
     action_full = isfull(buffer.actions)
     reward_full = isfull(buffer.rewards)
@@ -83,7 +83,7 @@ function Base.isempty(buffer::ReplayBuffer)
     return obs_empty
 end
 
-function DataStructures.capacity(buffer::ReplayBuffer)
+function capacity(buffer::ReplayBuffer)
     obs_cap = capacity(buffer.observations)
     action_cap = capacity(buffer.actions)
     reward_cap = capacity(buffer.rewards)

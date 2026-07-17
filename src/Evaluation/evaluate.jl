@@ -117,7 +117,7 @@ end
 function evaluate(
         policy::NeuralPolicy,
         env::AbstractParallelEnv;
-        rng::AbstractRNG = Random.default_rng(),
+        rng::AbstractRNG = default_rng(),
         kwargs...,
     )
     predict_actions(observations; deterministic, rng) = begin

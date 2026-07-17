@@ -7,22 +7,22 @@ function _record_stat!(cache::RLCache, key::Symbol, value)
 end
 
 function _mark_complete!(cache::RLCache)
-    if cache.steps_taken >= cache.max_steps && cache.retcode != SciMLBase.ReturnCode.Terminated
-        cache.retcode = SciMLBase.ReturnCode.Success
+    if cache.steps_taken >= cache.max_steps && cache.retcode != ReturnCode.Terminated
+        cache.retcode = ReturnCode.Success
     end
     return cache
 end
 
-function CommonSolve.step!(cache::RLCache{<:Any, <:PPO})
+function step!(cache::RLCache{<:Any, <:PPO})
     alg = cache.alg
     env = cache.prob.env
     n_steps = alg.n_steps
     n_envs = number_of_envs(env)
-    Optimisers.adjust!(cache.train_state, alg.learning_rate)
+    adjust!(cache.train_state, alg.learning_rate)
     _record_stat!(cache, :learning_rates, alg.learning_rate)
 
     if !_callbacks_continue(cache.callbacks, on_rollout_start, cache)
-        cache.retcode = SciMLBase.ReturnCode.Terminated
+        cache.retcode = ReturnCode.Terminated
         return cache
     end
 
@@ -34,7 +34,7 @@ function CommonSolve.step!(cache::RLCache{<:Any, <:PPO})
         callbacks = cache.callbacks,
     )
     if !success
-        cache.retcode = SciMLBase.ReturnCode.Terminated
+        cache.retcode = ReturnCode.Terminated
         return cache
     end
     prepare_rollout!(cache.buffer, alg)
@@ -45,7 +45,7 @@ function CommonSolve.step!(cache::RLCache{<:Any, <:PPO})
     _record_stat!(cache, :fps, Float32(fps))
 
     if !_callbacks_continue(cache.callbacks, on_rollout_end, cache)
-        cache.retcode = SciMLBase.ReturnCode.Terminated
+        cache.retcode = ReturnCode.Terminated
         return cache
     end
 
@@ -64,7 +64,7 @@ function CommonSolve.step!(cache::RLCache{<:Any, <:PPO})
         parallel = true,
         rng = cache.rng,
     )
-    dev = MLDataDevices.get_device(parameters(cache))
+    dev = get_device(parameters(cache))
     entropy_losses = Float32[]
     policy_losses = Float32[]
     value_losses = Float32[]
@@ -79,7 +79,7 @@ function CommonSolve.step!(cache::RLCache{<:Any, <:PPO})
         data_iter = dev !== nothing ? dev(data_loader) : data_loader
         for (i_batch, batch_data) in enumerate(data_iter)
             batch_data = maybe_normalize_batch_data(batch_data, alg.advantage_strategy)
-            grads, loss_val, stats, train_state = Lux.Training.compute_gradients(
+            grads, loss_val, stats, train_state = Training.compute_gradients(
                 cache.ad_type,
                 alg,
                 batch_data,
@@ -96,7 +96,7 @@ function CommonSolve.step!(cache::RLCache{<:Any, <:PPO})
                 continue_training = false
                 break
             end
-            train_state = Lux.Training.apply_gradients!(train_state, grads)
+            train_state = Training.apply_gradients!(train_state, grads)
             set_lux_train_state!(cache.train_state, train_state)
             add_gradient_update!(cache)
             push!(entropy_losses, Float32(stats.entropy_loss))
@@ -154,13 +154,13 @@ function _sac_update!(cache::RLCache{<:Any, <:SAC}, batch_data)
             rng = cache.rng,
         )
         c = mean(log_probs_pi .+ target_entropy)
-        ent_grad, ent_loss_val, _, ent_ts = Lux.Training.compute_gradients(
+        ent_grad, ent_loss_val, _, ent_ts = Training.compute_gradients(
             cache.ad_type,
             SACEntropyObjective(),
             (; c),
             ts.ent_ts,
         )
-        ts.ent_ts = Lux.Training.apply_gradients!(ent_ts, ent_grad)
+        ts.ent_ts = Training.apply_gradients!(ent_ts, ent_grad)
         ent_loss = ent_loss_val
     end
     target_q_values = compute_target_q_values(
@@ -185,13 +185,13 @@ function _sac_update!(cache::RLCache{<:Any, <:SAC}, batch_data)
         actor_ps = ts.actor_ts.parameters,
         actor_st = ts.actor_ts.states,
     )
-    critic_grad, critic_loss, critic_stats, critic_ts = Lux.Training.compute_gradients(
+    critic_grad, critic_loss, critic_stats, critic_ts = Training.compute_gradients(
         cache.ad_type,
         SACCriticObjective(alg, cache.rng),
         critic_data,
         ts.critic_ts,
     )
-    ts.critic_ts = Lux.Training.apply_gradients!(critic_ts, critic_grad)
+    ts.critic_ts = Training.apply_gradients!(critic_ts, critic_grad)
 
     ent_coef = Float32(entropy_coefficient(ts))
     actor_data = (
@@ -200,13 +200,13 @@ function _sac_update!(cache::RLCache{<:Any, <:SAC}, batch_data)
         critic_ps = ts.critic_ts.parameters,
         critic_st = ts.critic_ts.states,
     )
-    actor_grad, actor_loss, _, actor_ts = Lux.Training.compute_gradients(
+    actor_grad, actor_loss, _, actor_ts = Training.compute_gradients(
         cache.ad_type,
         SACActorObjective(alg, cache.rng),
         actor_data,
         ts.actor_ts,
     )
-    ts.actor_ts = Lux.Training.apply_gradients!(actor_ts, actor_grad)
+    ts.actor_ts = Training.apply_gradients!(actor_ts, actor_grad)
 
     add_gradient_update!(cache)
     if cache.gradient_updates % alg.target_update_interval == 0
@@ -225,7 +225,7 @@ function _sac_update!(cache::RLCache{<:Any, <:SAC}, batch_data)
     )
 end
 
-function CommonSolve.step!(cache::RLCache{<:Any, <:SAC})
+function step!(cache::RLCache{<:Any, <:SAC})
     alg = cache.alg
     env = cache.prob.env
     n_envs = number_of_envs(env)
@@ -233,9 +233,9 @@ function CommonSolve.step!(cache::RLCache{<:Any, <:SAC})
     n_steps = get(cache.workspace, :next_collect_steps, alg.train_freq)
     use_random_actions = cache.workspace[:sac_iteration] == 1 && alg.start_steps > 0
 
-    Optimisers.adjust!(cache.train_state, alg.learning_rate)
+    adjust!(cache.train_state, alg.learning_rate)
     if !_callbacks_continue(cache.callbacks, on_rollout_start, cache)
-        cache.retcode = SciMLBase.ReturnCode.Terminated
+        cache.retcode = ReturnCode.Terminated
         return cache
     end
     fps, success = @timeit cache.timer "collect_rollout" collect_rollout!(
@@ -248,7 +248,7 @@ function CommonSolve.step!(cache::RLCache{<:Any, <:SAC})
         use_random_actions,
     )
     if !success
-        cache.retcode = SciMLBase.ReturnCode.Terminated
+        cache.retcode = ReturnCode.Terminated
         return cache
     end
     add_steps!(cache, n_steps * n_envs)
@@ -259,14 +259,14 @@ function CommonSolve.step!(cache::RLCache{<:Any, <:SAC})
     log_stats(env, cache.logger)
 
     if !_callbacks_continue(cache.callbacks, on_rollout_end, cache)
-        cache.retcode = SciMLBase.ReturnCode.Terminated
+        cache.retcode = ReturnCode.Terminated
         return cache
     end
 
     n_updates = get_gradient_steps(alg, alg.train_freq, n_envs)
     if length(cache.buffer) > 0 && n_updates > 0
         data_loader = get_data_loader(cache.buffer, alg.batch_size, n_updates, true, true, cache.rng)
-        dev = MLDataDevices.get_device(parameters(cache))
+        dev = get_device(parameters(cache))
         data_iter = dev !== nothing ? dev(data_loader) : data_loader
         for batch_data in data_iter
             stats_step = _sac_update!(cache, batch_data)

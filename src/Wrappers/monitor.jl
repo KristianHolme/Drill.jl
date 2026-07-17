@@ -43,7 +43,7 @@ get_info(monitor_env::MonitorWrapperEnv{E, T}) where {E, T} = get_info(monitor_e
 action_space(monitor_env::MonitorWrapperEnv{E, T}) where {E, T} = action_space(monitor_env.env)
 observation_space(monitor_env::MonitorWrapperEnv{E, T}) where {E, T} = observation_space(monitor_env.env)
 number_of_envs(monitor_env::MonitorWrapperEnv{E, T}) where {E, T} = number_of_envs(monitor_env.env)
-Random.seed!(monitor_env::MonitorWrapperEnv{E, T}, seed::Integer) where {E, T} = Random.seed!(monitor_env.env, seed)
+seed!(monitor_env::MonitorWrapperEnv{E, T}, seed::Integer) where {E, T} = seed!(monitor_env.env, seed)
 
 function reset!(monitor_env::MonitorWrapperEnv{E, T}) where {E, T}
     DrillInterface.reset!(monitor_env.env)

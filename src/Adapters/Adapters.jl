@@ -1,6 +1,6 @@
 module Adapters
 
-import DrillInterface: AbstractSpace, Box, Discrete
+import DrillInterface: Box, Discrete
 using OneHotArrays: OneHotVector
 
 include("types.jl")

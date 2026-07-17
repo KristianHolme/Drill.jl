@@ -134,12 +134,12 @@ end
 
 
 """
-    Random.seed!(env::ScalingWrapperEnv, seed::Integer)
+    seed!(env::ScalingWrapperEnv, seed::Integer)
 
 Seed a wrapped environment by forwarding the seed to the underlying environment.
 """
-function Random.seed!(env::ScalingWrapperEnv, seed::Integer)
-    Random.seed!(env.env, seed)
+function seed!(env::ScalingWrapperEnv, seed::Integer)
+    seed!(env.env, seed)
     return env
 end
 

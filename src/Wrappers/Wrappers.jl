@@ -4,8 +4,8 @@ using Base.Threads: @threads
 using Accessors: @set
 using DataStructures: CircularBuffer
 using FileIO: save, load
-using JLD2
-using Random
+import JLD2
+import Random: seed!
 using Statistics: mean, var
 
 import DrillInterface

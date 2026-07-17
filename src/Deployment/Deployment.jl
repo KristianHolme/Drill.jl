@@ -1,14 +1,12 @@
 module Deployment
 
-using Adapt
-using MLDataDevices
-using Random
+import Adapt: adapt_structure
+import MLDataDevices: AbstractDevice, cpu_device, isleaf
+using Random: AbstractRNG, default_rng
 
-import DrillInterface: AbstractPolicy, batch, observation_space
-using DrillInterface: AbstractEnv
+import DrillInterface: AbstractPolicy, batch
 
 import ..Adapters: AbstractActionAdapter, to_env
-import ..Layers: predict_actions
 import ..Layers: action_space as layer_action_space
 import ..Layers: observation_space as layer_observation_space
 import ..Wrappers: NormalizeWrapperEnv, RunningMeanStd, normalize_obs!

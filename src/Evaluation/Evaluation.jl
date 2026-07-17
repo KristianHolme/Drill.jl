@@ -1,11 +1,10 @@
 module Evaluation
 
 using ProgressMeter: Progress, next!
-using Random
+using Random: AbstractRNG, default_rng
 using Statistics: mean, std
 
-import DrillInterface: act!, number_of_envs, observation_space, observe, reset!, terminated,
-    truncated, unwrap
+import DrillInterface: act!, number_of_envs, observation_space, observe, reset!, unwrap
 using DrillInterface: AbstractParallelEnv, AbstractParallelEnvWrapper
 
 import ..Wrappers: MonitorWrapperEnv

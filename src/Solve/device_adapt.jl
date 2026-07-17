@@ -1,14 +1,13 @@
-# Device transfer via Adapt.adapt_structure (same API as device(data))
-# Requires MLDataDevices.AbstractDevice and Adapt from the parent module.
+# Device transfer via adapt_structure (same API as device(data)).
 
 # Mark RLCache as a leaf so fmap doesn't recurse into its fields.
 # Our adapt_structure method below handles the actual device transfer.
-MLDataDevices.isleaf(::RLCache) = true
-MLDataDevices.isleaf(::PPOTrainState) = true
-MLDataDevices.isleaf(::SACTrainState) = true
+isleaf(::RLCache) = true
+isleaf(::PPOTrainState) = true
+isleaf(::SACTrainState) = true
 
-function Adapt.adapt_structure(to::MLDataDevices.AbstractDevice, cache::RLCache)
-    new_train_state = Adapt.adapt(to, cache.train_state)
+function adapt_structure(to::AbstractDevice, cache::RLCache)
+    new_train_state = adapt(to, cache.train_state)
     return RLCache(
         cache.prob,
         cache.alg,
@@ -33,15 +32,15 @@ function Adapt.adapt_structure(to::MLDataDevices.AbstractDevice, cache::RLCache)
     )
 end
 
-function Adapt.adapt_structure(to::MLDataDevices.AbstractDevice, ts::PPOTrainState)
-    return PPOTrainState(Adapt.adapt(to, ts.ts))
+function adapt_structure(to::AbstractDevice, ts::PPOTrainState)
+    return PPOTrainState(adapt(to, ts.ts))
 end
 
-function Adapt.adapt_structure(to::MLDataDevices.AbstractDevice, ts::SACTrainState)
+function adapt_structure(to::AbstractDevice, ts::SACTrainState)
     return SACTrainState(
-        Adapt.adapt(to, ts.actor_ts),
-        Adapt.adapt(to, ts.critic_ts),
-        Adapt.adapt(to, ts.ent_ts),
+        adapt(to, ts.actor_ts),
+        adapt(to, ts.critic_ts),
+        adapt(to, ts.ent_ts),
         to(ts.target_parameters),
         to(ts.target_states),
     )
