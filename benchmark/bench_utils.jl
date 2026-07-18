@@ -6,8 +6,8 @@ using ClassicControlEnvironments
 using Random
 using Statistics: mean
 
-# MLUtils is a Drill dependency; access DataLoader via the Solve submodule.
-const DataLoader = Drill.Solve.DataLoader
+# MLUtils is a Drill dependency; Buffers brings DataLoader into its namespace.
+const DataLoader = Drill.Buffers.DataLoader
 
 const DEFAULT_SEED = 42
 const DEFAULT_N_ENVS = 2
