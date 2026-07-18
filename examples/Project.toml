@@ -1,0 +1,11 @@
+[deps]
+ClassicControlEnvironments = "a1069ede-d5f9-41a5-87b2-adf4ef867b86"
+Drill = "49b37b9d-a8e6-4364-9144-4677bcb8a7f0"
+DrillInterface = "d92b6104-cdd8-4875-a041-bad43500bca7"
+PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
+
+[sources]
+Drill = {path = ".."}
+DrillInterface = {path = "../DrillInterface"}
