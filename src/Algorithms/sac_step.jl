@@ -175,4 +175,3 @@ function train_step!(cache::RLCache{<:Any, <:SAC}, alg::SAC)
     update_training_progress!(cache, n_steps * n_envs; showvalues)
     return _mark_complete!(cache)
 end
-
