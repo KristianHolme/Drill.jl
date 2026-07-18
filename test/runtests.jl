@@ -4,8 +4,8 @@ using ParallelTestRunner
 
 """
 Skip `test_logging` on GitHub Actions. WandbLogger leaves a hung `wandb-core`
-process that blocks ParallelTestRunner until the job timeout. See the tracking
-GitHub issue; tests still run locally.
+process that blocks ParallelTestRunner until the job timeout.
+See https://github.com/KristianHolme/Drill.jl/issues/83 ; tests still run locally.
 """
 function _args_excluding_logging_on_gha(args::Vector{String})
     if get(ENV, "GITHUB_ACTIONS", "") != "true"
