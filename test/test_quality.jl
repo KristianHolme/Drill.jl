@@ -9,7 +9,7 @@ using JET
 end
 
 @testset "ExplicitImports" begin
-    modules = (
+    modules = Any[
         Drill,
         Drill.Adapters,
         Drill.Models,
@@ -19,12 +19,25 @@ end
         Drill.Solve,
         Drill.Wrappers,
         Drill.Utils,
-    )
+    ]
+    # Aqua / weakdeps may load extensions; check any that are present.
+    # Extensions must use explicit imports (see AGENTS.md).
+    for ext_name in (
+            :Drill_PrettyTablesExt,
+            :Drill_WandbExt,
+            :Drill_TensorBoardLoggerExt,
+            :Drill_DearDiaryExt,
+            :Drill_ReactantExt,
+        )
+        ext = Base.get_extension(Drill, ext_name)
+        ext === nothing || push!(modules, ext)
+    end
     for m in modules
         @test check_no_implicit_imports(m) === nothing
         @test check_no_stale_explicit_imports(m) === nothing
     end
 end
+
 
 @testset "Code linting (JET.jl)" begin
     function filter_false_positives(reports)

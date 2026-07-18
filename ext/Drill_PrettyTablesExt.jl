@@ -1,10 +1,11 @@
 module Drill_PrettyTablesExt
 
-using Drill
-using PrettyTables
+using Drill: Drill, RLCache, training_metric_rows
+using PrettyTables: PrettyTables, pretty_table
+import Drill: print_training_table
 
-function Drill.print_training_table(cache::Drill.RLCache)
-    rows = Drill.training_metric_rows(cache)
+function print_training_table(cache::RLCache)
+    rows = training_metric_rows(cache)
     isempty(rows) && return nothing
     names = first.(rows)
     values = last.(rows)
