@@ -77,8 +77,7 @@ function init(
         callback = nothing,
         callbacks = nothing,
         logger = NoTrainingLogger(),
-        verbosity::Int = 1,
-        verbose::Union{Nothing, Int} = nothing,
+        verbosity = DEFAULT_VERBOSITY,
         rng::AbstractRNG = default_rng(),
         buffer = nothing,
         ad_type::Training.AbstractADType = AutoZygote(),
@@ -96,6 +95,13 @@ function init(
     selected_adapter = prob.adapter === nothing ? action_adapter(alg, action_space(prob.env)) : prob.adapter
     selected_callbacks = _normalize_callbacks(; callback, callbacks)
     selected_logger = convert(AbstractTrainingLogger, logger)
+    selected_verbosity = normalize_verbosity(verbosity)
+    progress_meter = Progress(
+        max_steps;
+        desc = "Training...",
+        showspeed = true,
+        enabled = selected_verbosity.meter > 0,
+    )
     cache = RLCache(
         prob,
         alg,
@@ -105,7 +111,8 @@ function init(
         selected_buffer,
         selected_logger,
         rng,
-        verbose === nothing ? verbosity : verbose,
+        selected_verbosity,
+        progress_meter,
         selected_callbacks,
         max_steps,
         0,

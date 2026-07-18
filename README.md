@@ -87,22 +87,25 @@ ppo = PPO(
     normalize_advantage=true
 )
 
-## Agent
-agent = Agent(model, ppo; verbose=2)
-
 ## Train
 max_steps = 100_000
-learn_stats, to = train!(agent, parallel_env, ppo, max_steps)
+prob = RLProblem(parallel_env, model)
+cache = init(
+    prob, ppo;
+    max_steps,
+    # meter: 0=off, 1=progress bar, 2=progress bar + live stats
+    # table: PrettyTables dump each update (requires PrettyTables loaded)
+    # timer: print TimerOutputs at the end
+    verbosity = (; meter = 2, table = false, timer = true),
+)
+solve!(cache)
 
 ## Evaluate the trained agent
 eval_env = CartPoleEnv(max_steps=500)
-eval_stats = evaluate_agent(agent, eval_env, n_episodes=10, deterministic=true)
+eval_stats = evaluate(extract_policy(cache), eval_env; n_eval_episodes=10, deterministic=true)
 
-println("Average episodic return: $(mean(eval_stats.episodic_returns))")
-println("Average episode length: $(mean(eval_stats.episodic_lengths))")
-
-# Print timer output
-print_timer(to)
+println("Average episodic return: $(eval_stats.mean_reward)")
+println("Average episode length: $(eval_stats.mean_length)")
 ```
 
 ## Advanced Usage

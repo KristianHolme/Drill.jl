@@ -61,11 +61,12 @@ env = BroadcastedParallelEnv([CartPoleEnv() for _ in 1:4])
 model = ActorCriticLayer(observation_space(env), action_space(env))
 
 # Train with PPO
-agent = Agent(model, PPO(); verbose=2)
-train!(agent, env, PPO(), 100_000)
+prob = RLProblem(env, model)
+cache = init(prob, PPO(); max_steps = 100_000, verbosity = (; meter = 2))
+solve!(cache)
 
 # Extract deployment policy
-policy = extract_policy(agent)
+policy = extract_policy(cache)
 
 # Use policy for inference
 obs = observe(env)

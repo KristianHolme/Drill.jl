@@ -6,7 +6,7 @@ Drill.jl supports three logging backends for tracking your experiments:
 - **Weights & Biases (W&B)** - Cloud-based experiment tracking with team collaboration features
 - **DearDiary** - Pure Julia experiment tracking with SQLite backend
 
-All backends automatically log training metrics during `train!()` calls, including:
+All backends automatically log training metrics during `solve` / `solve!` calls, including:
 
 - Episode rewards and lengths
 - Policy/value/entropy losses
@@ -68,23 +68,29 @@ for config in configs
     run_dir = joinpath(LOG_DIR, "CartPole_$(config.name)")
     tb_logger = TBLogger(run_dir; min_level = Logging.Info)
 
-    # Create agent with logger
+    # Create problem and train with logger
     layer = ActorCriticLayer(observation_space(env), action_space(env))
-    agent = Agent(layer, alg; logger = tb_logger, verbose = 1, rng = rng)
+    cache = init(
+        RLProblem(env, layer), alg;
+        max_steps = TOTAL_TIMESTEPS,
+        logger = tb_logger,
+        verbosity = (; meter = 1),
+        rng = rng,
+    )
 
     # Log hyperparameters (viewable in TensorBoard HPARAMS tab)
     log_hparams!(
-        agent.logger,
+        cache.logger,
         Dict(String(k) => v for (k, v) in pairs(config)),
         ["env/ep_rew_mean", "train/loss"],
     )
 
     # Train - metrics auto-logged to TensorBoard
     @info "Training" config = config.name log_dir = run_dir
-    train!(agent, env, alg, TOTAL_TIMESTEPS)
+    solve!(cache)
 
     # Close logger
-    close!(agent.logger)
+    close!(cache.logger)
 end
 ```
 
@@ -166,16 +172,22 @@ for config in configs
         config = Dict(String(k) => v for (k, v) in pairs(config)),
     )
 
-    # Create agent with logger
+    # Create problem and train with logger
     layer = ActorCriticLayer(observation_space(env), action_space(env))
-    agent = Agent(layer, alg; logger = wb_logger, verbose = 1, rng = rng)
+    cache = init(
+        RLProblem(env, layer), alg;
+        max_steps = TOTAL_TIMESTEPS,
+        logger = wb_logger,
+        verbosity = (; meter = 1),
+        rng = rng,
+    )
 
     # Train - metrics auto-logged to W&B
     @info "Training" config = config.name
-    train!(agent, env, alg, TOTAL_TIMESTEPS)
+    solve!(cache)
 
     # Always close logger to finalize the W&B run
-    close!(agent.logger)
+    close!(cache.logger)
 end
 ```
 
@@ -256,24 +268,30 @@ for config in configs
         "CartPole_$(config.name)"
     )
 
-    # Create agent with the experiment ID as logger
+    # Create problem and train with the experiment ID as logger
     layer = ActorCriticLayer(observation_space(env), action_space(env))
-    agent = Agent(layer, alg; logger = experiment_id, verbose = 1, rng = rng)
+    cache = init(
+        RLProblem(env, layer), alg;
+        max_steps = TOTAL_TIMESTEPS,
+        logger = experiment_id,
+        verbosity = (; meter = 1),
+        rng = rng,
+    )
 
     # Log hyperparameters
     log_hparams!(
-        agent.logger,
+        cache.logger,
         Dict(String(k) => v for (k, v) in pairs(config)),
         ["env/ep_rew_mean", "train/loss"],
     )
 
     # Train - metrics auto-logged to DearDiary
     @info "Training" config = config.name experiment_id = experiment_id
-    train!(agent, env, alg, TOTAL_TIMESTEPS)
+    solve!(cache)
 
     # Mark experiment as complete and close logger
     DearDiary.update_experiment(experiment_id, DearDiary.FINISHED, nothing, nothing, nothing)
-    close!(agent.logger)
+    close!(cache.logger)
 end
 
 # Don't forget to close the database when done
@@ -377,8 +395,13 @@ mktempdir() do dir
 
         task = get_task(manager, i, :local)
         progress_cb = create_drill_callback(task)
-        agent = Agent(layer, alg; verbose = 0, rng = rng)
-        train!(agent, env, alg, TOTAL_TIMESTEPS; callbacks = [progress_cb])
+        solve(
+            RLProblem(env, layer), alg;
+            max_steps = TOTAL_TIMESTEPS,
+            verbosity = 0,
+            rng = rng,
+            callbacks = [progress_cb],
+        )
     end
     finish!(manager)
 end
@@ -420,16 +443,15 @@ using Drill
 # Define a custom callback that logs additional metrics
 struct CustomMetricsCallback <: AbstractCallback end
 
-function Drill.on_rollout_end(cb::CustomMetricsCallback, locals::Dict)
-    agent = locals["agent"]
-    env = locals["env"]
+function Drill.on_rollout_end(cb::CustomMetricsCallback, cache)
+    env = cache.prob.env
 
     # Log custom metrics
-    log_scalar!(agent.logger, "custom/episode_count", length(env.episode_stats.episode_returns))
+    log_scalar!(cache.logger, "custom/episode_count", length(env.episode_stats.episode_returns))
 
     # Log environment-specific info
     if !isempty(env.episode_stats.episode_returns)
-        log_scalar!(agent.logger, "custom/best_return", maximum(env.episode_stats.episode_returns))
+        log_scalar!(cache.logger, "custom/best_return", maximum(env.episode_stats.episode_returns))
     end
 
     return true  # Continue training
@@ -437,19 +459,19 @@ end
 
 # Use the callback during training
 callbacks = [CustomMetricsCallback()]
-train!(agent, env, alg, total_steps; callbacks)
+solve(prob, alg; max_steps = total_steps, callbacks)
 ```
 
 ### No Logger (Default)
 
-By default, agents use `NoTrainingLogger()` which discards all log calls. You don't need to pass anything to disable logging:
+By default, `init` / `solve` use `NoTrainingLogger()` which discards all log calls. You don't need to pass anything to disable logging:
 
 ```julia
 # Logging is disabled by default
-agent = Agent(layer, alg)
+sol = solve(prob, alg; max_steps = total_steps)
 
 # Equivalent to:
-agent = Agent(layer, alg; logger = NoTrainingLogger())
+sol = solve(prob, alg; max_steps = total_steps, logger = NoTrainingLogger())
 ```
 
 ### Choosing a Backend

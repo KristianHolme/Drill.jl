@@ -16,14 +16,13 @@ model = ActorCriticLayer(observation_space(env), action_space(env))
 # Algorithm with default hyperparameters
 ppo = PPO()
 
-# Create agent
-agent = Agent(model, ppo; verbose=2)
-
-# Train for 100k steps
-learn_stats, timer = train!(agent, env, ppo, 100_000)
+# Train for 100k steps (meter=2: progress bar with live stats; timer printed at end)
+prob = RLProblem(env, model)
+cache = init(prob, ppo; max_steps = 100_000, verbosity = (; meter = 2, timer = true))
+solve!(cache)
 
 # Extract deployment policy
-policy = extract_policy(agent)
+policy = extract_policy(cache)
 ```
 
 ## Quick Example: SAC on Continuous Control
@@ -41,11 +40,9 @@ model = SACLayer(observation_space(env), action_space(env))
 # SAC algorithm
 sac = SAC(learning_rate=3f-4, buffer_capacity=1_000_000)
 
-# Create agent
-agent = Agent(model, sac; verbose=1)
-
-# Train
-agent, buffer, stats, timer = train!(agent, env, sac, 500_000)
+# Train (meter=1: step progress only; no timer print)
+prob = RLProblem(env, model)
+sol = solve(prob, sac; max_steps = 500_000, verbosity = (; meter = 1, timer = false))
 ```
 
 ## Key Hyperparameters

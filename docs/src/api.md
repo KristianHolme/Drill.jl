@@ -30,18 +30,22 @@ Discrete
 ```@docs
 PPO
 SAC
-train!
 ```
 
-## Agents
+## Solve
 
 ```@docs
-Agent
-AgentStats
+Verbosity
+normalize_verbosity
+print_training_table
+```
+
+## Inference
+
+```@docs
 predict_actions
 predict_values
 steps_taken
-evaluate_agent
 AbstractActionAdapter
 to_env
 from_env

@@ -8,6 +8,7 @@ import Lux
 using Lux: Training
 using Lux.Training: AutoZygote
 import MLDataDevices: AbstractDevice, cpu_device, get_device, isleaf
+import ProgressMeter
 using ProgressMeter: Progress, next!
 using Random: AbstractRNG, default_rng
 using SciMLBase: ReturnCode
@@ -36,8 +37,10 @@ const check_compatible = _Drill.check_compatible
 import ..DrillLogging: AbstractTrainingLogger, NoTrainingLogger
 import ..Models: predict_actions, predict_values, action_space as model_action_space
 
+include("verbosity.jl")
 include("runtime_cache.jl")
 include("cache.jl")
+include("progress.jl")
 include("solution.jl")
 include("inference.jl")
 include("collect.jl")
@@ -48,6 +51,7 @@ include("io.jl")
 include("device_adapt.jl")
 
 export RLCache, RLSolution
+export Verbosity, DEFAULT_VERBOSITY, normalize_verbosity, print_training_table
 export parameters, states, set_states!, invalidate_cache!, steps_taken
 export get_action_and_values, predict_actions, predict_values, predict_actions_raw
 export collect_trajectories, collect_rollout!, prepare_rollout!
@@ -66,5 +70,6 @@ export execute_rollout_action_values, execute_rollout_predict_actions,
 
 # Used by Algorithms train_step! implementations (late-included).
 export _record_stat!, _mark_complete!, _callbacks_continue, add_steps!, add_gradient_update!
+export update_training_progress!, latest_stat, training_metric_rows
 
 end

@@ -17,7 +17,8 @@ function solve!(cache::RLCache)
     if !_callbacks_continue(cache.callbacks, on_training_end, cache)
         cache.retcode = ReturnCode.Terminated
     end
-    if cache.verbose >= 2
+    finish_training_progress!(cache)
+    if cache.verbosity.timer
         print_timer(cache.timer)
     end
     return RLSolution(cache)

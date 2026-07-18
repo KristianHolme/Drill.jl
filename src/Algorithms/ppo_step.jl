@@ -8,7 +8,7 @@ using TimerOutputs: @timeit
 import DrillInterface: action_space, number_of_envs
 
 import ..Solve: RLCache, collect_rollout!, prepare_rollout!, add_steps!, add_gradient_update!,
-    get_device, _record_stat!, _mark_complete!, _callbacks_continue
+    get_device, _record_stat!, _mark_complete!, _callbacks_continue, update_training_progress!
 import ..DrillLogging: increment_step!, log_scalar!, log_stats
 import ..Utils: nested_has_inf, nested_has_nan, nested_norm, nested_scale!
 const _Drill = parentmodule(@__MODULE__)
@@ -122,18 +122,43 @@ function train_step!(cache::RLCache{<:Any, <:PPO}, alg::PPO)
     _record_stat!(cache, :grad_norms, mean(grad_norms))
     _record_stat!(cache, :explained_variances, Float32(explained_variance))
 
-    log_scalar!(cache.logger, "train/entropy_loss", mean(entropy_losses))
+    mean_entropy_loss = mean(entropy_losses)
+    mean_policy_loss = mean(policy_losses)
+    mean_value_loss = mean(value_losses)
+    mean_approx_kl = mean(approx_kl_divs)
+    mean_clip_fraction = mean(clip_fractions)
+    mean_loss = mean(losses)
+    mean_grad_norm = mean(grad_norms)
+
+    log_scalar!(cache.logger, "train/entropy_loss", mean_entropy_loss)
     log_scalar!(cache.logger, "train/explained_variance", explained_variance)
-    log_scalar!(cache.logger, "train/policy_loss", mean(policy_losses))
-    log_scalar!(cache.logger, "train/value_loss", mean(value_losses))
-    log_scalar!(cache.logger, "train/approx_kl_div", mean(approx_kl_divs))
-    log_scalar!(cache.logger, "train/clip_fraction", mean(clip_fractions))
-    log_scalar!(cache.logger, "train/loss", mean(losses))
-    log_scalar!(cache.logger, "train/grad_norm", mean(grad_norms))
+    log_scalar!(cache.logger, "train/policy_loss", mean_policy_loss)
+    log_scalar!(cache.logger, "train/value_loss", mean_value_loss)
+    log_scalar!(cache.logger, "train/approx_kl_div", mean_approx_kl)
+    log_scalar!(cache.logger, "train/clip_fraction", mean_clip_fraction)
+    log_scalar!(cache.logger, "train/loss", mean_loss)
+    log_scalar!(cache.logger, "train/grad_norm", mean_grad_norm)
     log_scalar!(cache.logger, "train/learning_rate", alg.learning_rate)
     ps = parameters(cache)
     if ps isa NamedTuple && haskey(ps, :log_std)
         log_scalar!(cache.logger, "train/std", mean(exp.(ps.log_std)))
     end
+
+    update_training_progress!(
+        cache,
+        n_steps * n_envs;
+        showvalues = [
+            ("explained_variance", explained_variance),
+            ("entropy_loss", mean_entropy_loss),
+            ("policy_loss", mean_policy_loss),
+            ("value_loss", mean_value_loss),
+            ("approx_kl_div", mean_approx_kl),
+            ("clip_fraction", mean_clip_fraction),
+            ("loss", mean_loss),
+            ("fps", fps),
+            ("grad_norm", mean_grad_norm),
+            ("learning_rate", alg.learning_rate),
+        ],
+    )
     return _mark_complete!(cache)
 end
