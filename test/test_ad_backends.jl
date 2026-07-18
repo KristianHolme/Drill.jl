@@ -22,13 +22,20 @@ using .TestSetup
 
     for (name, ad_backend) in backends
         @testset "$name" begin
-            layer = ActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
+            layer = ActorCriticModel(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16])
             alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
-            agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42))
+            cache = init(
+                RLProblem(continuous_env, layer),
+                alg;
+                max_steps = 32,
+                verbosity = 0,
+                rng = Random.Xoshiro(42),
+                ad_type = ad_backend,
+            )
 
-            initial_params = deepcopy(Drill.parameters(agent))
-            train!(agent, continuous_env, alg, 32; ad_type = ad_backend)
-            @test Drill.parameters(agent) != initial_params
+            initial_params = deepcopy(Drill.parameters(cache))
+            solve!(cache)
+            @test Drill.parameters(cache) != initial_params
         end
     end
 end
@@ -52,13 +59,20 @@ end
 
     for (name, ad_backend) in backends
         @testset "$name" begin
-            layer = ActorCriticLayer(discrete_obs_space, discrete_action_space; hidden_dims = [16, 16])
+            layer = ActorCriticModel(discrete_obs_space, discrete_action_space; hidden_dims = [16, 16])
             alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
-            agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42))
+            cache = init(
+                RLProblem(discrete_env, layer),
+                alg;
+                max_steps = 32,
+                verbosity = 0,
+                rng = Random.Xoshiro(42),
+                ad_type = ad_backend,
+            )
 
-            initial_params = deepcopy(Drill.parameters(agent))
-            train!(agent, discrete_env, alg, 32; ad_type = ad_backend)
-            @test Drill.parameters(agent) != initial_params
+            initial_params = deepcopy(Drill.parameters(cache))
+            solve!(cache)
+            @test Drill.parameters(cache) != initial_params
         end
     end
 end
@@ -75,13 +89,20 @@ end
     ]
 
     function test_sac_training(ad_backend)
-        layer = ContinuousActorCriticLayer(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16], critic_type = QCritic())
+        layer = ContinuousActorCriticModel(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16], critic_type = QCritic())
         alg = SAC(; start_steps = 4, batch_size = 4)
-        agent = Agent(layer, alg; verbose = 0, rng = Random.Xoshiro(42))
+        cache = init(
+            RLProblem(continuous_env, layer),
+            alg;
+            max_steps = 32,
+            verbosity = 0,
+            rng = Random.Xoshiro(42),
+            ad_type = ad_backend,
+        )
 
-        initial_params = deepcopy(Drill.parameters(agent))
-        train!(agent, continuous_env, alg, 32; ad_type = ad_backend)
-        return Drill.parameters(agent) != initial_params
+        initial_params = deepcopy(Drill.parameters(cache))
+        solve!(cache)
+        return Drill.parameters(cache) != initial_params
     end
     @testset "$(backends[1][1])" test_sac_training(backends[1][2])
     @testset "$(backends[2][1])" begin

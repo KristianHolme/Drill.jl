@@ -11,15 +11,15 @@ using .TestSetup
     env = MonitorWrapperEnv(env)
     env = NormalizeWrapperEnv(env, gamma = alg.gamma)
 
-    layer = ActorCriticLayer(observation_space(env), action_space(env))
-    agent = Agent(layer, alg; verbose = 0)
+    layer = ActorCriticModel(observation_space(env), action_space(env))
+    cache = init(RLProblem(env, layer), alg; max_steps = 3000, verbosity = 0)
 
-    function test_keys(locals::Dict, keys_to_check::Vector{Symbol})
+    function test_cache(cache, keys_to_check::Vector{Symbol})
         for key in keys_to_check
-            key_in_locals = haskey(locals, key)
-            @test key_in_locals
-            if !key_in_locals
-                @debug "key $key not in locals"
+            key_in_cache = hasproperty(cache, key)
+            @test key_in_cache
+            if !key_in_cache
+                @debug "key $key not in cache"
             end
         end
         true
@@ -27,35 +27,31 @@ using .TestSetup
 
     @kwdef struct OnTrainingStartCheckLocalsCallback <: AbstractCallback
         keys::Vector{Symbol} = [
-            :agent, :env, :alg, :iterations, :total_steps, :max_steps,
-            :n_steps, :n_envs, :roll_buffer, :iterations, :total_fps, :callbacks,
+            :prob, :alg, :model, :adapter, :train_state, :buffer, :logger, :rng,
+            :max_steps, :steps_taken, :gradient_updates, :callbacks,
         ]
     end
-    function Drill.on_training_start(callback::OnTrainingStartCheckLocalsCallback, locals::Dict)
-        test_keys(locals, callback.keys)
+    function Drill.on_training_start(callback::OnTrainingStartCheckLocalsCallback, cache)
+        test_cache(cache, callback.keys)
         true
     end
 
     @kwdef struct OnRolloutStartCheckLocalsCallback <: AbstractCallback
         first_keys::Vector{Symbol} = [
-            :agent, :env, :alg, :iterations, :total_steps,
-            :max_steps, :i, :learning_rate,
+            :prob, :alg, :model, :adapter, :train_state, :buffer, :logger,
+            :max_steps, :steps_taken,
         ]
-        subsequent_keys::Vector{Symbol} = [:agent, :env, :alg, :iterations, :total_steps, :max_steps]
+        subsequent_keys::Vector{Symbol} = [:prob, :alg, :max_steps, :steps_taken]
     end
-    function Drill.on_rollout_start(callback::OnRolloutStartCheckLocalsCallback, locals::Dict)
-        test_keys(locals, callback.first_keys)
-        if locals[:i] > 1
-            test_keys(locals, callback.subsequent_keys)
+    function Drill.on_rollout_start(callback::OnRolloutStartCheckLocalsCallback, cache)
+        test_cache(cache, callback.first_keys)
+        if steps_taken(cache) > 0
+            test_cache(cache, callback.subsequent_keys)
         end
         true
     end
-    train!(
-        agent, env, alg, 3000; callbacks = [
-            OnTrainingStartCheckLocalsCallback(),
-            OnRolloutStartCheckLocalsCallback(),
-        ]
-    )
+    cache.callbacks = [OnTrainingStartCheckLocalsCallback(), OnRolloutStartCheckLocalsCallback()]
+    solve!(cache)
 end
 
 @testset "callbacks early stopping" begin
@@ -65,39 +61,37 @@ end
         env = MonitorWrapperEnv(env)
         env = NormalizeWrapperEnv(env, gamma = alg.gamma)
 
-        layer = ActorCriticLayer(observation_space(env), action_space(env))
-        agent = Agent(layer, alg; verbose = 0)
-        return agent, env, alg
+        layer = ActorCriticModel(observation_space(env), action_space(env))
+        cache = init(RLProblem(env, layer), alg; max_steps = 3000, verbosity = 0)
+        return cache, env, alg
     end
 
     @kwdef struct OnTrainingStartStopEarlyCallback <: AbstractCallback end
-    function Drill.on_training_start(callback::OnTrainingStartStopEarlyCallback, locals::Dict)
+    function Drill.on_training_start(callback::OnTrainingStartStopEarlyCallback, cache)
         return false
     end
-    agent, env, alg = setup_agent_env_alg()
-    train!(
-        agent, env, alg, 3000; callbacks = [
-            OnTrainingStartStopEarlyCallback(),
-        ]
-    )
-    @test steps_taken(agent) == 0
+    cache, env, alg = setup_agent_env_alg()
+    cache.callbacks = [OnTrainingStartStopEarlyCallback()]
+    solve!(cache)
+    @test steps_taken(cache) == 0
 
-    agent, env, alg = setup_agent_env_alg()
+    cache, env, alg = setup_agent_env_alg()
     @kwdef struct OnRolloutStartStopEarlyCallback <: AbstractCallback end
-    function Drill.on_rollout_start(callback::OnRolloutStartStopEarlyCallback, locals::Dict)
+    function Drill.on_rollout_start(callback::OnRolloutStartStopEarlyCallback, cache)
         return false
     end
-    train!(agent, env, alg, 3000; callbacks = [OnRolloutStartStopEarlyCallback()])
-    @test steps_taken(agent) == 0
+    cache.callbacks = [OnRolloutStartStopEarlyCallback()]
+    solve!(cache)
+    @test steps_taken(cache) == 0
 
-    agent, env, alg = setup_agent_env_alg()
+    cache, env, alg = setup_agent_env_alg()
     @kwdef struct OnStepStopEarlyCallback <: AbstractCallback
         threshold::Int = 512
     end
-    function Drill.on_step(callback::OnStepStopEarlyCallback, locals::Dict)
-        continue_training = steps_taken(locals[:agent]) < callback.threshold
-        return continue_training
+    function Drill.on_step(callback::OnStepStopEarlyCallback, cache)
+        return steps_taken(cache) < callback.threshold
     end
-    train!(agent, env, alg, 3000; callbacks = [OnStepStopEarlyCallback(500)])
-    @test steps_taken(agent) == 512
+    cache.callbacks = [OnStepStopEarlyCallback(500)]
+    solve!(cache)
+    @test steps_taken(cache) == 512
 end

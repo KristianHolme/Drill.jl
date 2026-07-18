@@ -1,10 +1,8 @@
 module DrillDistributions
 
-using Random
-using ChainRulesCore
 #TODO: remove lux dependency, find other source of softplus
-using Lux
-using OneHotArrays
+using Lux: softplus
+import Random: AbstractRNG, rand, randn
 
 export DiagGaussian, SquashedDiagGaussian
 export BatchedCategorical, BatchedDiagGaussian, BatchedSquashedDiagGaussian

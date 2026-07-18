@@ -1,10 +1,29 @@
 using Test
 using Drill
 using Aqua
+using ExplicitImports
 using JET
 
 @testset "Code quality (Aqua.jl)" begin
     Aqua.test_all(Drill)
+end
+
+@testset "ExplicitImports" begin
+    modules = (
+        Drill,
+        Drill.Adapters,
+        Drill.Models,
+        Drill.Buffers,
+        Drill.DrillLogging,
+        Drill.Algorithms,
+        Drill.Solve,
+        Drill.Wrappers,
+        Drill.Utils,
+    )
+    for m in modules
+        @test check_no_implicit_imports(m) === nothing
+        @test check_no_stale_explicit_imports(m) === nothing
+    end
 end
 
 @testset "Code linting (JET.jl)" begin

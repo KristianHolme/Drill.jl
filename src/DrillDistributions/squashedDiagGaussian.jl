@@ -21,12 +21,12 @@ struct SquashedDiagGaussian{T <: Real, M <: AbstractArray{T}, S <: AbstractArray
     end
 end
 
-function Random.rand(rng::AbstractRNG, d::SquashedDiagGaussian)
+function rand(rng::AbstractRNG, d::SquashedDiagGaussian)
     sample = rand(rng, d.DiagGaussian)
     return tanh.(sample)
 end
 
-function Random.rand(rng::AbstractRNG, d::SquashedDiagGaussian, n::Integer)
+function rand(rng::AbstractRNG, d::SquashedDiagGaussian, n::Integer)
     return [rand(rng, d) for _ in 1:n]
 end
 
@@ -38,7 +38,7 @@ function logpdf(d::SquashedDiagGaussian{T, M, S}, x::AbstractArray{T}) where {T 
     #TODO: type stability, getting Float64
     #TODO: make test for this
     #TODO: fix runtime dispatch here
-    correction = T(2) * (log(T(2)) .- gaussian_action - Lux.softplus.(-T(2) * gaussian_action))
+    correction = T(2) * (log(T(2)) .- gaussian_action - softplus.(-T(2) * gaussian_action))
     squashed_logpdf = gaussian_logpdf - sum(correction)
     return squashed_logpdf::T
 end
@@ -56,7 +56,7 @@ end
 struct BatchedSquashedDiagGaussian <: AbstractContinuousDistribution
 end
 
-function Random.rand(rng::AbstractRNG, ::BatchedSquashedDiagGaussian, mean::AbstractArray{T}, log_std::AbstractArray{T}) where {T}
+function rand(rng::AbstractRNG, ::BatchedSquashedDiagGaussian, mean::AbstractArray{T}, log_std::AbstractArray{T}) where {T}
     gaussian_sample = mean .+ exp.(log_std) .* randn(rng, T, size(mean))
     return tanh.(gaussian_sample)
 end
@@ -91,7 +91,7 @@ function logpdf(
     var_inv = exp.(-oftype(zero(T), 2) * log_std)
     diff_squared_sum = _dsum_squashed(abs2.(diff) .* var_inv, non_batch_dims)
     gaussian_logpdf = -T(0.5) * (T(2) * log_std_sum .+ diff_squared_sum .+ k * T(_log2π))
-    correction = T(2) * (log(T(2)) .- gaussian_action .- Lux.softplus.(-T(2) * gaussian_action))
+    correction = T(2) * (log(T(2)) .- gaussian_action .- softplus.(-T(2) * gaussian_action))
     correction_sum = _dsum_squashed(correction, non_batch_dims)
     return gaussian_logpdf .- correction_sum
 end

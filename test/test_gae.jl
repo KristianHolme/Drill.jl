@@ -5,6 +5,17 @@ using Random
 include("setup.jl")
 using .TestSetup
 
+function make_cache(env, layer, alg; max_steps = alg.n_steps * DrillInterface.number_of_envs(env))
+    prob = RLProblem(env, layer)
+    return init(prob, alg; max_steps, verbosity = 0)
+end
+
+function collect_and_prepare!(roll_buffer, cache, alg, env)
+    Drill.collect_rollout!(roll_buffer, cache, alg, env)
+    Drill.prepare_rollout!(roll_buffer, alg)
+    return roll_buffer
+end
+
 @testset "GAE computation analytical verification" begin
     max_steps = 8
     gamma = 0.99f0
@@ -13,12 +24,12 @@ using .TestSetup
 
     env = BroadcastedParallelEnv([CustomEnv(max_steps)])
 
-    layer = ConstantValueLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
+    layer = ConstantValueModel(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
-    agent = Agent(layer, alg; verbose = 0)
+    cache = make_cache(env, layer, alg)
 
-    roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), gae_lambda, gamma, max_steps, 1)
-    Drill.collect_rollout!(roll_buffer, agent, alg, env)
+    roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), max_steps, 1)
+    collect_and_prepare!(roll_buffer, cache, alg, env)
 
     rewards = roll_buffer.rewards
     values = roll_buffer.values
@@ -69,12 +80,12 @@ end
 
     for (gamma, gae_lambda) in test_cases
         env = BroadcastedParallelEnv([CustomEnv(max_steps)])
-        layer = ConstantValueLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
+        layer = ConstantValueModel(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
         alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
-        agent = Agent(layer, alg; verbose = 0)
+        cache = make_cache(env, layer, alg)
 
-        roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), gae_lambda, gamma, max_steps, 1)
-        Drill.collect_rollout!(roll_buffer, agent, alg, env)
+        roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), max_steps, 1)
+        collect_and_prepare!(roll_buffer, cache, alg, env)
 
         rewards = roll_buffer.rewards
         values = roll_buffer.values
@@ -101,12 +112,12 @@ end
 
     env = BroadcastedParallelEnv([CustomEnv(max_steps)])
 
-    layer = ConstantValueLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
+    layer = ConstantValueModel(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
-    agent = Agent(layer, alg; verbose = 0)
+    cache = make_cache(env, layer, alg)
 
-    roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), gae_lambda, gamma, max_steps, 1)
-    Drill.collect_rollout!(roll_buffer, agent, alg, env)
+    roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), max_steps, 1)
+    collect_and_prepare!(roll_buffer, cache, alg, env)
 
     rewards = roll_buffer.rewards
     values = roll_buffer.values
@@ -147,12 +158,12 @@ end
 
     env = BroadcastedParallelEnv([CustomEnv(max_steps)])
 
-    layer = ConstantValueLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
+    layer = ConstantValueModel(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = n_total_steps, batch_size = n_total_steps, epochs = 1)
-    agent = Agent(layer, alg; verbose = 0)
+    cache = make_cache(env, layer, alg)
 
-    roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), gae_lambda, gamma, n_total_steps, 1)
-    Drill.collect_rollout!(roll_buffer, agent, alg, env)
+    roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), n_total_steps, 1)
+    collect_and_prepare!(roll_buffer, cache, alg, env)
 
     rewards = roll_buffer.rewards
     advantages = roll_buffer.advantages
@@ -178,12 +189,12 @@ end
 
     env = BroadcastedParallelEnv([InfiniteHorizonEnv()])
 
-    layer = ConstantValueLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
+    layer = ConstantValueModel(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
-    agent = Agent(layer, alg; verbose = 0)
+    cache = make_cache(env, layer, alg)
 
-    roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), gae_lambda, gamma, max_steps, 1)
-    Drill.collect_rollout!(roll_buffer, agent, alg, env)
+    roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), max_steps, 1)
+    collect_and_prepare!(roll_buffer, cache, alg, env)
 
     rewards = roll_buffer.rewards
     values = roll_buffer.values
@@ -206,12 +217,12 @@ end
     constant_value = 0.3f0
 
     env = BroadcastedParallelEnv([CustomEnv(max_steps)])
-    layer = ConstantValueLayer(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
+    layer = ConstantValueModel(DrillInterface.observation_space(env), DrillInterface.action_space(env), constant_value)
     alg = PPO(; gamma, gae_lambda, n_steps = max_steps, batch_size = max_steps, epochs = 1)
-    agent = Agent(layer, alg; verbose = 0)
+    cache = make_cache(env, layer, alg)
 
-    roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), gae_lambda, gamma, max_steps, 1)
-    Drill.collect_rollout!(roll_buffer, agent, alg, env)
+    roll_buffer = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), max_steps, 1)
+    collect_and_prepare!(roll_buffer, cache, alg, env)
 
     rewards = roll_buffer.rewards
     values = roll_buffer.values
@@ -225,16 +236,18 @@ end
     @test advantages[1] ≈ expected_advantage atol = 1.0e-4
 
     gamma_zero = 0.0f0
-    roll_buffer_zero = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), gae_lambda, gamma_zero, max_steps, 1)
-    Drill.collect_rollout!(roll_buffer_zero, agent, alg, env)
+    roll_buffer_zero = RolloutBuffer(DrillInterface.observation_space(env), DrillInterface.action_space(env), max_steps, 1)
+    Drill.collect_rollout!(roll_buffer_zero, cache, alg, env)
+    Drill.compute_gae!(roll_buffer_zero, gamma_zero, gae_lambda)
 
     @test roll_buffer_zero.advantages[1] ≈ (1.0f0 - constant_value) atol = 1.0e-4
 
     lambda_zero = 0.0f0
     env_multi = BroadcastedParallelEnv([CustomEnv(3)])
-    agent_multi = Agent(layer, alg; verbose = 0)
-    roll_buffer_td0 = RolloutBuffer(DrillInterface.observation_space(env_multi), DrillInterface.action_space(env_multi), lambda_zero, gamma, 3, 1)
-    Drill.collect_rollout!(roll_buffer_td0, agent_multi, alg, env_multi)
+    cache_multi = make_cache(env_multi, layer, alg)
+    roll_buffer_td0 = RolloutBuffer(DrillInterface.observation_space(env_multi), DrillInterface.action_space(env_multi), 3, 1)
+    Drill.collect_rollout!(roll_buffer_td0, cache_multi, alg, env_multi)
+    Drill.compute_gae!(roll_buffer_td0, gamma, lambda_zero)
 
     @test all(a -> !isnan(a) && isfinite(a), roll_buffer_td0.advantages)
 end

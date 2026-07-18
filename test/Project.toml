@@ -7,6 +7,7 @@ Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Drill = "49b37b9d-a8e6-4364-9144-4677bcb8a7f0"
 DrillInterface = "d92b6104-cdd8-4875-a041-bad43500bca7"
 Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
+ExplicitImports = "7d51a73a-1435-4ff3-83d9-f097790105c7"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 Lux = "b2108857-7c20-44ae-9111-449ecde12c47"
@@ -22,3 +23,8 @@ Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 [sources]
 Drill = {path = ".."}
 DrillInterface = {path = "../DrillInterface"}
+
+# Needed so CI `force_latest_compatible_version` applies to DearDiary (root weakdep
+# compat is not enough for the test env resolve).
+[compat]
+DearDiary = "0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10"
