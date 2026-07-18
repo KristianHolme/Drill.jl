@@ -1,4 +1,4 @@
-mutable struct RLCache{P, A, M, AD, TS, B, L, R, C, ST, TO}
+mutable struct RLCache{P, A, M, AD, TS, B, L, R, C, ST, TO, PM}
     prob::P
     alg::A
     model::M
@@ -7,7 +7,8 @@ mutable struct RLCache{P, A, M, AD, TS, B, L, R, C, ST, TO}
     buffer::B
     logger::L
     rng::R
-    verbose::Int
+    verbosity::Verbosity
+    progress_meter::PM
     callbacks::C
     max_steps::Int
     steps_taken::Int

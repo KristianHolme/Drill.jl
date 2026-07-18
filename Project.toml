@@ -31,6 +31,7 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [weakdeps]
 DearDiary = "bcf306fc-d39d-4f25-b732-26abcc96baf2"
+PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
 Reactant = "3c362404-f566-11ee-1572-e11a4b42c853"
 TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 Wandb = "ad70616a-06c9-5745-b1f1-6a5f42545108"
@@ -40,6 +41,7 @@ DrillInterface = {path = "DrillInterface"}
 
 [extensions]
 Drill_DearDiaryExt = ["DearDiary"]
+Drill_PrettyTablesExt = "PrettyTables"
 Drill_ReactantExt = ["Reactant"]
 Drill_TensorBoardLoggerExt = ["TensorBoardLogger"]
 Drill_WandbExt = ["Wandb"]
@@ -63,6 +65,7 @@ MLDataDevices = "1"
 MLUtils = "0.4"
 OneHotArrays = "0.2"
 Optimisers = "0.4"
+PrettyTables = "3"
 ProgressMeter = "1"
 Random = "1"
 Reactant = "0.2"
@@ -77,5 +80,6 @@ julia = "1.10"
 
 [extras]
 DearDiary = "bcf306fc-d39d-4f25-b732-26abcc96baf2"
+PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
 TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 Wandb = "ad70616a-06c9-5745-b1f1-6a5f42545108"

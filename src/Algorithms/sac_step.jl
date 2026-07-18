@@ -7,7 +7,8 @@ using TimerOutputs: @timeit
 import DrillInterface: action_space, number_of_envs
 
 import ..Solve: RLCache, collect_rollout!, add_steps!, add_gradient_update!,
-    _record_stat!, _mark_complete!, _callbacks_continue, get_device
+    _record_stat!, _mark_complete!, _callbacks_continue, get_device,
+    update_training_progress!, latest_stat
 import ..DrillLogging: increment_step!, log_scalar!, log_stats, set_step!
 import ..Buffers: get_data_loader
 import ..Utils: nested_norm, polyak_update!
@@ -159,5 +160,18 @@ function train_step!(cache::RLCache{<:Any, <:SAC}, alg::SAC)
     end
     set_step!(cache.logger, cache.steps_taken)
     log_scalar!(cache.logger, "train/total_steps", cache.steps_taken)
+
+    showvalues = [
+        ("fps", fps),
+        ("actor_loss", latest_stat(cache, :actor_losses)),
+        ("critic_loss", latest_stat(cache, :critic_losses)),
+        ("entropy_loss", latest_stat(cache, :entropy_losses)),
+        ("mean_q_values", latest_stat(cache, :q_values)),
+        ("entropy_coefficient", latest_stat(cache, :entropy_coefficients)),
+        ("grad_norm", latest_stat(cache, :grad_norms)),
+        ("learning_rate", alg.learning_rate),
+    ]
+    filter!(pair -> last(pair) !== nothing, showvalues)
+    update_training_progress!(cache, n_steps * n_envs; showvalues)
     return _mark_complete!(cache)
 end
