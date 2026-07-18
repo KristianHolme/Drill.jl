@@ -12,10 +12,13 @@ using Drill
     @test true
 end
 
-# Skip on GitHub Actions: WandbLogger leaves a hung wandb-core process that
-# blocks ParallelTestRunner teardown. Runs locally where the service can exit.
-if get(ENV, "GITHUB_ACTIONS", "") == "true"
-    @info "Skipping Wandb logger test on GitHub Actions"
+# Optional logger backends (Wandb / TensorBoard / DearDiary) have hung ParallelTestRunner
+# workers on GitHub Actions (wandb-core orphans; DearDiary/DuckDB stalls). Keep them for
+# local runs where the processes can exit cleanly.
+const ON_GITHUB_ACTIONS = get(ENV, "GITHUB_ACTIONS", "") == "true"
+
+if ON_GITHUB_ACTIONS
+    @info "Skipping optional logger backend tests on GitHub Actions"
 else
     @testset "Wandb logger converts and logs offline without error" begin
         using Wandb
@@ -34,62 +37,62 @@ else
             @test isdir(dir)
         end
     end
-end
 
-@testset "TB logger converts and logs without error" begin
-    using TensorBoardLogger
-    mktempdir() do dir
-        raw = TBLogger(dir, tb_increment)
-        lg = convert(Drill.AbstractTrainingLogger, raw)
-        Drill.set_step!(lg, 1)
-        Drill.log_scalar!(lg, "x", 1.0)
-        Drill.log_hparams!(lg, Dict("lr" => 0.01, "gamma" => 0.99), ["env/ep_rew_mean"])
-        Drill.flush!(lg)
-        Drill.close!(lg)
-        @test isdir(dir)
+    @testset "TB logger converts and logs without error" begin
+        using TensorBoardLogger
+        mktempdir() do dir
+            raw = TBLogger(dir, tb_increment)
+            lg = convert(Drill.AbstractTrainingLogger, raw)
+            Drill.set_step!(lg, 1)
+            Drill.log_scalar!(lg, "x", 1.0)
+            Drill.log_hparams!(lg, Dict("lr" => 0.01, "gamma" => 0.99), ["env/ep_rew_mean"])
+            Drill.flush!(lg)
+            Drill.close!(lg)
+            @test isdir(dir)
+        end
     end
-end
 
-@testset "DearDiary logger converts and logs without error" begin
-    using DearDiary
-    mktempdir() do dir
-        db_path = joinpath(dir, "test.db")
-        DearDiary.initialize_database(; file_name = db_path)
+    @testset "DearDiary logger converts and logs without error" begin
+        using DearDiary
+        mktempdir() do dir
+            db_path = joinpath(dir, "test.db")
+            DearDiary.initialize_database(; file_name = db_path)
 
-        project_id, _ = DearDiary.create_project("Drill Test Project")
-        experiment_id, _ = DearDiary.create_experiment(
-            project_id, DearDiary.IN_PROGRESS, "Test Experiment"
-        )
+            project_id, _ = DearDiary.create_project("Drill Test Project")
+            experiment_id, _ = DearDiary.create_experiment(
+                project_id, DearDiary.IN_PROGRESS, "Test Experiment"
+            )
 
-        lg = convert(Drill.AbstractTrainingLogger, experiment_id)
+            lg = convert(Drill.AbstractTrainingLogger, experiment_id)
 
-        Drill.set_step!(lg, 1)
-        Drill.log_scalar!(lg, "loss", 0.5)
-        Drill.log_scalar!(lg, "reward", 10.0)
+            Drill.set_step!(lg, 1)
+            Drill.log_scalar!(lg, "loss", 0.5)
+            Drill.log_scalar!(lg, "reward", 10.0)
 
-        Drill.set_step!(lg, 2)
-        Drill.log_metrics!(lg, Dict("loss" => 0.4, "reward" => 15.0))
+            Drill.set_step!(lg, 2)
+            Drill.log_metrics!(lg, Dict("loss" => 0.4, "reward" => 15.0))
 
-        Drill.log_hparams!(
-            lg, Dict("lr" => 0.01, "gamma" => 0.99, "algorithm" => "PPO"),
-            ["env/ep_rew_mean"]
-        )
+            Drill.log_hparams!(
+                lg, Dict("lr" => 0.01, "gamma" => 0.99, "algorithm" => "PPO"),
+                ["env/ep_rew_mean"]
+            )
 
-        Drill.increment_step!(lg, 1)
-        Drill.log_scalar!(lg, "loss", 0.3)
+            Drill.increment_step!(lg, 1)
+            Drill.log_scalar!(lg, "loss", 0.3)
 
-        Drill.flush!(lg)
-        Drill.close!(lg)
+            Drill.flush!(lg)
+            Drill.close!(lg)
 
-        iterations = DearDiary.get_iterations(experiment_id)
-        @test length(iterations) >= 3
+            iterations = DearDiary.get_iterations(experiment_id)
+            @test length(iterations) >= 3
 
-        first_iteration = first(iterations)
-        metrics = DearDiary.get_metrics(first_iteration.id)
-        @test length(metrics) >= 1
+            first_iteration = first(iterations)
+            metrics = DearDiary.get_metrics(first_iteration.id)
+            @test length(metrics) >= 1
 
-        @test isfile(db_path)
+            @test isfile(db_path)
 
-        DearDiary.close_database()
+            DearDiary.close_database()
+        end
     end
 end
