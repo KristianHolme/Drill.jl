@@ -49,5 +49,8 @@ jobs:
       - uses: julia-actions/julia-runtest@v1
         with:
           coverage: 'false'
+          # Manifests are gitignored; without this, CI can resolve outdated compat
+          # versions (e.g. DearDiary 0.7 instead of 0.10) and obscure hang causes.
+          force_latest_compatible_version: true
         env:
           JULIA_CONDAPKG_ENV: ${{ github.workspace }}/.condapkg-ci/wandb
