@@ -3,12 +3,12 @@ using Test
 using ParallelTestRunner
 
 """
-If `DRILL_EXCLUDE_TEST_LOGGING=true` and no explicit test filters were passed,
-run every discovered test except `test_logging`. Used by CI so logging can run
-in a separate serial step with live (unbuffered) output.
+Skip `test_logging` on GitHub Actions. WandbLogger leaves a hung `wandb-core`
+process that blocks ParallelTestRunner until the job timeout. See the tracking
+GitHub issue; tests still run locally.
 """
-function _args_for_ci(args::Vector{String})
-    if get(ENV, "DRILL_EXCLUDE_TEST_LOGGING", "") != "true"
+function _args_excluding_logging_on_gha(args::Vector{String})
+    if get(ENV, "GITHUB_ACTIONS", "") != "true"
         return args
     end
     positional = filter(a -> !startswith(a, "-"), args)
@@ -31,4 +31,4 @@ function _args_for_ci(args::Vector{String})
     return vcat(args, names)
 end
 
-ParallelTestRunner.runtests(Drill, _args_for_ci(copy(ARGS)))
+ParallelTestRunner.runtests(Drill, _args_excluding_logging_on_gha(copy(ARGS)))
