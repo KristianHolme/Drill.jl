@@ -16,9 +16,9 @@ model = ActorCriticLayer(observation_space(env), action_space(env))
 # Algorithm with default hyperparameters
 ppo = PPO()
 
-# Train for 100k steps (meter=2: progress bar with live stats; timer printed at end)
+# Train for 100k steps (meter=2: progress bar with live stats; timer off by default)
 prob = RLProblem(env, model)
-cache = init(prob, ppo; max_steps = 100_000, verbosity = (; meter = 2, timer = true))
+cache = init(prob, ppo; max_steps = 100_000, verbosity = (; meter = 2, timer = 2))
 solve!(cache)
 
 # Extract deployment policy
@@ -40,9 +40,9 @@ model = SACLayer(observation_space(env), action_space(env))
 # SAC algorithm
 sac = SAC(learning_rate=3f-4, buffer_capacity=1_000_000)
 
-# Train (meter=1: step progress only; no timer print)
+# Train (meter=1: step progress only; timer disabled)
 prob = RLProblem(env, model)
-sol = solve(prob, sac; max_steps = 500_000, verbosity = (; meter = 1, timer = false))
+sol = solve(prob, sac; max_steps = 500_000, verbosity = (; meter = 1, timer = 0))
 ```
 
 ## Key Hyperparameters

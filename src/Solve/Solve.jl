@@ -12,7 +12,7 @@ import ProgressMeter
 using ProgressMeter: Progress, next!
 using Random: AbstractRNG, default_rng
 using SciMLBase: ReturnCode
-using TimerOutputs: TimerOutput, print_timer
+using TimerOutputs: TimerOutput, NoTimerOutput, print_timer
 
 import DrillInterface: AbstractParallelEnv, Box, Discrete, act!, action_space, batch,
     number_of_envs, observation_space, observe

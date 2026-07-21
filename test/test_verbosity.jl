@@ -8,30 +8,34 @@ include("setup.jl")
 using .TestSetup
 
 @testset "normalize_verbosity defaults and Int shorthand" begin
-    @test normalize_verbosity((;)) == Verbosity(; meter = 2, table = false, timer = true)
-    @test normalize_verbosity((; meter = 1)) == Verbosity(; meter = 1, table = false, timer = true)
-    @test normalize_verbosity((; table = true, timer = false)) ==
-        Verbosity(; meter = 2, table = true, timer = false)
+    @test normalize_verbosity((;)) == Verbosity(; meter = 2, table = false, timer = 0)
+    @test normalize_verbosity((; meter = 1)) == Verbosity(; meter = 1, table = false, timer = 0)
+    @test normalize_verbosity((; table = true, timer = 1)) ==
+        Verbosity(; meter = 2, table = true, timer = 1)
 
-    @test normalize_verbosity(0) == Verbosity(; meter = 0, table = false, timer = false)
-    @test normalize_verbosity(1) == Verbosity(; meter = 1, table = false, timer = false)
-    @test normalize_verbosity(2) == Verbosity(; meter = 2, table = false, timer = false)
+    @test normalize_verbosity(0) == Verbosity(; meter = 0, table = false, timer = 0)
+    @test normalize_verbosity(1) == Verbosity(; meter = 1, table = false, timer = 0)
+    @test normalize_verbosity(2) == Verbosity(; meter = 2, table = false, timer = 0)
 
-    @test normalize_verbosity(Verbosity(; meter = 1, table = true, timer = false)) ==
-        Verbosity(; meter = 1, table = true, timer = false)
+    @test normalize_verbosity(Verbosity(; meter = 1, table = true, timer = 0)) ==
+        Verbosity(; meter = 1, table = true, timer = 0)
 end
 
-@testset "normalize_verbosity clamps meter > 2 with warning" begin
+@testset "normalize_verbosity clamps meter and timer > 2 with warning" begin
     v = @test_logs (:warn, r"max level is 2") normalize_verbosity(3)
-    @test v == Verbosity(; meter = 2, table = false, timer = false)
+    @test v == Verbosity(; meter = 2, table = false, timer = 0)
 
     v2 = @test_logs (:warn, r"max level is 2") normalize_verbosity((; meter = 5, table = true))
-    @test v2 == Verbosity(; meter = 2, table = true, timer = true)
+    @test v2 == Verbosity(; meter = 2, table = true, timer = 0)
+
+    v3 = @test_logs (:warn, r"timer max level is 2") normalize_verbosity((; timer = 5))
+    @test v3 == Verbosity(; meter = 2, table = false, timer = 2)
 end
 
-@testset "normalize_verbosity rejects negative meter" begin
+@testset "normalize_verbosity rejects negative meter or timer" begin
     @test_throws ArgumentError normalize_verbosity(-1)
     @test_throws ArgumentError normalize_verbosity((; meter = -2))
+    @test_throws ArgumentError normalize_verbosity((; timer = -1))
 end
 
 @testset "print_training_table without extension errors" begin
@@ -52,6 +56,49 @@ end
     end
 end
 
+@testset "timer levels select TimerOutput vs NoTimerOutput" begin
+    n_envs = 1
+    env = BroadcastedParallelEnv([TrackingTargetEnv(8, Random.Xoshiro(2))])
+    layer = ActorCriticModel(observation_space(env), action_space(env); hidden_dims = [16])
+    alg = PPO(; n_steps = 8, batch_size = 8, epochs = 1)
+
+    cache0 = init(
+        RLProblem(env, layer),
+        alg;
+        max_steps = 8,
+        verbosity = (; meter = 0, timer = 0),
+        rng = Random.Xoshiro(1),
+    )
+    @test cache0.verbosity.timer == 0
+    @test nameof(typeof(cache0.timer)) === :NoTimerOutput
+
+    cache1 = init(
+        RLProblem(env, layer),
+        alg;
+        max_steps = 8,
+        verbosity = (; meter = 0, timer = 1),
+        rng = Random.Xoshiro(1),
+    )
+    @test cache1.verbosity.timer == 1
+    @test nameof(typeof(cache1.timer)) === :TimerOutput
+
+    cache2 = init(
+        RLProblem(env, layer),
+        alg;
+        max_steps = 8,
+        verbosity = (; meter = 0, timer = 2),
+        rng = Random.Xoshiro(1),
+    )
+    @test cache2.verbosity.timer == 2
+    @test nameof(typeof(cache2.timer)) === :TimerOutput
+    redirect_stdout(devnull) do
+        redirect_stderr(devnull) do
+            solve!(cache2)
+        end
+    end
+    @test cache2.retcode == ReturnCode.Success
+end
+
 @testset "training smoke with meter=2" begin
     n_envs = 2
     envs = [TrackingTargetEnv(8, Random.Xoshiro(10 + i)) for i in 1:n_envs]
@@ -64,12 +111,13 @@ end
         RLProblem(env, layer),
         alg;
         max_steps,
-        verbosity = (; meter = 2, table = false, timer = false),
+        verbosity = (; meter = 2, table = false, timer = 0),
         rng = Random.Xoshiro(42),
     )
     @test cache.verbosity.meter == 2
     @test cache.verbosity.table == false
-    @test cache.verbosity.timer == false
+    @test cache.verbosity.timer == 0
+    @test nameof(typeof(cache.timer)) === :NoTimerOutput
     @test cache.progress_meter !== nothing
 
     redirect_stderr(devnull) do
@@ -105,7 +153,7 @@ end
         RLProblem(env, layer),
         alg;
         max_steps,
-        verbosity = (; meter = 0, table = true, timer = false),
+        verbosity = (; meter = 0, table = true, timer = 0),
         rng = Random.Xoshiro(7),
     )
     redirect_stdout(devnull) do

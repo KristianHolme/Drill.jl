@@ -50,40 +50,40 @@ end
 
 function main()
     println("Drill verbosity examples (CartPole PPO, $(TOTAL_STEPS) steps)")
-    println("Defaults merge with (; meter = 2, table = false, timer = true)")
+    println("Defaults merge with (; meter = 2, table = false, timer = 0)")
 
-    # Int shorthand: meter only; table/timer forced false
+    # Int shorthand: meter only; table false / timer 0
     run_demo("1) Quiet — Int shorthand verbosity = 0", 0)
 
     run_demo(
         "2) Simple progress bar — meter = 1",
-        (; meter = 1, table = false, timer = false),
+        (; meter = 1, table = false, timer = 0),
     )
 
     run_demo(
         "3) Progress bar + live stats (showvalues) — meter = 2",
-        (; meter = 2, table = false, timer = false),
+        (; meter = 2, table = false, timer = 0),
     )
 
     run_demo(
         "4) PrettyTables dump each update — table = true",
-        (; meter = 0, table = true, timer = false),
+        (; meter = 0, table = true, timer = 0),
     )
 
     run_demo(
-        "5) TimerOutputs at end — timer = true",
-        (; meter = 0, table = false, timer = true),
+        "5) TimerOutputs at end — timer = 2",
+        (; meter = 0, table = false, timer = 2),
     )
 
     run_demo(
-        "6) Combined rich console — meter = 2, table = true, timer = true",
-        (; meter = 2, table = true, timer = true),
+        "6) Combined rich console — meter = 2, table = true, timer = 2",
+        (; meter = 2, table = true, timer = 2),
     )
 
     println()
     println("Done. Partial NamedTuples merge with defaults, e.g.:")
     println("  solve(prob, alg; max_steps, verbosity = (; meter = 1))")
-    println("  # => Verbosity(meter=1, table=false, timer=true)")
+    println("  # => Verbosity(meter=1, table=false, timer=0)")
     return nothing
 end
 

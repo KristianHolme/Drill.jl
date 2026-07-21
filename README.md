@@ -95,8 +95,8 @@ cache = init(
     max_steps,
     # meter: 0=off, 1=progress bar, 2=progress bar + live stats
     # table: PrettyTables dump each update (requires PrettyTables loaded)
-    # timer: print TimerOutputs at the end
-    verbosity = (; meter = 2, table = false, timer = true),
+    # timer: 0=off (zero overhead), 1=record, 2=record + print at end
+    verbosity = (; meter = 2, table = false, timer = 0),
 )
 solve!(cache)
 
