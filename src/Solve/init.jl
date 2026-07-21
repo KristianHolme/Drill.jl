@@ -120,7 +120,7 @@ function init(
         ad_type,
         ReturnCode.Default,
         Dict{Symbol, Any}(),
-        TimerOutput(),
+        selected_verbosity.timer == 0 ? NoTimerOutput() : TimerOutput(),
         nothing,
         Dict{Symbol, Any}(),
     )
