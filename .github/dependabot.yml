@@ -12,3 +12,10 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "julia"
+    directory: "/test"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-name: "DearDiary"
