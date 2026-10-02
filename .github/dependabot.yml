@@ -5,3 +5,17 @@ updates:
     directory: "/" # Location of package manifests
     schedule:
       interval: "weekly"
+
+  # Julia [compat] bumps for the root package. CompatHelper.main() defaults to
+  # subdirs = [""], so it only ever updated /Project.toml.
+  - package-ecosystem: "julia"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "julia"
+    directory: "/test"
+    schedule:
+      interval: "weekly"
+    allow:
+      - dependency-name: "DearDiary"
