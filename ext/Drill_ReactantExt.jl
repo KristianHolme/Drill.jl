@@ -1,36 +1,25 @@
 module Drill_ReactantExt
 
-# Inference-only Reactant compilation for rollout / deployment kernels.
-# Training compilation is owned by Lux's TrainState cache via
-# `Lux.Training.compute_gradients` / `single_train_step!` with `AutoEnzyme()`
-# when parameters live on a `ReactantDevice`. Do not `@compile` models into
-# TrainState construction.
+# Reactant backend: rollout/deployment inference kernels and whole learner updates
+# (`ppo_update`, `sac_update`) are compiled once per argument shape and cached.
 
-using Drill
-using Adapt
-using MLDataDevices
-using MLDataDevices: ReactantDevice
-using Reactant: @compile
+using Adapt: Adapt
+using Drill: Drill, deployment_predict_actions_deterministic_kernel,
+    deployment_predict_actions_stochastic_kernel, parameters,
+    rollout_action_values_kernel, rollout_predict_actions_deterministic_kernel,
+    rollout_predict_actions_stochastic_kernel, rollout_predict_values_kernel
+using Functors: fleaves
+using Lux: Lux
+using MLDataDevices: MLDataDevices, ReactantDevice
+using Reactant: Reactant, @compile
 
-import Drill:
-    deployment_predict_actions_deterministic_kernel,
-    deployment_predict_actions_stochastic_kernel,
-    execute_deployment_predict_actions,
-    execute_rollout_action_values,
-    execute_rollout_predict_actions,
-    execute_rollout_predict_values,
-    parameters,
-    reactant_cache_entry_count,
-    rollout_action_values_kernel,
-    rollout_predict_actions_deterministic_kernel,
-    rollout_predict_actions_stochastic_kernel,
-    rollout_predict_values_kernel
+const Enzyme = Reactant.Enzyme
 
 struct ReactantCompileKey
-    surface::Symbol
-    input_type::DataType
+    surface::Any
+    input_type::Type
     input_size::Tuple
-    mode::Symbol
+    mode::Any
 end
 
 mutable struct ReactantInferenceCache
@@ -225,6 +214,52 @@ function Drill.execute_deployment_predict_actions(
         end
     )
     return compiled(layer, obs, ps, st, rrng)
+end
+
+# ------------------------------------------------------------
+# Learner updates
+# ------------------------------------------------------------
+
+"""
+    ReactantGradient()
+
+Gradient backend used inside compiled updates: Enzyme reverse mode with Reactant's ABI.
+"""
+struct ReactantGradient end
+
+Drill.gradient_backend(::ReactantDevice, ad) = ReactantGradient()
+Drill.requires_fixed_shapes(::ReactantDevice) = true
+Drill.device_rng(dev::ReactantDevice, rng) = Adapt.adapt(dev, rng)
+# Optimizer hyperparameters become device numbers, so compiled updates can carry them.
+function Drill.prepare_optimizer(dev::ReactantDevice, rule)
+    return Lux.ReactantCompatibleOptimisers.make_reactant_compatible(rule, dev)
+end
+
+function _primal_and_aux(f::F, x, args...) where {F}
+    loss, aux = f(x, args...)
+    return loss, Reactant.ignore_derivatives(aux)
+end
+
+function Drill.value_and_gradient(::ReactantGradient, f::F, x, args...) where {F}
+    dx = Enzyme.make_zero(x)
+    _, (loss, aux) = Enzyme.autodiff(
+        Enzyme.set_abi(Enzyme.ReverseWithPrimal, Reactant.ReactantABI),
+        Enzyme.Const(_primal_and_aux),
+        Enzyme.Duplicated,
+        Enzyme.Const(f),
+        Enzyme.Duplicated(x, dx),
+        map(Enzyme.Const, args)...,
+    )
+    return loss, aux, dx
+end
+
+_array_sizes(x) = Tuple(size(l) for l in fleaves(x) if l isa AbstractArray)
+
+function Drill.run_update(dev::ReactantDevice, cache::Drill.RLCache, update::F, args...) where {F}
+    compile_cache = ensure_reactant_cache!(cache)
+    key = ReactantCompileKey(update, typeof(args), _array_sizes(args), nothing)
+    compiled = lookup_or_compile!(compile_cache, key, () -> @compile update(args...))
+    return compiled(args...)
 end
 
 end

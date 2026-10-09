@@ -1,9 +1,9 @@
-mutable struct RLCache{P, A, M, AD, TS, B, L, R, C, ST, TO, PM}
+mutable struct RLCache{P, A, M, AD, LS, B, L, R, C, ST, TO, PM}
     prob::P
     alg::A
     model::M
     adapter::AD
-    train_state::TS
+    learner::LS
     buffer::B
     logger::L
     rng::R
@@ -22,15 +22,15 @@ mutable struct RLCache{P, A, M, AD, TS, B, L, R, C, ST, TO, PM}
 end
 
 function parameters(cache::RLCache)
-    return parameters(cache.train_state)
+    return parameters(cache.learner)
 end
 
 function states(cache::RLCache)
-    return states(cache.train_state)
+    return states(cache.learner)
 end
 
 function set_states!(cache::RLCache, st)
-    set_states!(cache.train_state, st)
+    cache.learner = with_states(cache.learner, st)
     return cache
 end
 
