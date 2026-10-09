@@ -104,9 +104,14 @@ end
         solve!(cache)
         return Drill.parameters(cache) != initial_params
     end
-    @testset "$(backends[1][1])" test_sac_training(backends[1][2])
+    @testset "$(backends[1][1])" begin
+        @test test_sac_training(backends[1][2])
+    end
+    # Plain AutoEnzyme() raises EnzymeRuntimeActivityError in the SAC critic loss.
     @testset "$(backends[2][1])" begin
         @test_broken test_sac_training(backends[2][2])
     end
-    @testset "$(backends[3][1])" test_sac_training(backends[3][2])
+    @testset "$(backends[3][1])" begin
+        @test test_sac_training(backends[3][2])
+    end
 end

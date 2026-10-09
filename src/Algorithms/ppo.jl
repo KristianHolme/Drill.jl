@@ -177,6 +177,9 @@ function maybe_normalize!(advantages::AbstractVector{T}, ::RawAdvantages) where 
     return advantages
 end
 
+maybe_normalize(advantages::AbstractVector, ::NormalizeAdvantages) = normalize(advantages)
+maybe_normalize(advantages::AbstractVector, ::RawAdvantages) = advantages
+
 function maybe_normalize_batch_data(batch_data, strategy::AbstractAdvantageStrategy)
     advantages = maybe_normalize!(copy(batch_data[3]), strategy)
     return (

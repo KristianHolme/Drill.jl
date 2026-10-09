@@ -1,13 +1,14 @@
 module Solve
 
 import CommonSolve: init, solve, solve!, step!
-import Adapt: adapt, adapt_structure
+import Adapt: adapt_structure
+using Functors: Functors, fmap
+import Optimisers
 using FileIO: load, save
 import JLD2
 import Lux
-using Lux: Training
-using Lux.Training: AutoZygote
-import MLDataDevices: AbstractDevice, cpu_device, get_device, isleaf
+using Lux.Training: AbstractADType, AutoZygote
+import MLDataDevices: AbstractDevice, CPUDevice, cpu_device, get_device, isleaf
 import ProgressMeter
 using ProgressMeter: Progress, next!
 using Random: AbstractRNG, default_rng
@@ -19,10 +20,8 @@ import DrillInterface: AbstractParallelEnv, Box, Discrete, action_space, batch,
 
 import ..Adapters: AbstractActionAdapter, from_env, to_env
 import ..Algorithms: AbstractAlgorithm, OffPolicyAlgorithm, OnPolicyAlgorithm,
-    PPO, SAC, PPOTrainState, SACTrainState, EntropyCoefficientLayer, action_adapter,
-    compatible, init_entropy_coefficient, make_optimizer, parameters,
-    select_actor_parameters, select_actor_states, select_critic_parameters,
-    select_critic_states, set_states!, states, train_step!
+    PPO, SAC, action_adapter, compatible, init_learner, parameters, states,
+    train_step!, with_states
 import ..Buffers: ReplayBuffer, RolloutBuffer, add_transitions!, compute_gae!,
     step_indices, store_step!
 const _Drill = parentmodule(@__MODULE__)
@@ -39,6 +38,7 @@ import ..Models: predict_actions, predict_values, action_space as model_action_s
 
 include("verbosity.jl")
 include("runtime_cache.jl")
+include("backend.jl")
 include("cache.jl")
 include("progress.jl")
 include("solution.jl")
@@ -60,6 +60,7 @@ export save_model_params_and_state, load_model_params_and_state!
 export current_device, canonicalize_device_batch, rollout_inference_state,
     deployment_inference_state, reactant_cache_entry_count
 export get_device, cpu_device
+export run_update, gradient_backend, requires_fixed_shapes, host_metrics, device_rng
 export rollout_action_values_kernel, rollout_predict_actions_kernel,
     rollout_predict_actions_deterministic_kernel, rollout_predict_actions_stochastic_kernel,
     rollout_predict_values_kernel
