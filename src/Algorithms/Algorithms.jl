@@ -9,7 +9,7 @@ using Statistics: mean, std
 
 import DrillInterface: AbstractSpace, Box, Discrete, action_space
 
-import ..Adapters: ClampAdapter, DiscreteAdapter, TanhScaleAdapter
+import ..Adapters: ClampAdapter, DiscreteAdapter, ScaleAdapter
 import ..Models: AbstractActorCriticModel, ContinuousActorCriticModel,
     CriticType, QCritic, VCritic, SeparateFeatures, SharedFeatures,
     action_log_prob, evaluate_actions, predict_values

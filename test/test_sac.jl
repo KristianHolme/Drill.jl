@@ -262,3 +262,37 @@ end
         end
     end
 end
+
+@testset "ScaleAdapter maps [-1, 1] onto the box" begin
+    space = Box(Float32[-2.0, 0.0], Float32[2.0, 4.0])
+    adapter = ScaleAdapter()
+    @test Drill.to_env(adapter, Float32[1.0, -1.0], space) == Float32[2.0, 0.0]
+    @test Drill.to_env(adapter, Float32[0.0, 0.0], space) == Float32[0.0, 2.0]
+    env_action = Float32[1.0, 3.0]
+    @test Drill.to_env(adapter, Drill.from_env(adapter, env_action, space), space) ≈ env_action
+end
+
+@testset "SAC losses stay finite with terminating episodes" begin
+    env = BroadcastedParallelEnv([CustomEnv(4, Random.Xoshiro(i)) for i in 1:2])
+    model = SACModel(observation_space(env), action_space(env); hidden_dims = [16, 16])
+    alg = SAC(; start_steps = 8, batch_size = 16)
+    cache = init(RLProblem(env, model), alg; max_steps = 64, verbosity = 0, rng = Random.Xoshiro(1))
+    solve!(cache)
+    @test any(cache.buffer.terminated)
+    @test all(isfinite, cache.stats[:critic_losses])
+    @test all(isfinite, cache.stats[:actor_losses])
+end
+
+@testset "SAC warm-up actions are stored in policy space" begin
+    envs = [CustomEnv(8, Random.Xoshiro(i)) for i in 1:2]
+    for e in envs
+        e.action_space = Box(Float32[-2.0, -2.0], Float32[2.0, 2.0])
+    end
+    env = BroadcastedParallelEnv(envs)
+    model = SACModel(observation_space(env), action_space(env); hidden_dims = [16, 16])
+    alg = SAC(; start_steps = 32, batch_size = 4)
+    cache = init(RLProblem(env, model), alg; max_steps = 64, verbosity = 0, rng = Random.Xoshiro(1))
+    Drill.collect_rollout!(cache.buffer, cache, alg, env, 16; use_random_actions = true)
+    @test length(cache.buffer) == 32
+    @test all(a -> all(x -> -1.0f0 <= x <= 1.0f0, a), cache.buffer.actions)
+end

@@ -118,6 +118,8 @@ function (nwp::NormWrapperPolicy)(obs; deterministic::Bool = true, rng::Abstract
         single_obs = true
         obs = [obs]
     end
+    # Normalize copies; the caller's observations stay unchanged.
+    obs = copy.(obs)
     normalize_obs!.(obs, Ref(nwp.obs_rms), nwp.eps, nwp.clip_obs)
     actions = nwp.policy(obs; deterministic, rng)
     if single_obs

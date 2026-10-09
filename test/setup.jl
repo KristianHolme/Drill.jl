@@ -7,7 +7,7 @@ using Drill.Lux
 
 export CustomEnv, InfiniteHorizonEnv, TrackingTargetEnv, SimpleRewardEnv,
     ConstantValueModel, ConstantObsWrapper, CustomShapedBoxEnv, RandomDiscreteEnv,
-    compute_expected_gae
+    BufferObsEnv, compute_expected_gae
 
 # Custom environment that gives a reward of 1.0 only at the final timestep of an episode.
 # Equivalent to CustomEnv in stable-baselines3 test_gae.py.
@@ -359,5 +359,27 @@ DrillInterface.action_space(env::RandomDiscreteEnv) = env.act_space
 DrillInterface.terminated(env::RandomDiscreteEnv) = false
 DrillInterface.truncated(env::RandomDiscreteEnv) = false
 DrillInterface.get_info(env::RandomDiscreteEnv) = Dict{String, Any}()
+
+# Returns its internal state array from `observe` without copying, so wrappers that
+# mutate observations in place would corrupt the env state.
+mutable struct BufferObsEnv <: AbstractEnv
+    state::Vector{Float32}
+    last_action::Vector{Float32}
+end
+
+BufferObsEnv() = BufferObsEnv(Float32[0.5, -0.25], zeros(Float32, 2))
+
+DrillInterface.observation_space(::BufferObsEnv) = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
+DrillInterface.action_space(::BufferObsEnv) = Box(Float32[-2.0, -2.0], Float32[2.0, 2.0])
+DrillInterface.reset!(::BufferObsEnv) = nothing
+DrillInterface.observe(env::BufferObsEnv) = env.state
+DrillInterface.terminated(::BufferObsEnv) = false
+DrillInterface.truncated(::BufferObsEnv) = false
+DrillInterface.get_info(::BufferObsEnv) = Dict{String, Any}()
+
+function DrillInterface.act!(env::BufferObsEnv, action::AbstractArray)
+    env.last_action .= action
+    return 0.0f0
+end
 
 end # module

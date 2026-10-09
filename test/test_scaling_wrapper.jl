@@ -2,6 +2,8 @@ using Test
 using Drill
 using DrillInterface
 using Random
+include("setup.jl")
+using .TestSetup
 
 @testset "ScalingWrapperEnv basic construction" begin
     struct TestScalingEnv <: AbstractEnv
@@ -315,4 +317,18 @@ end
         @test !truncated(scaled_env)
         @test tot_reward > 0.0f0
     end
+end
+
+@testset "ScalingWrapperEnv does not mutate env-owned arrays" begin
+    inner = BufferObsEnv()
+    state_before = copy(inner.state)
+    env = ScalingWrapperEnv(inner)
+    obs1 = DrillInterface.observe(env)
+    obs2 = DrillInterface.observe(env)
+    @test inner.state == state_before
+    @test obs1 == obs2
+    action = Float32[0.5, -0.5]
+    DrillInterface.act!(env, action)
+    @test action == Float32[0.5, -0.5]
+    @test inner.last_action == Float32[1.0, -1.0]
 end

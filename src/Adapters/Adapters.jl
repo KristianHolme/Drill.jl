@@ -6,7 +6,7 @@ using OneHotArrays: OneHotVector
 include("types.jl")
 include("default_adapters.jl")
 
-export AbstractActionAdapter, ClampAdapter, TanhScaleAdapter, DiscreteAdapter
+export AbstractActionAdapter, ClampAdapter, ScaleAdapter, DiscreteAdapter
 export to_env, from_env
 
 end
