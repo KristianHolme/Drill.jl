@@ -8,7 +8,11 @@ using Random
     high = Float32[1.0, 3.0]
     space = Box(low, high)
 
-    @test typeof(space) == Box{Float32}
+    @test typeof(space) == Box{Float32, 1}
+    @test space isa Box{Float32}
+    @test ndims(space) == 1
+    @test space.low isa Vector{Float32}
+    @test space.high isa Vector{Float32}
     @test space.low == low
     @test space.high == high
     @test space.shape == (2,)
@@ -35,6 +39,55 @@ end
 
     space_equal = Box(Float32[1.0, 2.0], Float32[1.0, 2.0])
     @test space_equal isa Box{Float32}
+end
+
+@testset "Box{T, N} construction forms" begin
+    space = Box(-1.0f0, 2.0f0, (3, 2))
+    @test typeof(space) == Box{Float32, 2}
+    @test space.shape == (3, 2)
+    @test size(space) == (3, 2)
+    @test ndims(space) == 2
+    @test eltype(space) == Float32
+    @test space.low == fill(-1.0f0, 3, 2)
+    @test space.high == fill(2.0f0, 3, 2)
+
+    space64 = Box(zeros(2, 2, 2), ones(2, 2, 2))
+    @test typeof(space64) == Box{Float64, 3}
+    @test space64.shape == (2, 2, 2)
+
+    @test isequal(Box(-1.0f0, 1.0f0, (2,)), Box(Float32[-1.0, -1.0], Float32[1.0, 1.0]))
+    @test !isequal(Box(-1.0f0, 1.0f0, (2,)), Box(-1.0, 1.0, (2,)))
+    @test_throws MethodError Box(Float32[-1.0], Float32[1.0], (1,))
+end
+
+@testset "Box containment is strict about type and shape" begin
+    space = Box(Float32[-1.0, -2.0], Float32[1.0, 3.0])
+
+    @test Float32[0.5, 1.5] ∈ space
+    # Wrong element type
+    @test !([0.5, 1.5] ∈ space)
+    @test !(Float16[0.5, 1.5] ∈ space)
+    @test !([0, 1] ∈ space)
+    # Wrong shape, including a batch of valid samples
+    @test !(Float32[0.5, 1.5, 0.0] ∈ space)
+    @test !(Float32[0.5;;] ∈ space)
+    @test !(reshape(Float32[0.5, 1.5], 2, 1) ∈ space)
+    @test !(Float32[0.5 0.0; 1.5 0.0] ∈ space)
+    # Not an array
+    @test !(0.5f0 ∈ space)
+    @test !(nothing ∈ space)
+
+    # Views and other AbstractArrays with the right type and shape are in the space
+    batch_obs = Float32[0.5 0.0; 1.5 0.0]
+    @test view(batch_obs, :, 1) ∈ space
+    @test view(batch_obs, :, 2) ∈ space
+
+    space_2d = Box(-1.0f0, 1.0f0, (2, 3))
+    @test zeros(Float32, 2, 3) ∈ space_2d
+    @test !(zeros(Float32, 3, 2) ∈ space_2d)
+    @test !(zeros(Float32, 6) ∈ space_2d)
+    @test !(zeros(Float32, 2, 3, 1) ∈ space_2d)
+    @test !(fill(2.0f0, 2, 3) ∈ space_2d)
 end
 
 @testset "Random sampling from Box" begin

@@ -38,7 +38,10 @@ Tracks episode statistics.
 
 ```julia
 env = MonitorWrapperEnv(env)
-# Access stats via get_info(env)
+# Rolling window of finished episodes, logged as env/ep_rew_mean and env/ep_len_mean
+env.episode_stats.episode_returns
+# Return and length of the last finished episode of each env
+env.last_episode_returns, env.last_episode_lengths
 ```
 
 ## Wrapper Utilities

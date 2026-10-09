@@ -31,12 +31,10 @@ function ScalingWrapperEnv(env::E, original_obs_space::Box, original_act_space::
     T_obs = eltype(original_obs_space)
     T_act = eltype(original_act_space)
 
-    scaled_obs_space = @set original_obs_space.low = -1 * ones(T_obs, size(original_obs_space.low))
-    scaled_obs_space = @set scaled_obs_space.high = 1 * ones(T_obs, size(original_obs_space.high))
+    scaled_obs_space = Box(-one(T_obs), one(T_obs), size(original_obs_space))
 
     # Create new action space with bounds [-1, 1]
-    scaled_act_space = @set original_act_space.low = -1 * ones(T_act, size(original_act_space.low))
-    scaled_act_space = @set scaled_act_space.high = 1 * ones(T_act, size(original_act_space.high))
+    scaled_act_space = Box(-one(T_act), one(T_act), size(original_act_space))
 
     # Pre-compute scaling factors for observations: scale = 2 / (high - low), offset = low
     obs_range = original_obs_space.high .- original_obs_space.low
@@ -64,8 +62,8 @@ function action_space(env::ScalingWrapperEnv)
     return env.action_space
 end
 
-function reset!(env::ScalingWrapperEnv)
-    reset!(env.env)
+function reset!(env::ScalingWrapperEnv; seed::Union{Nothing, Integer} = nothing)
+    reset!(env.env; seed)
     return nothing
 end
 
@@ -133,17 +131,6 @@ end
 
 function get_info(env::ScalingWrapperEnv)
     return get_info(env.env)
-end
-
-
-"""
-    seed!(env::ScalingWrapperEnv, seed::Integer)
-
-Seed a wrapped environment by forwarding the seed to the underlying environment.
-"""
-function seed!(env::ScalingWrapperEnv, seed::Integer)
-    seed!(env.env, seed)
-    return env
 end
 
 

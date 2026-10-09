@@ -88,20 +88,20 @@ end
 wrappers = BenchmarkGroup()
 SUITE["wrappers"] = wrappers
 
-wrappers["broadcasted_act"] = @benchmarkable begin
-    act!(env, actions)
+wrappers["broadcasted_step"] = @benchmarkable begin
+    step!(env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
-wrappers["monitor_act"] = @benchmarkable begin
-    act!(monitor_env, actions)
+wrappers["monitor_step"] = @benchmarkable begin
+    step!(monitor_env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
-wrappers["normalize_act"] = @benchmarkable begin
-    act!(normalize_env, actions)
+wrappers["normalize_step"] = @benchmarkable begin
+    step!(normalize_env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
@@ -124,8 +124,8 @@ end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
-wrappers["multithreaded_act"] = @benchmarkable begin
-    act!(threaded_env, actions)
+wrappers["multithreaded_step"] = @benchmarkable begin
+    step!(threaded_env, actions)
 end setup = begin
     threaded_env, actions = BenchUtils.setup_threaded_envs()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES

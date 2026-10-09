@@ -1,6 +1,6 @@
 module DrillLogging
 
-import DrillInterface: AbstractEnv
+import DrillInterface: AbstractEnv, AbstractParallelEnv
 
 include("types.jl")
 include("no_training_logger.jl")

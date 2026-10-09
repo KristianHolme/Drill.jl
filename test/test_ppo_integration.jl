@@ -10,7 +10,7 @@ using .TestSetup
     function make_parallel_env(seed::Int, n_envs::Int)
         envs = [TrackingTargetEnv(16, Random.MersenneTwister(seed + i)) for i in 1:n_envs]
         penv = BroadcastedParallelEnv(envs)
-        Random.seed!(penv, seed)
+        reset!(penv; seed)
         return penv
     end
 
@@ -51,7 +51,7 @@ end
     function make_parallel_env(seed::Int, n_envs::Int)
         envs = [TrackingTargetEnv(16, Random.MersenneTwister(seed + i)) for i in 1:n_envs]
         penv = MultiThreadedParallelEnv(envs)
-        Random.seed!(penv, seed)
+        reset!(penv; seed)
         return penv
     end
 

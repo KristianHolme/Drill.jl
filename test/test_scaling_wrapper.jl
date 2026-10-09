@@ -18,7 +18,7 @@ using .TestSetup
     DrillInterface.truncated(::TestScalingEnv) = false
     DrillInterface.act!(::TestScalingEnv, action) = 1.0f0
     DrillInterface.get_info(::TestScalingEnv) = Dict("test" => "info")
-    DrillInterface.reset!(::TestScalingEnv) = nothing
+    DrillInterface.reset!(::TestScalingEnv; seed = nothing) = nothing
 
     base_env = TestScalingEnv()
     scaled_env = ScalingWrapperEnv(base_env)
@@ -50,7 +50,7 @@ end
     DrillInterface.truncated(::ObsTestEnv) = false
     DrillInterface.act!(::ObsTestEnv, action) = 0.0f0
     DrillInterface.get_info(::ObsTestEnv) = Dict()
-    DrillInterface.reset!(::ObsTestEnv) = nothing
+    DrillInterface.reset!(::ObsTestEnv; seed = nothing) = nothing
 
     base_env = ObsTestEnv(Float32[5.0, 0.0, 15.0])
     scaled_env = ScalingWrapperEnv(base_env)
@@ -85,7 +85,7 @@ end
         return 1.0f0
     end
     DrillInterface.get_info(::ActionTestEnv) = Dict()
-    DrillInterface.reset!(::ActionTestEnv) = nothing
+    DrillInterface.reset!(::ActionTestEnv; seed = nothing) = nothing
 
     base_env = ActionTestEnv()
     scaled_env = ScalingWrapperEnv(base_env)
@@ -113,8 +113,9 @@ end
         _truncated::Bool
         _info::Dict{String, Any}
         reset_called::Bool
+        last_seed::Union{Nothing, Int}
     end
-    ForwardingTestEnv() = ForwardingTestEnv(false, false, Dict("key" => "value"), false)
+    ForwardingTestEnv() = ForwardingTestEnv(false, false, Dict("key" => "value"), false, nothing)
 
     DrillInterface.observation_space(::ForwardingTestEnv) = Box(Float32[0.0], Float32[1.0])
     DrillInterface.action_space(::ForwardingTestEnv) = Box(Float32[0.0], Float32[1.0])
@@ -123,17 +124,21 @@ end
     DrillInterface.truncated(env::ForwardingTestEnv) = env._truncated
     DrillInterface.act!(::ForwardingTestEnv, action) = 1.0f0
     DrillInterface.get_info(env::ForwardingTestEnv) = env._info
-    function DrillInterface.reset!(env::ForwardingTestEnv)
+    function DrillInterface.reset!(env::ForwardingTestEnv; seed = nothing)
         env.reset_called = true
-        nothing
+        env.last_seed = seed
+        return nothing
     end
 
     base_env = ForwardingTestEnv()
     scaled_env = ScalingWrapperEnv(base_env)
 
     @test !base_env.reset_called
-    reset!(scaled_env)
+    @test isnothing(reset!(scaled_env))
     @test base_env.reset_called
+    @test isnothing(base_env.last_seed)
+    reset!(scaled_env; seed = 7)
+    @test base_env.last_seed == 7
 
     @test !terminated(scaled_env)
     base_env._terminated = true
@@ -157,7 +162,7 @@ end
     DrillInterface.truncated(::EdgeCaseEnv) = false
     DrillInterface.act!(::EdgeCaseEnv, action) = 0.0f0
     DrillInterface.get_info(::EdgeCaseEnv) = Dict()
-    DrillInterface.reset!(::EdgeCaseEnv) = nothing
+    DrillInterface.reset!(::EdgeCaseEnv; seed = nothing) = nothing
 
     base_env = EdgeCaseEnv()
     scaled_env = ScalingWrapperEnv(base_env)
@@ -180,7 +185,7 @@ end
     DrillInterface.truncated(::LargeRangeEnv) = false
     DrillInterface.act!(::LargeRangeEnv, action) = action[1]
     DrillInterface.get_info(::LargeRangeEnv) = Dict()
-    DrillInterface.reset!(::LargeRangeEnv) = nothing
+    DrillInterface.reset!(::LargeRangeEnv; seed = nothing) = nothing
 
     base_env = LargeRangeEnv()
     scaled_env = ScalingWrapperEnv(base_env)
@@ -210,7 +215,7 @@ end
         return 1.0f0
     end
     DrillInterface.get_info(::MultiDimEnv) = Dict()
-    DrillInterface.reset!(::MultiDimEnv) = nothing
+    DrillInterface.reset!(::MultiDimEnv; seed = nothing) = nothing
 
     base_env = MultiDimEnv()
     scaled_env = ScalingWrapperEnv(base_env)
@@ -227,7 +232,7 @@ end
     @test all(abs.(base_env.last_action .- expected) .< 1.0e-5)
 end
 
-@testset "ScalingWrapperEnv Random seeding" begin
+@testset "ScalingWrapperEnv seeding through reset!" begin
     mutable struct SeededTestEnv <: AbstractEnv
         rng::Random.AbstractRNG
         obs_counter::Int
@@ -244,7 +249,10 @@ end
     DrillInterface.truncated(::SeededTestEnv) = false
     DrillInterface.act!(::SeededTestEnv, action) = 0.0f0
     DrillInterface.get_info(::SeededTestEnv) = Dict()
-    DrillInterface.reset!(::SeededTestEnv) = nothing
+    function DrillInterface.reset!(env::SeededTestEnv; seed = nothing)
+        isnothing(seed) || Random.seed!(env.rng, seed)
+        return nothing
+    end
 
     base_env = SeededTestEnv()
     scaled_env = ScalingWrapperEnv(base_env)
@@ -253,17 +261,21 @@ end
     obs2 = observe(scaled_env)
     @test obs1 != obs2
 
-    Random.seed!(scaled_env, 42)
+    @test isnothing(reset!(scaled_env; seed = 42))
     obs3 = observe(scaled_env)
     obs4 = observe(scaled_env)
 
-    Random.seed!(scaled_env, 42)
+    reset!(scaled_env; seed = 42)
     base_env.obs_counter = 2
     obs5 = observe(scaled_env)
     obs6 = observe(scaled_env)
 
     @test obs3 == obs5
     @test obs4 == obs6
+
+    # Without a seed, reset! does not reseed the inner env
+    reset!(scaled_env)
+    @test observe(scaled_env) != obs3
 end
 
 @testset "ScalingWrapperEnv integration test" begin
@@ -286,7 +298,7 @@ end
         return Float32(10.0 - abs(env.state - 5.0))
     end
     DrillInterface.get_info(env::IntegrationTestEnv) = Dict("step" => env.step_count, "state" => env.state)
-    function DrillInterface.reset!(env::IntegrationTestEnv)
+    function DrillInterface.reset!(env::IntegrationTestEnv; seed = nothing)
         env.state = 0.0f0
         env.step_count = 0
         nothing

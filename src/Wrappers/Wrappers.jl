@@ -5,27 +5,28 @@ using Accessors: @set
 using DataStructures: CircularBuffer
 using FileIO: save, load
 import JLD2
-import Random: seed!
 using Statistics: mean, var
 
 import DrillInterface
 import DrillInterface: act!, action_space, get_info, number_of_envs, observation_space,
-    observe, reset!, terminated, truncated, unwrap
+    observe, observe!, reset!, step!, terminated, truncated, unwrap
 using DrillInterface: AbstractEnv, AbstractEnvWrapper, AbstractParallelEnv,
-    AbstractParallelEnvWrapper, AbstractSpace, Box, batch
+    AbstractParallelEnvWrapper, AbstractSpace, Box, allocate_observations, observation_slot
 
-import ..DrillLogging: AbstractTrainingLogger, log_scalar!
+import ..DrillLogging: AbstractTrainingLogger, log_scalar!, log_stats
 
 include("scaling.jl")
 include("normalize.jl")
 include("broadcasted_parallel.jl")
 include("multithreaded_parallel.jl")
+include("vector_parallel.jl")
 include("multi_agent_parallel.jl")
 include("monitor.jl")
 
 export BroadcastedParallelEnv, MultiThreadedParallelEnv, MultiAgentParallelEnv
 export ScalingWrapperEnv, NormalizeWrapperEnv, MonitorWrapperEnv
 export RunningMeanStd, EpisodeStats
+export reward_type
 export update!, update_from_moments!
 export is_training, set_training
 export get_original_obs, get_original_rewards

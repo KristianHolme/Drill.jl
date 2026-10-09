@@ -35,7 +35,8 @@ DrillInterface.terminated(env::CustomEnv) = env._terminated
 DrillInterface.truncated(env::CustomEnv) = env._truncated
 DrillInterface.get_info(env::CustomEnv) = env._info
 
-function DrillInterface.reset!(env::CustomEnv)
+function DrillInterface.reset!(env::CustomEnv; seed = nothing)
+    isnothing(seed) || Random.seed!(env.rng, seed)
     env.n_steps = 0
     env._terminated = false
     env._truncated = false
@@ -89,7 +90,8 @@ DrillInterface.terminated(env::InfiniteHorizonEnv) = env._terminated
 DrillInterface.truncated(env::InfiniteHorizonEnv) = env._truncated
 DrillInterface.get_info(env::InfiniteHorizonEnv) = env._info
 
-function DrillInterface.reset!(env::InfiniteHorizonEnv)
+function DrillInterface.reset!(env::InfiniteHorizonEnv; seed = nothing)
+    isnothing(seed) || Random.seed!(env.rng, seed)
     env.current_state = 0.0f0
     env._terminated = false
     env._truncated = false
@@ -148,7 +150,8 @@ DrillInterface.terminated(env::TrackingTargetEnv) = env._terminated
 DrillInterface.truncated(env::TrackingTargetEnv) = env._truncated
 DrillInterface.get_info(::TrackingTargetEnv) = Dict{String, Any}()
 
-function DrillInterface.reset!(env::TrackingTargetEnv)
+function DrillInterface.reset!(env::TrackingTargetEnv; seed = nothing)
+    isnothing(seed) || Random.seed!(env.rng, seed)
     env.current_step = 0
     env._terminated = false
     env._truncated = false
@@ -199,7 +202,8 @@ DrillInterface.terminated(env::SimpleRewardEnv) = env._terminated
 DrillInterface.truncated(env::SimpleRewardEnv) = env._truncated
 DrillInterface.get_info(env::SimpleRewardEnv) = env._info
 
-function DrillInterface.reset!(env::SimpleRewardEnv)
+function DrillInterface.reset!(env::SimpleRewardEnv; seed = nothing)
+    isnothing(seed) || Random.seed!(env.rng, seed)
     env.current_step = 0
     env._terminated = false
     env._truncated = false
@@ -229,8 +233,8 @@ end
 
 # Custom layer that returns constant values for predictable GAE testing.
 struct ConstantValueModel <: Drill.AbstractActorCriticModel
-    observation_space::Box{Float32}
-    action_space::Box{Float32}
+    observation_space::Box{Float32, 1}
+    action_space::Box{Float32, 1}
     constant_value::Float32
 end
 
@@ -322,8 +326,8 @@ DrillInterface.terminated(wrapper::ConstantObsWrapper) = DrillInterface.terminat
 DrillInterface.truncated(wrapper::ConstantObsWrapper) = DrillInterface.truncated(wrapper.env)
 DrillInterface.get_info(wrapper::ConstantObsWrapper) = DrillInterface.get_info(wrapper.env)
 
-function DrillInterface.reset!(wrapper::ConstantObsWrapper)
-    DrillInterface.reset!(wrapper.env)
+function DrillInterface.reset!(wrapper::ConstantObsWrapper; seed = nothing)
+    DrillInterface.reset!(wrapper.env; seed)
     return nothing
 end
 
@@ -338,11 +342,11 @@ end
 struct CustomShapedBoxEnv <: AbstractEnv
     shape::Tuple{Int, Vararg{Int}}
 end
-DrillInterface.reset!(env::CustomShapedBoxEnv) = nothing
+DrillInterface.reset!(env::CustomShapedBoxEnv; seed = nothing) = nothing
 DrillInterface.act!(env::CustomShapedBoxEnv, action::AbstractArray) = rand(Float32)
 DrillInterface.observe(env::CustomShapedBoxEnv) = randn(Float32, env.shape...)
-DrillInterface.observation_space(env::CustomShapedBoxEnv) = Box(Float32[-1.0], Float32[1.0], env.shape)
-DrillInterface.action_space(env::CustomShapedBoxEnv) = Box(Float32[-1.0], Float32[1.0], env.shape)
+DrillInterface.observation_space(env::CustomShapedBoxEnv) = Box(-1.0f0, 1.0f0, env.shape)
+DrillInterface.action_space(env::CustomShapedBoxEnv) = Box(-1.0f0, 1.0f0, env.shape)
 DrillInterface.terminated(env::CustomShapedBoxEnv) = false
 DrillInterface.truncated(env::CustomShapedBoxEnv) = false
 DrillInterface.get_info(env::CustomShapedBoxEnv) = Dict{String, Any}()
@@ -351,7 +355,7 @@ struct RandomDiscreteEnv <: AbstractEnv
     obs_space::Box
     act_space::Discrete
 end
-DrillInterface.reset!(env::RandomDiscreteEnv) = nothing
+DrillInterface.reset!(env::RandomDiscreteEnv; seed = nothing) = nothing
 DrillInterface.act!(env::RandomDiscreteEnv, action::Int) = randn(Float32)
 DrillInterface.observe(env::RandomDiscreteEnv) = rand(env.obs_space)
 DrillInterface.observation_space(env::RandomDiscreteEnv) = env.obs_space
@@ -371,7 +375,7 @@ BufferObsEnv() = BufferObsEnv(Float32[0.5, -0.25], zeros(Float32, 2))
 
 DrillInterface.observation_space(::BufferObsEnv) = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
 DrillInterface.action_space(::BufferObsEnv) = Box(Float32[-2.0, -2.0], Float32[2.0, 2.0])
-DrillInterface.reset!(::BufferObsEnv) = nothing
+DrillInterface.reset!(::BufferObsEnv; seed = nothing) = nothing
 DrillInterface.observe(env::BufferObsEnv) = env.state
 DrillInterface.terminated(::BufferObsEnv) = false
 DrillInterface.truncated(::BufferObsEnv) = false

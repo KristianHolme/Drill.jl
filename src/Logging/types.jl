@@ -68,12 +68,12 @@ Base.convert(::Type{AbstractTrainingLogger}, x) = error(
 
 
 """
-    log_stats(env::AbstractEnv, logger::AbstractLogger) -> Nothing
+    log_stats(env, logger::AbstractTrainingLogger) -> Nothing
 
 Log environment-specific statistics to a logger (optional interface).
 
 # Arguments
-- `env::AbstractEnv`: The environment
+- `env`: The single or parallel environment
 - `logger::AbstractLogger`: The logger to write to
 
 # Returns
@@ -82,6 +82,6 @@ Log environment-specific statistics to a logger (optional interface).
 # Notes
 Default implementation does nothing. Environments can override to log custom metrics.
 """
-function log_stats(env::AbstractEnv, logger::AbstractTrainingLogger)
+function log_stats(env::Union{AbstractEnv, AbstractParallelEnv}, logger::AbstractTrainingLogger)
     return nothing
 end
