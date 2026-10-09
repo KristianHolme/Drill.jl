@@ -3,6 +3,7 @@ using Drill
 using DrillInterface
 using Random
 using Statistics
+using Drill.DataStructures: capacity, isfull
 include("setup.jl")
 using .TestSetup
 
@@ -29,6 +30,47 @@ function DrillInterface.reset!(env::DiscreteCountingEnv; seed = nothing)
     isnothing(seed) || Random.seed!(env.rng, seed)
     env.steps = 0
     return nothing
+end
+
+# Deterministic env: observation `[steps, id]`, reward `10 * id + steps`. The episode
+# terminates after `max_steps` steps and is truncated after `trunc_steps` steps.
+mutable struct StepCounterEnv <: AbstractEnv
+    id::Int
+    max_steps::Int
+    trunc_steps::Int
+    steps::Int
+end
+StepCounterEnv(id, max_steps, trunc_steps) = StepCounterEnv(id, max_steps, trunc_steps, 0)
+
+DrillInterface.observation_space(::StepCounterEnv) = Box(Float32[0.0, 0.0], Float32[100.0, 100.0])
+DrillInterface.action_space(::StepCounterEnv) = Box(Float32[-1.0], Float32[1.0])
+DrillInterface.observe(env::StepCounterEnv) = Float32[env.steps, env.id]
+DrillInterface.terminated(env::StepCounterEnv) = env.steps >= env.max_steps
+DrillInterface.truncated(env::StepCounterEnv) = !DrillInterface.terminated(env) && env.steps >= env.trunc_steps
+DrillInterface.get_info(::StepCounterEnv) = Dict{String, Any}()
+function DrillInterface.act!(env::StepCounterEnv, action::AbstractArray)
+    env.steps += 1
+    return Float32(10 * env.id + env.steps)
+end
+function DrillInterface.reset!(env::StepCounterEnv; seed = nothing)
+    env.steps = 0
+    return nothing
+end
+
+# Expected per-step data of a `StepCounterEnv(id, max_steps, trunc_steps)` started at step 0:
+# observation step counter, reward, terminated, truncated, and step counter after the step.
+function expected_counter_steps(id, max_steps, trunc_steps, n_steps)
+    steps = 0
+    out = NamedTuple[]
+    for _ in 1:n_steps
+        before = steps
+        steps += 1
+        term = steps >= max_steps
+        trunc = !term && steps >= trunc_steps
+        push!(out, (; before, after = steps, reward = Float32(10 * id + steps), term, trunc))
+        (term || trunc) && (steps = 0)
+    end
+    return out
 end
 
 function make_cache(env, layer, alg; max_steps = alg.n_steps * DrillInterface.number_of_envs(env))
@@ -129,8 +171,8 @@ end
     )
 end
 
-@testset "Buffer trajectory bootstrap handling" begin
-    max_steps = 6
+@testset "store_step! and compute_gae! bootstrap handling" begin
+    n_steps = 6
     gamma = 0.9f0
     gae_lambda = 0.8f0
     constant_value = 0.7f0
@@ -138,43 +180,121 @@ end
 
     obs_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
     act_space = Box(Float32[-1.0, -1.0], Float32[1.0, 1.0])
+    rewards = [i == n_steps ? 1.0f0 : 0.0f0 for i in 1:n_steps]
+    values = fill(constant_value, n_steps)
 
-    traj = Trajectory(obs_space, act_space)
-
-    for i in 1:max_steps
-        push!(traj.observations, rand(Float32, 2))
-        push!(traj.actions, rand(Float32, 2))
-        push!(traj.rewards, i == max_steps ? 1.0f0 : 0.0f0)
-        push!(traj.logprobs, 0.0f0)
-        push!(traj.values, constant_value)
+    function filled_buffer(terminated_last::Bool, truncated_last::Bool)
+        buffer = RolloutBuffer(obs_space, act_space, n_steps, 1)
+        for t in 1:n_steps
+            store_step!(
+                buffer, t, rand(Float32, 2, 1), rand(Float32, 2, 1),
+                [rewards[t]], [0.0f0], [values[t]],
+                [t == n_steps && terminated_last], [t == n_steps && truncated_last],
+            )
+        end
+        buffer.bootstrap_values[n_steps] = bootstrap_value
+        return buffer
     end
 
-    traj.terminated = true
-    traj.truncated = false
-    traj.bootstrap_value = nothing
+    buffer_terminated = filled_buffer(true, false)
+    compute_gae!(buffer_terminated, gamma, gae_lambda)
+    expected_terminated = compute_expected_gae(rewards, values, gamma, gae_lambda; is_terminated = true)
+    @test isapprox(buffer_terminated.advantages, expected_terminated, atol = 1.0e-4)
 
-    advantages_terminated = zeros(Float32, max_steps)
-    Drill.compute_advantages!(advantages_terminated, traj, gamma, gae_lambda)
-
-    expected_terminated = compute_expected_gae(
-        traj.rewards, traj.values, gamma, gae_lambda; is_terminated = true
-    )
-    @test isapprox(advantages_terminated, expected_terminated, atol = 1.0e-4)
-
-    traj.terminated = false
-    traj.truncated = true
-    traj.bootstrap_value = bootstrap_value
-
-    advantages_truncated = zeros(Float32, max_steps)
-    Drill.compute_advantages!(advantages_truncated, traj, gamma, gae_lambda)
-
+    buffer_truncated = filled_buffer(false, true)
+    compute_gae!(buffer_truncated, gamma, gae_lambda)
     expected_truncated = compute_expected_gae(
-        traj.rewards, traj.values, gamma, gae_lambda;
+        rewards, values, gamma, gae_lambda;
         is_terminated = false, bootstrap_value = bootstrap_value
     )
-    @test isapprox(advantages_truncated, expected_truncated, atol = 1.0e-4)
+    @test isapprox(buffer_truncated.advantages, expected_truncated, atol = 1.0e-4)
+    @test !isapprox(buffer_terminated.advantages, buffer_truncated.advantages, atol = 1.0e-3)
 
-    @test !isapprox(advantages_terminated, advantages_truncated, atol = 1.0e-3)
+    # Rollout end without a done flag bootstraps the same way as truncation.
+    buffer_open = filled_buffer(false, false)
+    compute_gae!(buffer_open, gamma, gae_lambda)
+    @test isapprox(buffer_open.advantages, expected_truncated, atol = 1.0e-4)
+end
+
+@testset "store_step! step-major layout" begin
+    obs_space = Box(-10.0f0, 10.0f0, (2,))
+    act_space = Box(-1.0f0, 1.0f0, (1,))
+    n_steps, n_envs = 3, 2
+    buffer = RolloutBuffer(obs_space, act_space, n_steps, n_envs)
+    @test length(buffer) == n_steps * n_envs
+    @test step_indices(buffer, 1) == 1:2
+    @test step_indices(buffer, 3) == 5:6
+    for t in 1:n_steps
+        obs = reshape(Float32[t, -t, 10 + t, -10 - t] ./ 10, 2, 2)
+        store_step!(
+            buffer, t, obs, reshape(Float32[t, -t] ./ 10, 1, 2),
+            Float32[t, 10 + t], Float32[-t, -10 - t], Float32[2t, 20 + 2t],
+            [false, t == 2], [t == 3, false],
+        )
+    end
+    @test buffer.rewards == Float32[1, 11, 2, 12, 3, 13]
+    @test buffer.logprobs == -buffer.rewards
+    @test buffer.values == 2 .* buffer.rewards
+    @test buffer.terminateds == [false, false, false, true, false, false]
+    @test buffer.truncateds == [false, false, false, false, true, false]
+    @test buffer.observations[:, step_indices(buffer, 2)] == reshape(Float32[2, -2, 12, -12] ./ 10, 2, 2)
+    @test buffer.actions[:, step_indices(buffer, 3)] == reshape(Float32[3, -3] ./ 10, 1, 2)
+end
+
+@testset "collect_rollout! layout, done flags and bootstrap values" begin
+    n_steps = 7
+    specs = [(1, 3, 100), (2, 100, 4), (3, 100, 100)]
+    n_envs = length(specs)
+    expected = [expected_counter_steps(id, m, k, n_steps) for (id, m, k) in specs]
+
+    function counter_rollout(layer_fn)
+        env = BroadcastedParallelEnv([StepCounterEnv(spec...) for spec in specs])
+        obs_space = DrillInterface.observation_space(env)
+        act_space = DrillInterface.action_space(env)
+        layer = layer_fn(obs_space, act_space)
+        alg = PPO(; n_steps, batch_size = n_steps, epochs = 1)
+        cache = make_cache(env, layer, alg)
+        buffer = RolloutBuffer(obs_space, act_space, n_steps, n_envs)
+        _, success = Drill.collect_rollout!(buffer, cache, alg, env)
+        @test success
+        return buffer, cache
+    end
+
+    constant_value = 0.25f0
+    buffer, _ = counter_rollout((o, a) -> ConstantValueModel(o, a, constant_value))
+    for t in 1:n_steps, e in 1:n_envs
+        i = step_indices(buffer, t)[e]
+        x = expected[e][t]
+        @test buffer.observations[:, i] == Float32[x.before, specs[e][1]]
+        @test buffer.rewards[i] == x.reward
+        @test buffer.terminateds[i] == x.term
+        @test buffer.truncateds[i] == x.trunc
+        @test buffer.values[i] == constant_value
+        needs_bootstrap = x.trunc || (t == n_steps && !x.term)
+        @test buffer.bootstrap_values[i] == (needs_bootstrap ? constant_value : 0.0f0)
+    end
+    # Env 1 terminates at steps 3 and 6, env 2 is truncated at step 4.
+    @test findall(buffer.terminateds) == [step_indices(buffer, 3)[1], step_indices(buffer, 6)[1]]
+    @test findall(buffer.truncateds) == [step_indices(buffer, 4)[2]]
+
+    # With an observation-dependent critic, bootstrap values must come from the real next
+    # observation: the final observation of a truncated episode, not the reset one.
+    buffer, cache = counter_rollout((o, a) -> ActorCriticModel(o, a))
+    for t in 1:n_steps, e in 1:n_envs
+        i = step_indices(buffer, t)[e]
+        x = expected[e][t]
+        if x.trunc || (t == n_steps && !x.term)
+            next_obs = reshape(Float32[x.after, specs[e][1]], 2, 1)
+            @test buffer.bootstrap_values[i] ≈ only(Drill.predict_values(cache, next_obs)) atol = 1.0e-5
+        else
+            @test buffer.bootstrap_values[i] == 0.0f0
+        end
+        @test buffer.values[i] ≈ only(Drill.predict_values(cache, buffer.observations[:, i:i])) atol = 1.0e-5
+    end
+    # Sanity check that the critic distinguishes the final from the reset observation.
+    truncated_i = step_indices(buffer, 4)[2]
+    reset_value = only(Drill.predict_values(cache, reshape(Float32[0, 2], 2, 1)))
+    @test !isapprox(buffer.bootstrap_values[truncated_i], reset_value; atol = 1.0e-6)
 end
 
 @testset "Buffer data integrity" begin
@@ -343,7 +463,7 @@ end
 end
 
 @testset "Basic ReplayBuffer workings" begin
-    using Drill.DataStructures
+
 
     n_envs = 4
     train_freq = 8
@@ -369,4 +489,146 @@ end
     empty!(buffer)
     @test size(buffer) == 0
     @test isempty(buffer)
+end
+
+@testset "ReplayBuffer add_transitions! and ring wrap-around" begin
+    obs_space = Box(-100.0f0, 100.0f0, (2,))
+    act_space = Box(-100.0f0, 100.0f0, (1,))
+    buffer = ReplayBuffer(obs_space, act_space, 5)
+    @test capacity(buffer) == 5
+    @test isempty(buffer)
+    @test !isfull(buffer)
+    @test length(buffer) == 0
+
+    # Transition k has observation [k, -k], action k, reward k and next observation [k + 1, -k].
+    function add_range!(buffer, ks)
+        n = length(ks)
+        obs = Float32.(vcat(ks', -ks'))
+        next_obs = Float32.(vcat(ks' .+ 1, -ks'))
+        add_transitions!(
+            buffer, obs, Float32.(reshape(ks, 1, n)), Float32.(ks),
+            iseven.(ks), ks .% 3 .== 0, next_obs,
+        )
+        return buffer
+    end
+
+    add_range!(buffer, 1:3)
+    @test length(buffer) == 3
+    @test !isempty(buffer)
+    @test !isfull(buffer)
+    @test buffer.rewards[1:3] == Float32[1, 2, 3]
+    @test buffer.observations[:, 1:3] == Float32[1 2 3; -1 -2 -3]
+    @test buffer.next_observations[:, 1:3] == Float32[2 3 4; -1 -2 -3]
+    @test buffer.terminated[1:3] == [false, true, false]
+    @test buffer.truncated[1:3] == [false, false, true]
+
+    add_range!(buffer, 4:7)
+    @test length(buffer) == 5
+    @test isfull(buffer)
+    @test buffer.position == 3
+    # Transitions 6 and 7 overwrote the two oldest entries.
+    @test buffer.rewards == Float32[6, 7, 3, 4, 5]
+    @test buffer.actions == Float32[6 7 3 4 5]
+    @test buffer.observations[1, :] == Float32[6, 7, 3, 4, 5]
+    @test buffer.next_observations[1, :] == Float32[7, 8, 4, 5, 6]
+    @test buffer.terminated == iseven.([6, 7, 3, 4, 5])
+    @test buffer.truncated == ([6, 7, 3, 4, 5] .% 3 .== 0)
+
+    add_range!(buffer, 8:20)
+    @test length(buffer) == 5
+    @test sort(buffer.rewards) == Float32[16, 17, 18, 19, 20]
+
+    empty!(buffer)
+    @test isempty(buffer)
+    @test length(buffer) == 0
+    @test !isfull(buffer)
+    add_range!(buffer, 1:1)
+    @test length(buffer) == 1
+    @test buffer.rewards[1] == 1.0f0
+end
+
+@testset "ReplayBuffer collect_rollout! stores true next observations" begin
+    n_steps = 6
+    specs = [(1, 2, 100), (2, 100, 3)]
+    n_envs = length(specs)
+    env = BroadcastedParallelEnv([StepCounterEnv(spec...) for spec in specs])
+    obs_space = DrillInterface.observation_space(env)
+    act_space = DrillInterface.action_space(env)
+    layer = SACModel(obs_space, act_space)
+    alg = SAC(; buffer_capacity = 100, batch_size = 4, start_steps = 0)
+    cache = init(RLProblem(env, layer), alg; max_steps = 64, verbosity = 0, rng = Random.Xoshiro(1))
+    buffer = ReplayBuffer(obs_space, act_space, 100)
+
+    _, success = Drill.collect_rollout!(buffer, cache, alg, env, n_steps)
+    @test success
+    @test length(buffer) == n_steps * n_envs
+    expected = [expected_counter_steps(id, m, k, n_steps) for (id, m, k) in specs]
+    for t in 1:n_steps, e in 1:n_envs
+        i = (t - 1) * n_envs + e
+        x = expected[e][t]
+        id = specs[e][1]
+        @test buffer.observations[:, i] == Float32[x.before, id]
+        # Mid-episode this is the next observation; for a finished episode it is the
+        # final observation before the reset.
+        @test buffer.next_observations[:, i] == Float32[x.after, id]
+        @test buffer.rewards[i] == x.reward
+        @test buffer.terminated[i] == x.term
+        @test buffer.truncated[i] == x.trunc
+    end
+    @test count(buffer.terminated) == 3
+    @test count(buffer.truncated) == 2
+    @test all(a -> -1.0f0 <= a <= 1.0f0, buffer.actions[:, 1:length(buffer)])
+
+    # Random warm-up actions follow the same storage path.
+    _, success = Drill.collect_rollout!(buffer, cache, alg, env, 2; use_random_actions = true)
+    @test success
+    @test length(buffer) == (n_steps + 2) * n_envs
+    stored = 1:length(buffer)
+    @test buffer.next_observations[1, stored] == buffer.observations[1, stored] .+ 1
+end
+
+@testset "ReplayBuffer sampling and data loader" begin
+    obs_space = Box(-1.0f0, 1.0f0, (3, 2))
+    act_space = Box(-1.0f0, 1.0f0, (2,))
+    buffer = ReplayBuffer(obs_space, act_space, 32)
+    rng = Random.Xoshiro(7)
+    @test_throws AssertionError Drill.sample_batch(buffer, 4, rng)
+
+    n = 10
+    obs = rand(rng, Float32, 3, 2, n)
+    add_transitions!(
+        buffer, obs, rand(rng, Float32, 2, n), Float32.(1:n),
+        isodd.(1:n), falses(n), obs .+ 1.0f0,
+    )
+
+    sample = sample_batch(buffer, 7, rng)
+    @test size(sample.observations) == (3, 2, 7)
+    @test size(sample.next_observations) == (3, 2, 7)
+    @test size(sample.actions) == (2, 7)
+    @test size(sample.rewards) == (7,)
+    @test size(sample.terminated) == (7,)
+    @test size(sample.truncated) == (7,)
+    @test eltype(sample.observations) == Float32
+    @test eltype(sample.actions) == Float32
+    @test eltype(sample.rewards) == Float32
+    @test eltype(sample.terminated) == Bool
+    # Only stored transitions are sampled, and the fields of one transition stay together.
+    @test all(r -> r in 1:n, sample.rewards)
+    for j in 1:7
+        k = Int(sample.rewards[j])
+        @test sample.observations[:, :, j] == obs[:, :, k]
+        @test sample.next_observations[:, :, j] == obs[:, :, k] .+ 1.0f0
+        @test sample.terminated[j] == isodd(k)
+    end
+
+    batch_size, batches = 4, 3
+    loader = get_data_loader(buffer, batch_size, batches, true, false, rng)
+    @test length(loader) == batches
+    for b in loader
+        @test size(b.observations) == (3, 2, batch_size)
+        @test size(b.next_observations) == (3, 2, batch_size)
+        @test size(b.actions) == (2, batch_size)
+        @test size(b.rewards) == (batch_size,)
+        @test size(b.terminated) == (batch_size,)
+    end
 end

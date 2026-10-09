@@ -15,7 +15,7 @@ using SciMLBase: ReturnCode
 using TimerOutputs: TimerOutput, NoTimerOutput, print_timer
 
 import DrillInterface: AbstractParallelEnv, Box, Discrete, action_space, batch,
-    number_of_envs, observation_slot, observation_space, observe
+    number_of_envs, observation_slot, observation_space, observe, reset!
 
 import ..Adapters: AbstractActionAdapter, from_env, to_env
 import ..Algorithms: AbstractAlgorithm, OffPolicyAlgorithm, OnPolicyAlgorithm,
@@ -23,8 +23,8 @@ import ..Algorithms: AbstractAlgorithm, OffPolicyAlgorithm, OnPolicyAlgorithm,
     compatible, init_entropy_coefficient, make_optimizer, parameters,
     select_actor_parameters, select_actor_states, select_critic_parameters,
     select_critic_states, set_states!, states, train_step!
-import ..Buffers: OffPolicyTrajectory, ReplayBuffer, RolloutBuffer, Trajectory,
-    compute_gae!, pack_trajectories!
+import ..Buffers: ReplayBuffer, RolloutBuffer, add_transitions!, compute_gae!,
+    step_indices, store_step!
 const _Drill = parentmodule(@__MODULE__)
 const AbstractCallback = _Drill.AbstractCallback
 const on_rollout_end = _Drill.on_rollout_end
@@ -54,7 +54,7 @@ export RLCache, RLSolution
 export Verbosity, DEFAULT_VERBOSITY, normalize_verbosity, print_training_table
 export parameters, states, set_states!, invalidate_cache!, steps_taken
 export get_action_and_values, predict_actions, predict_values, predict_actions_raw
-export collect_trajectories, collect_rollout!, prepare_rollout!
+export collect_rollout!, prepare_rollout!
 export init, solve!, step!, solve
 export save_model_params_and_state, load_model_params_and_state!
 export current_device, canonicalize_device_batch, rollout_inference_state,
