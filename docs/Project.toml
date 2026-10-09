@@ -8,6 +8,7 @@ MultiProgressManagers = "cc0c738e-a464-4ba6-84fc-30e2ce8f9d3d"
 Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [sources]
+ClassicControlEnvironments = {url = "https://github.com/KristianHolme/ClassicControlEnvironments.jl", rev = "drillinterface-0.2"}
 Drill = {path = ".."}
 DrillInterface = {path = "../DrillInterface"}
 MultiProgressManagers = {url = "https://github.com/KristianHolme/MultiProgressManagers.jl", rev = "master"}

@@ -69,14 +69,21 @@ function invalidate_cache!(np::NeuralPolicy)
     return np
 end
 
-function (np::NeuralPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = default_rng())
-    single_obs = false
-    if !(obs isa AbstractVector{<:AbstractArray}) && size(obs) == size(Models.observation_space(np.model))
-        single_obs = true
-        obs_batch = reshape(obs, :, 1)
-    else
-        obs_batch = batch(obs, Models.observation_space(np.model))
+# A single observation, a vector of observations, or a batched `(obs_dims..., n)` array
+_is_single_obs(obs::AbstractVector{<:AbstractArray}, space) = false
+_is_single_obs(obs, space) = size(obs) == size(space)
+
+function _policy_obs_batch(obs, space)
+    if obs isa AbstractVector{<:AbstractArray} || obs isa AbstractVector{<:Integer}
+        return batch(obs, space)
     end
+    return obs
+end
+
+function (np::NeuralPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = default_rng())
+    space = Models.observation_space(np.model)
+    single_obs = _is_single_obs(obs, space)
+    obs_batch = single_obs ? reshape(obs, size(obs)..., 1) : _policy_obs_batch(obs, space)
     dev = current_device(np.params)
     obs_batch = obs_batch |> dev
     obs_batch = canonicalize_device_batch(dev, obs_batch)
@@ -113,18 +120,11 @@ struct NormWrapperPolicy{P <: AbstractPolicy, T <: AbstractFloat} <: AbstractPol
 end
 
 function (nwp::NormWrapperPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = default_rng())
-    single_obs = false
-    if size(obs) == size(Models.observation_space(nwp.policy.model))
-        single_obs = true
-        obs = [obs]
-    end
-    # Normalize copies; the caller's observations stay unchanged.
-    obs = copy.(obs)
-    normalize_obs!.(obs, Ref(nwp.obs_rms), nwp.eps, nwp.clip_obs)
-    actions = nwp.policy(obs; deterministic, rng)
-    if single_obs
-        return actions[1]
-    else
-        return actions
-    end
+    space = Models.observation_space(nwp.policy.model)
+    single_obs = _is_single_obs(obs, space)
+    # Normalize a copy; the caller's observations stay unchanged.
+    obs_batch = single_obs ? reshape(copy(obs), size(obs)..., 1) : copy(_policy_obs_batch(obs, space))
+    normalize_obs!(obs_batch, nwp.obs_rms, nwp.eps, nwp.clip_obs)
+    actions = nwp.policy(obs_batch; deterministic, rng)
+    return single_obs ? actions[1] : actions
 end

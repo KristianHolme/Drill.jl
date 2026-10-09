@@ -3,7 +3,7 @@ using Drill
 using DrillInterface
 using Random
 
-@testset "Random.seed! single and wrappers" begin
+@testset "reset! with seed: single and wrappers" begin
     mutable struct DummyEnv <: AbstractEnv
         rng::Random.AbstractRNG
     end
@@ -15,29 +15,30 @@ using Random
     DrillInterface.truncated(::DummyEnv) = false
     DrillInterface.act!(::DummyEnv, action) = 0.0f0
     DrillInterface.get_info(::DummyEnv) = Dict{String, Any}()
-    DrillInterface.reset!(::DummyEnv) = nothing
+    function DrillInterface.reset!(env::DummyEnv; seed = nothing)
+        isnothing(seed) || Random.seed!(env.rng, seed)
+        return nothing
+    end
 
     env = DummyEnv(Random.Xoshiro())
-    Random.seed!(env, 42)
-    reset!(env)
+    @test isnothing(reset!(env; seed = 42))
     obs1 = observe(env)
-    Random.seed!(env, 42)
-    reset!(env)
+    reset!(env; seed = 42)
     obs2 = observe(env)
     @test obs1 == obs2
+    reset!(env; seed = 43)
+    @test observe(env) != obs1
 
     base = DummyEnv(Random.Xoshiro())
     wrapped = ScalingWrapperEnv(base)
-    Random.seed!(wrapped, 123)
-    reset!(wrapped)
+    @test isnothing(reset!(wrapped; seed = 123))
     w1 = observe(wrapped)
-    Random.seed!(wrapped, 123)
-    reset!(wrapped)
+    reset!(wrapped; seed = 123)
     w2 = observe(wrapped)
     @test w1 == w2
 end
 
-@testset "Random.seed! parallel envs" begin
+@testset "reset! with seed: parallel envs" begin
     mutable struct DummyEnv2 <: AbstractEnv
         rng::Random.AbstractRNG
     end
@@ -49,53 +50,43 @@ end
     DrillInterface.truncated(::DummyEnv2) = false
     DrillInterface.act!(::DummyEnv2, action) = 0.0f0
     DrillInterface.get_info(::DummyEnv2) = Dict{String, Any}()
-    DrillInterface.reset!(::DummyEnv2) = nothing
+    function DrillInterface.reset!(env::DummyEnv2; seed = nothing)
+        isnothing(seed) || Random.seed!(env.rng, seed)
+        return nothing
+    end
 
     envs_mt = [DummyEnv2(Random.Xoshiro()) for _ in 1:3]
     penv_mt = MultiThreadedParallelEnv(envs_mt)
-    Random.seed!(penv_mt, 7)
-    reset!(penv_mt)
-    o1 = observe(penv_mt)
-    Random.seed!(penv_mt, 7)
-    reset!(penv_mt)
-    o2 = observe(penv_mt)
-    @test all([o1[i] == o2[i] for i in eachindex(o1)])
+    o1 = reset!(penv_mt; seed = 7)
+    o2 = reset!(penv_mt; seed = 7)
+    @test size(o1) == (2, 3)
+    @test o1 == o2
+    # Env i is seeded with seed + i - 1, so the envs differ from each other
+    @test o1[:, 1] != o1[:, 2]
 
     envs_br = [DummyEnv2(Random.Xoshiro()) for _ in 1:2]
     penv_br = BroadcastedParallelEnv(envs_br)
-    Random.seed!(penv_br, 99)
-    reset!(penv_br)
-    b1 = observe(penv_br)
-    Random.seed!(penv_br, 99)
-    reset!(penv_br)
-    b2 = observe(penv_br)
-    @test all([b1[i] == b2[i] for i in eachindex(b1)])
+    b1 = reset!(penv_br; seed = 99)
+    b2 = reset!(penv_br; seed = 99)
+    @test b1 == b2
 
     nenv = NormalizeWrapperEnv(penv_br; training = false)
-    Random.seed!(nenv, 99)
-    reset!(nenv)
-    n1 = observe(nenv)
-    Random.seed!(nenv, 99)
-    reset!(nenv)
-    n2 = observe(nenv)
-    @test all([n1[i] == n2[i] for i in eachindex(n1)])
+    n1 = reset!(nenv; seed = 99)
+    n2 = reset!(nenv; seed = 99)
+    @test n1 ≈ n2
 
     envs1 = [DummyEnv2(Random.Xoshiro()) for _ in 1:2]
     envs2 = [DummyEnv2(Random.Xoshiro()) for _ in 1:3]
     p1 = BroadcastedParallelEnv(envs1)
     p2 = MultiThreadedParallelEnv(envs2)
     magent = MultiAgentParallelEnv([p1, p2])
-    Random.seed!(magent, 2024)
-    reset!(magent)
-    m1 = observe(magent)
-    Random.seed!(magent, 2024)
-    reset!(magent)
-    m2 = observe(magent)
-    @test length(m1) == length(m2)
-    @test all([m1[i] == m2[i] for i in eachindex(m1)])
+    m1 = reset!(magent; seed = 2024)
+    m2 = reset!(magent; seed = 2024)
+    @test size(m1) == (2, 5)
+    @test m1 == m2
 end
 
-@testset "Random.seed! no-rng env does not error" begin
+@testset "reset! with seed on env without rng does not error" begin
     struct NoRNGEnv <: AbstractEnv end
     DrillInterface.observation_space(::NoRNGEnv) = Box(Float32[0.0], Float32[1.0])
     DrillInterface.action_space(::NoRNGEnv) = Box(Float32[-1.0], Float32[1.0])
@@ -104,14 +95,13 @@ end
     DrillInterface.truncated(::NoRNGEnv) = false
     DrillInterface.act!(::NoRNGEnv, action) = 0.0f0
     DrillInterface.get_info(::NoRNGEnv) = Dict{String, Any}()
-    DrillInterface.reset!(::NoRNGEnv) = nothing
+    DrillInterface.reset!(::NoRNGEnv; seed = nothing) = nothing
 
     env = NoRNGEnv()
-    Random.seed!(env, 123)
-    @test true
+    @test isnothing(reset!(env; seed = 123))
 end
 
-@testset "Random.seed! mutates in-place" begin
+@testset "reset! with seed reseeds env rng in place" begin
     mutable struct DummyEnv3 <: AbstractEnv
         rng::Random.AbstractRNG
     end
@@ -123,55 +113,99 @@ end
     DrillInterface.truncated(::DummyEnv3) = false
     DrillInterface.act!(::DummyEnv3, action) = 0.0f0
     DrillInterface.get_info(::DummyEnv3) = Dict{String, Any}()
-    DrillInterface.reset!(::DummyEnv3) = nothing
+    function DrillInterface.reset!(env::DummyEnv3; seed = nothing)
+        isnothing(seed) || Random.seed!(env.rng, seed)
+        return nothing
+    end
 
     env = DummyEnv3(Random.Xoshiro())
-    Random.seed!(env, 11)
-    reset!(env)
+    rng_before = env.rng
+    reset!(env; seed = 11)
     a1 = observe(env)
-    Random.seed!(env, 11)
-    reset!(env)
+    reset!(env; seed = 11)
     a2 = observe(env)
     @test a1 == a2
+    @test env.rng === rng_before
 
     base = DummyEnv3(Random.Xoshiro())
     wrap = ScalingWrapperEnv(base)
-    Random.seed!(wrap, 12)
-    reset!(wrap)
+    reset!(wrap; seed = 12)
     w1 = observe(wrap)
-    Random.seed!(wrap, 12)
-    reset!(wrap)
+    reset!(wrap; seed = 12)
     w2 = observe(wrap)
     @test w1 == w2
 
     envs_b = [DummyEnv3(Random.Xoshiro()) for _ in 1:2]
     br = BroadcastedParallelEnv(envs_b)
-    Random.seed!(br, 21)
-    reset!(br)
+    reset!(br; seed = 21)
     b1 = observe(br)
-    Random.seed!(br, 21)
-    reset!(br)
+    reset!(br; seed = 21)
     b2 = observe(br)
-    @test all([b1[i] == b2[i] for i in eachindex(b1)])
+    @test b1 == b2
 
     envs_mt = [DummyEnv3(Random.Xoshiro()) for _ in 1:3]
     mt = MultiThreadedParallelEnv(envs_mt)
-    Random.seed!(mt, 33)
-    reset!(mt)
+    reset!(mt; seed = 33)
     m1 = observe(mt)
-    Random.seed!(mt, 33)
-    reset!(mt)
+    reset!(mt; seed = 33)
     m2 = observe(mt)
-    @test all([m1[i] == m2[i] for i in eachindex(m1)])
+    @test m1 == m2
 
     p1 = BroadcastedParallelEnv([DummyEnv3(Random.Xoshiro()) for _ in 1:2])
     p2 = MultiThreadedParallelEnv([DummyEnv3(Random.Xoshiro()) for _ in 1:1])
     ma = MultiAgentParallelEnv([p1, p2])
-    Random.seed!(ma, 44)
-    reset!(ma)
+    reset!(ma; seed = 44)
     x1 = observe(ma)
-    Random.seed!(ma, 44)
-    reset!(ma)
+    reset!(ma; seed = 44)
     x2 = observe(ma)
-    @test all([x1[i] == x2[i] for i in eachindex(x1)])
+    @test x1 == x2
+end
+
+@testset "reset! with seed makes parallel rollouts reproducible" begin
+    mutable struct TrackingEnvForSeeding <: AbstractEnv
+        rng::Random.AbstractRNG
+        value::Float32
+        steps::Int
+    end
+    TrackingEnvForSeeding(rng) = TrackingEnvForSeeding(rng, 0.0f0, 0)
+    DrillInterface.observation_space(::TrackingEnvForSeeding) = Box(Float32[0.0], Float32[1.0])
+    DrillInterface.action_space(::TrackingEnvForSeeding) = Box(Float32[-1.0], Float32[1.0])
+    DrillInterface.observe(env::TrackingEnvForSeeding) = Float32[env.value]
+    DrillInterface.terminated(env::TrackingEnvForSeeding) = env.steps >= 4
+    DrillInterface.truncated(::TrackingEnvForSeeding) = false
+    function DrillInterface.act!(env::TrackingEnvForSeeding, action)
+        reward = 1.0f0 - abs(action[1] - env.value)
+        env.value = rand(env.rng, Float32)
+        env.steps += 1
+        return reward
+    end
+    function DrillInterface.reset!(env::TrackingEnvForSeeding; seed = nothing)
+        isnothing(seed) || Random.seed!(env.rng, seed)
+        env.value = rand(env.rng, Float32)
+        env.steps = 0
+        return nothing
+    end
+
+    function rollout(penv, seed)
+        obs = [copy(reset!(penv; seed))]
+        rewards = Vector{Float32}[]
+        for _ in 1:10
+            actions = [Float32[0.25f0] for _ in 1:number_of_envs(penv)]
+            o, r, _, _, _, _ = step!(penv, actions)
+            push!(obs, copy(o))
+            push!(rewards, copy(r))
+        end
+        return obs, rewards
+    end
+
+    make_env() = BroadcastedParallelEnv([TrackingEnvForSeeding(Random.Xoshiro()) for _ in 1:3])
+
+    obs1, rew1 = rollout(make_env(), 5)
+    obs2, rew2 = rollout(make_env(), 5)
+    obs3, _ = rollout(make_env(), 6)
+    @test obs1 == obs2
+    @test rew1 == rew2
+    @test obs1 != obs3
+    # Shifting the seed by one shifts the envs by one
+    @test obs1[1][:, 2:3] == obs3[1][:, 1:2]
 end

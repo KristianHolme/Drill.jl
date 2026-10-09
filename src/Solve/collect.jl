@@ -7,6 +7,10 @@ function _callbacks_continue(callbacks, hook, cache::RLCache)
     return true
 end
 
+# One observation out of a batched observation array, as a trajectory stores it
+_single_obs(obs::AbstractArray, j::Int, ::Box) = collect(observation_slot(obs, j))
+_single_obs(obs::AbstractArray, j::Int, ::Discrete) = obs[1, j]
+
 function collect_trajectories(
         cache::RLCache,
         env::AbstractParallelEnv,
@@ -28,10 +32,9 @@ function collect_trajectories(
         observations = new_obs
         actions, values, logprobs = get_action_and_values(cache, observations)
         processed_actions = _env_action.(Ref(cache), actions)
-        rewards, terminateds, truncateds, infos = act!(env, processed_actions)
-        new_obs = observe(env)
+        new_obs, rewards, terminateds, truncateds, final_obs, _ = step!(env, processed_actions)
         for j in 1:n_envs
-            push!(current_trajectories[j].observations, observations[j])
+            push!(current_trajectories[j].observations, _single_obs(observations, j, obs_space))
             push!(current_trajectories[j].actions, actions[j])
             push!(current_trajectories[j].rewards, rewards[j])
             push!(current_trajectories[j].logprobs, logprobs[j])
@@ -39,11 +42,11 @@ function collect_trajectories(
             if terminateds[j] || truncateds[j] || i == n_steps
                 current_trajectories[j].terminated = terminateds[j]
                 current_trajectories[j].truncated = truncateds[j]
-                if truncateds[j] && haskey(infos[j], "terminal_observation")
-                    last_observation = infos[j]["terminal_observation"]
+                if truncateds[j]
+                    last_observation = _single_obs(final_obs, j, obs_space)
                     current_trajectories[j].bootstrap_value = predict_values(cache, [last_observation])[1]
-                elseif !terminateds[j] && !truncateds[j] && i == n_steps
-                    current_trajectories[j].bootstrap_value = predict_values(cache, [new_obs[j]])[1]
+                elseif !terminateds[j]
+                    current_trajectories[j].bootstrap_value = predict_values(cache, [_single_obs(new_obs, j, obs_space)])[1]
                 end
                 push!(trajectories, current_trajectories[j])
                 current_trajectories[j] = Trajectory(obs_space, act_space)
@@ -100,25 +103,24 @@ function collect_trajectories(
         observations = new_obs
         if use_random_actions
             # Sample in env space; store the policy-space equivalent for training.
-            processed_actions = rand(cache.rng, act_space, length(observations))
+            processed_actions = rand(cache.rng, act_space, n_envs)
             actions = from_env.(Ref(cache.adapter), processed_actions, Ref(act_space))
         else
             actions = predict_actions(cache, observations; raw = true)
             processed_actions = _env_action.(Ref(cache), actions)
         end
-        rewards, terminateds, truncateds, infos = act!(env, processed_actions)
-        new_obs = observe(env)
+        new_obs, rewards, terminateds, truncateds, final_obs, _ = step!(env, processed_actions)
         for j in 1:n_envs
-            push!(current_trajectories[j].observations, observations[j])
+            push!(current_trajectories[j].observations, _single_obs(observations, j, obs_space))
             push!(current_trajectories[j].actions, actions[j])
             push!(current_trajectories[j].rewards, rewards[j])
             if terminateds[j] || truncateds[j] || i == n_steps
                 current_trajectories[j].terminated = terminateds[j]
                 current_trajectories[j].truncated = truncateds[j]
-                if truncateds[j] && haskey(infos[j], "terminal_observation")
-                    current_trajectories[j].truncated_observation = infos[j]["terminal_observation"]
-                elseif !terminateds[j] && !truncateds[j] && i == n_steps
-                    current_trajectories[j].truncated_observation = new_obs[j]
+                if truncateds[j]
+                    current_trajectories[j].truncated_observation = _single_obs(final_obs, j, obs_space)
+                elseif !terminateds[j]
+                    current_trajectories[j].truncated_observation = _single_obs(new_obs, j, obs_space)
                 end
                 push!(trajectories, current_trajectories[j])
                 current_trajectories[j] = OffPolicyTrajectory(obs_space, act_space)

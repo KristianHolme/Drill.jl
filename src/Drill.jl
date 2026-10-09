@@ -12,7 +12,7 @@ using Reexport: @reexport
 using Statistics: mean, std
 
 import DrillInterface: AbstractParallelEnv, AbstractParallelEnvWrapper, AbstractPolicy,
-    act!, action_space, batch, number_of_envs, observation_space, observe, reset!, unwrap
+    action_space, batch, number_of_envs, observation_space, reset!, step!, unwrap
 import MLDataDevices: AbstractDevice, cpu_device
 
 include("DrillDistributions/DrillDistributions.jl")
