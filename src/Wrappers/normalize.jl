@@ -128,7 +128,8 @@ function reset!(env::NormalizeWrapperEnv{E, T}) where {E, T}
 end
 
 function observe(env::NormalizeWrapperEnv{E, T}) where {E, T}
-    obs = observe(env.env)
+    # Copy: the inner env may return arrays it still owns.
+    obs = copy.(observe(env.env))
 
     # Store original observations and rewards for access
     env.old_obs .= batch(obs, observation_space(env))
@@ -162,7 +163,7 @@ function act!(env::NormalizeWrapperEnv{E, T}, actions::AbstractVector) where {E,
     # Normalize terminal observations in infos
     for i in findall(truncateds)
         if haskey(infos[i], "terminal_observation")
-            term_obs = infos[i]["terminal_observation"]
+            term_obs = copy(infos[i]["terminal_observation"])
             normalize_obs!(term_obs, env)
             infos[i]["terminal_observation"] = term_obs
         end
@@ -239,7 +240,7 @@ function get_info(env::NormalizeWrapperEnv)
 
     for i in findall(dones)
         if haskey(infos[i], "terminal_observation")
-            term_obs = infos[i]["terminal_observation"]
+            term_obs = copy(infos[i]["terminal_observation"])
             normalize_obs!(term_obs, env)
             infos[i]["terminal_observation"] = term_obs
         end

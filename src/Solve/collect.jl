@@ -99,8 +99,9 @@ function collect_trajectories(
         end
         observations = new_obs
         if use_random_actions
-            actions = rand(cache.rng, act_space, length(observations))
-            processed_actions = actions
+            # Sample in env space; store the policy-space equivalent for training.
+            processed_actions = rand(cache.rng, act_space, length(observations))
+            actions = from_env.(Ref(cache.adapter), processed_actions, Ref(act_space))
         else
             actions = predict_actions(cache, observations; raw = true)
             processed_actions = _env_action.(Ref(cache), actions)

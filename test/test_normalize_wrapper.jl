@@ -3,6 +3,8 @@ using Drill
 using DrillInterface
 using Statistics
 using Random
+include("setup.jl")
+using .TestSetup
 
 @testset "RunningMeanStd basic functionality" begin
     using Drill: RunningMeanStd, update!, update_from_moments!
@@ -392,4 +394,13 @@ end
     reset!(norm_env)
     obs2 = observe(norm_env)
     @test all([isapprox(o1, o2) for (o1, o2) in zip(obs1, obs2)])
+end
+
+@testset "NormalizeWrapperEnv does not mutate env-owned arrays" begin
+    inner = BufferObsEnv()
+    state_before = copy(inner.state)
+    env = NormalizeWrapperEnv(BroadcastedParallelEnv([inner]))
+    DrillInterface.observe(env)
+    DrillInterface.observe(env)
+    @test inner.state == state_before
 end

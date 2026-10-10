@@ -17,7 +17,7 @@ using TimerOutputs: TimerOutput, NoTimerOutput, print_timer
 import DrillInterface: AbstractParallelEnv, Box, Discrete, act!, action_space, batch,
     number_of_envs, observation_space, observe
 
-import ..Adapters: AbstractActionAdapter, to_env
+import ..Adapters: AbstractActionAdapter, from_env, to_env
 import ..Algorithms: AbstractAlgorithm, OffPolicyAlgorithm, OnPolicyAlgorithm,
     PPO, SAC, PPOTrainState, SACTrainState, EntropyCoefficientLayer, action_adapter,
     compatible, init_entropy_coefficient, make_optimizer, parameters,

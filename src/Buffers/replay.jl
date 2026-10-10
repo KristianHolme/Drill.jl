@@ -136,10 +136,9 @@ function get_data_loader(buffer::ReplayBuffer{T, O, OBS, AC}, batch_size::Int, b
             end
             next_obs_sample[i] = next_obs
         else
-            #dummy value to have next_obs be same length as the other arrays
-            #take first value to get shape, and multiply with NaN to get all NaNs
-            #TODO is there a cleaner simpler way to do this?
-            next_obs_sample[i] = buffer.observations[1] * NaN
+            # Terminal step: the target masks out the next value, so any finite
+            # observation of the right shape works as a placeholder.
+            next_obs_sample[i] = buffer.observations[sample_inds[i]]
         end
     end
     next_obs_sample = batch(next_obs_sample, observation_space(buffer))

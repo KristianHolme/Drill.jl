@@ -10,21 +10,20 @@ function to_env(::ClampAdapter, action::AbstractArray, space::Box{T}) where {T}
     return clamp.(a, space.low, space.high)
 end
 
-function to_env(::TanhScaleAdapter, action::AbstractArray, space::Box{T}) where {T}
+function to_env(::ScaleAdapter, action::AbstractArray, space::Box{T}) where {T}
     a = action
     if eltype(a) != T
         @warn "Action type mismatch: $(eltype(a)) != $T"
         a = convert.(T, a)
     end
-    # squashed with tanh, then scaled to box range
+    # The policy already squashes with tanh, so `a` lies in [-1, 1]; scale it to the box.
     low = space.low
     high = space.high
-    return tanh.(a) .* (high - low) ./ T(2) + (low + high) ./ T(2)
+    return a .* (high - low) ./ T(2) + (low + high) ./ T(2)
 end
 
-# Optional inverse mappings (no atanh by default; map back to [-1,1] for SAC)
-function from_env(::TanhScaleAdapter, action::AbstractArray, space::Box{T}) where {T}
-    # Map env action in [low, high] back to [-1, 1]
+# Inverse of `to_env`: map an env action in [low, high] back to [-1, 1]
+function from_env(::ScaleAdapter, action::AbstractArray, space::Box{T}) where {T}
     low = space.low
     high = space.high
     return T(2) .* (action .- (low .+ high) ./ T(2)) ./ (high .- low)

@@ -5,7 +5,7 @@
 """
     AbstractActionAdapter
 
-Maps between policy outputs and environment actions (see `to_env`, `from_env`); concrete types include `ClampAdapter`, `TanhScaleAdapter`, and `DiscreteAdapter`.
+Maps between policy outputs and environment actions (see `to_env`, `from_env`); concrete types include `ClampAdapter`, `ScaleAdapter`, and `DiscreteAdapter`.
 """
 abstract type AbstractActionAdapter end
 
@@ -28,7 +28,7 @@ function from_env end
 #TODO: move these to not be in the interface file?
 # Concrete adapter types (behavior selected by algorithm)
 struct ClampAdapter <: AbstractActionAdapter end          # e.g., PPO with Box
-struct TanhScaleAdapter <: AbstractActionAdapter end      # e.g., SAC with Box
+struct ScaleAdapter <: AbstractActionAdapter end          # e.g., SAC with Box: maps [-1, 1] affinely onto the box
 struct DiscreteAdapter <: AbstractActionAdapter end       # Discrete actions
 
 # Fallbacks to surface missing implementations early

@@ -98,7 +98,8 @@ end
 
 
 function observe(env::ScalingWrapperEnv{E, Box, Box}) where {E}
-    orig_obs = observe(env.env)
+    # Copy: the inner env may return an array it still owns.
+    orig_obs = copy(observe(env.env))
     # Scale observation from original space to [-1, 1] using pre-computed factors
     scale_observation!(orig_obs, env)
     return orig_obs
@@ -116,8 +117,10 @@ function unscale_action!(action, env::ScalingWrapperEnv{E, Box, Box}) where {E}
 end
 
 function act!(env::ScalingWrapperEnv{E, Box, Box}, action) where {E}
-    unscale_action!(action, env)
-    return act!(env.env, action)
+    # Copy: the caller keeps its action unchanged.
+    env_action = copy(action)
+    unscale_action!(env_action, env)
+    return act!(env.env, env_action)
 end
 
 function terminated(env::ScalingWrapperEnv)

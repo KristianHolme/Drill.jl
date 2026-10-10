@@ -22,7 +22,7 @@ end
 
 make_optimizer(alg::SAC) = make_optimizer(alg.optimizer, alg)
 
-action_adapter(::SAC, ::Box) = TanhScaleAdapter()
+action_adapter(::SAC, ::Box) = ScaleAdapter()
 has_twin_critics(::SAC) = true
 has_target_networks(::SAC) = true
 has_entropy_tuning(::SAC) = true
@@ -107,9 +107,10 @@ function compute_target_q_values(
     next_q_vals, _ = predict_values(layer, next_obs, next_actions, ps_with_target, st_with_target)
     min_next_q = vec(minimum(next_q_vals, dims = 1))
     T = eltype(min_next_q)
-    mask = T.(.!data.terminated)
     next_q_vals_with_entropy = min_next_q .- ent_coef .* next_log_probs
-    target_q_values = data.rewards .+ alg.gamma .* mask .* next_q_vals_with_entropy
+    # ifelse, not multiplication by a 0/1 mask: 0 * NaN is NaN
+    next_values = ifelse.(data.terminated, zero(T), next_q_vals_with_entropy)
+    target_q_values = data.rewards .+ alg.gamma .* next_values
     return target_q_values
 end
 
