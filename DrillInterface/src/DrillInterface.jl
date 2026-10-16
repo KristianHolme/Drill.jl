@@ -1,253 +1,218 @@
 module DrillInterface
 
-using Random
+using Random: Random, AbstractRNG
+import CommonSolve: step!
 
 # ------------------------------------------------------------
 # Environments
 # ------------------------------------------------------------
 
 export AbstractEnv, AbstractEnvWrapper, AbstractParallelEnv, AbstractParallelEnvWrapper
-export act!, observe, reset!, terminated, truncated
+export act!, observe, observe!, reset!, step!, terminated, truncated
 export action_space, get_info, number_of_envs, observation_space
 export is_wrapper, unwrap, unwrap_all
+export allocate_observations, observation_slot
 
 """
     AbstractEnv
 
-Abstract base type for all reinforcement learning environments.
+Abstract base type for single reinforcement learning environments.
 
-Subtypes must implement the following methods:
-- `reset!(env)` - Reset the environment
-- `act!(env, action)` - Take an action and return the reward
-- `observe(env)` - Get current observation
-- `terminated(env)` - Check if episode terminated
-- `truncated(env)` - Check if episode was truncated
-- `action_space(env)` - Get the action space
-- `observation_space(env)` - Get the observation space
+Subtypes must implement:
+- `reset!(env; seed = nothing)`: reset to an initial state, reseeding the env's RNG when
+  `seed` is an integer. Returns `nothing`.
+- `act!(env, action)`: take an action and return the reward.
+- `observe(env)`: return the current observation.
+- `terminated(env)`, `truncated(env)`: whether the episode has ended.
+- `action_space(env)`, `observation_space(env)`.
+
+Optional:
+- `observe!(dest, env)`: write the current observation into `dest`. The default copies
+  `observe(env)`; envs with large observations can override it to avoid an allocation.
+- `get_info(env)`: extra per-step information. Defaults to `nothing`.
+
+# Ownership
+`observe` returns an array the caller may keep: an env must not mutate an array after
+returning it. Callers never mutate what an env returns, and envs never mutate the
+actions they are given.
 """
 abstract type AbstractEnv end
 
 """
-    AbstractParallelEnv <: AbstractEnv
+    AbstractParallelEnv
 
-Abstract type for vectorized/parallel environments that manage multiple environment instances.
+Abstract base type for vectorized environments that step `number_of_envs(penv)` envs
+at once. It is a separate hierarchy from [`AbstractEnv`](@ref).
 
-# Key Differences from AbstractEnv
+Subtypes must implement:
+- `reset!(penv; seed = nothing) -> obs`: reset all envs. With an integer `seed`, env
+  `i` is reset with seed `seed + i - 1`.
+- `step!(penv, actions) -> (obs, rewards, terminated, truncated, final_obs, infos)`.
+- `observe(penv) -> obs`: the current batched observation.
+- `number_of_envs(penv)`, `action_space(penv)`, `observation_space(penv)`.
 
-| Method | Single Env | Parallel Env |
-|--------|------------|--------------|
-| `observe` | Returns one observation | Returns vector of observations |
-| `act!` | Returns `reward` | Returns `(rewards, terminateds, truncateds, infos)` |
-| `terminated` | Returns `Bool` | Returns `Vector{Bool}` |
-| `truncated` | Returns `Bool` | Returns `Vector{Bool}` |
+# `step!` results
+- `actions` is an `AbstractVector` with one env-space action per env.
+- `obs` is a batched array of size `(size(observation_space(penv))..., n_envs)`. Envs that
+  finished this step have already been reset, so their columns hold the first
+  observation of the next episode.
+- `rewards`, `terminated` and `truncated` are vectors of length `n_envs`.
+- `final_obs` has the same shape as `obs`. For envs that finished this step, its column
+  holds the last observation of the finished episode. Other columns are unspecified.
+- `infos` is `nothing`, or a vector with one entry per env.
 
-# Auto-Reset Behavior
-Parallel environments automatically reset individual sub-environments when they terminate or truncate.
-The terminal observation is stored in `infos[i]["terminal_observation"]` before reset.
+The ownership rule of [`AbstractEnv`](@ref) applies: callers may keep the returned arrays
+and never mutate them.
 """
-abstract type AbstractParallelEnv <: AbstractEnv end
+abstract type AbstractParallelEnv end
 
 """
-    reset!(env::AbstractEnv) -> Nothing
+    reset!(env::AbstractEnv; seed = nothing) -> nothing
+    reset!(penv::AbstractParallelEnv; seed = nothing) -> obs
 
-Reset the environment to its initial state.
-
-# Arguments
-- `env::AbstractEnv`: The environment to reset
-
-# Returns
-- `Nothing`
+Reset an environment. An integer `seed` reseeds the env's random state first, so the
+episodes that follow are reproducible. A parallel env returns the batched observation.
 """
 function reset! end
 
 """
     act!(env::AbstractEnv, action) -> reward
 
-Take an action in the environment and return the reward.
-
-# Arguments
-- `env::AbstractEnv`: The environment to act in
-- `action`: The action to take (type depends on environment's action space)
-
-# Returns
-- `reward`: Numerical reward from taking the action
+Take an action in a single environment and return the reward.
 """
 function act! end
 
 """
     observe(env::AbstractEnv) -> observation
+    observe(penv::AbstractParallelEnv) -> batched observation
 
-Get the current observation from the environment.
-
-# Arguments
-- `env::AbstractEnv`: The environment to observe
-
-# Returns
-- `observation`: Current state observation (type/shape depends on environment's observation space)
+Return the current observation. The caller may keep the result and must not mutate it.
 """
 function observe end
 
 """
+    observe!(dest, env::AbstractEnv) -> dest
+
+Write the current observation of `env` into `dest`. The default copies `observe(env)`.
+"""
+function observe!(dest, env::AbstractEnv)
+    dest .= observe(env)
+    return dest
+end
+
+"""
     terminated(env::AbstractEnv) -> Bool
 
-Check if the environment episode has terminated due to reaching a terminal state.
-
-# Arguments
-- `env::AbstractEnv`: The environment to check
-
-# Returns
-- `Bool`: `true` if episode is terminated, `false` otherwise
+Whether the episode has reached a terminal state.
 """
 function terminated end
 
 """
     truncated(env::AbstractEnv) -> Bool
 
-Check if the environment episode has been truncated (e.g., time limit reached).
-
-# Arguments
-- `env::AbstractEnv`: The environment to check
-
-# Returns
-- `Bool`: `true` if episode is truncated, `false` otherwise
+Whether the episode was cut short, for example by a time limit.
 """
 function truncated end
 
 """
-    action_space(env::AbstractEnv) -> AbstractSpace
+    action_space(env) -> AbstractSpace
 
-Get the action space specification for the environment.
-
-# Arguments
-- `env::AbstractEnv`: The environment
-
-# Returns
-- `AbstractSpace`: The action space (e.g., Box, Discrete)
+The action space of a single or parallel environment.
 """
 function action_space end
 
 """
-    observation_space(env::AbstractEnv) -> AbstractSpace
+    observation_space(env) -> AbstractSpace
 
-Get the observation space specification for the environment.
-
-# Arguments
-- `env::AbstractEnv`: The environment
-
-# Returns
-- `AbstractSpace`: The observation space (e.g., Box, Discrete)
+The observation space of a single or parallel environment. For a parallel env, this is
+the space of one env's observation.
 """
 function observation_space end
 
 """
-    get_info(env::AbstractEnv) -> Dict
+    get_info(env::AbstractEnv)
 
-Get additional environment information (metadata, debug info, etc.).
-
-# Arguments
-- `env::AbstractEnv`: The environment
-
-# Returns
-- `Dict`: Dictionary containing environment-specific information
+Extra information about the last step. Defaults to `nothing`.
 """
-function get_info end
+get_info(::AbstractEnv) = nothing
 
 """
-    number_of_envs(env::AbstractParallelEnv) -> Int
+    number_of_envs(penv::AbstractParallelEnv) -> Int
 
-Get the number of parallel environments in a parallel environment wrapper.
-
-# Arguments
-- `env::AbstractParallelEnv`: The parallel environment
-
-# Returns
-- `Int`: Number of parallel environments
+The number of environments stepped by a parallel environment.
 """
 function number_of_envs end
+
+"""
+    step!(penv::AbstractParallelEnv, actions) -> (obs, rewards, terminated, truncated, final_obs, infos)
+
+Step all environments of `penv` once, resetting the ones that finish. See
+[`AbstractParallelEnv`](@ref) for the meaning of each result.
+"""
+step!
+
+# ------------------------------------------------------------
+# Batched observations
+# ------------------------------------------------------------
+
+"""
+    allocate_observations(space, n) -> Array
+
+An uninitialized array for `n` observations from `space`, of size `(size(space)..., n)`.
+"""
+function allocate_observations(space, n::Integer)
+    return Array{eltype(space)}(undef, size(space)..., n)
+end
+
+"""
+    observation_slot(obs, i)
+
+A view of the `i`-th observation in the batched array `obs`.
+"""
+observation_slot(obs::AbstractArray, i::Integer) = selectdim(obs, ndims(obs), i)
 
 # ------------------------------------------------------------
 # Environment wrappers
 # ------------------------------------------------------------
+
+"""
+    AbstractEnvWrapper{E}
+
+Wraps a single [`AbstractEnv`](@ref) while remaining an `AbstractEnv`.
+"""
 abstract type AbstractEnvWrapper{E <: AbstractEnv} <: AbstractEnv end
 
 """
     AbstractParallelEnvWrapper{E}
 
-Wraps a vectorized [`AbstractParallelEnv`](@ref) (e.g. normalization or monitoring) while remaining an `AbstractParallelEnv`.
+Wraps an [`AbstractParallelEnv`](@ref) (e.g. normalization or monitoring) while remaining
+an `AbstractParallelEnv`.
 """
 abstract type AbstractParallelEnvWrapper{E <: AbstractParallelEnv} <: AbstractParallelEnv end
 
-# ------------------------------------------------------------
-# Environment wrapper utilities
-# ------------------------------------------------------------
 """
-    is_wrapper(env::AbstractEnv) -> Bool
+    is_wrapper(env) -> Bool
 
-Check if an environment is a wrapper around another environment.
-
-# Arguments
-- `env::AbstractEnv`: The environment to check
-
-# Returns
-- `Bool`: `true` if environment is a wrapper, `false` otherwise
+Whether `env` wraps another environment.
 """
 is_wrapper(env::AbstractEnv) = env isa AbstractEnvWrapper
 is_wrapper(env::AbstractParallelEnv) = env isa AbstractParallelEnvWrapper
 
 """
-    unwrap(env::AbstractEnvWrapper) -> AbstractEnv
+    unwrap(env) -> env
 
-Unwrap one layer of environment wrapper to access the underlying environment.
-
-# Arguments
-- `env::AbstractEnvWrapper`: The wrapped environment
-
-# Returns
-- `AbstractEnv`: The underlying environment (may still be wrapped)
+Remove one layer of wrapping.
 """
 function unwrap end
 
-function unwrap_all(env::AbstractEnv)
-    wrapped = true
-    while wrapped
+"""
+    unwrap_all(env) -> env
+
+Remove all layers of wrapping.
+"""
+function unwrap_all(env::Union{AbstractEnv, AbstractParallelEnv})
+    while is_wrapper(env)
         env = unwrap(env)
-        wrapped = is_wrapper(env)
-    end
-    return env
-end
-
-function observation_space(env::AbstractParallelEnv)
-    return observation_space(env.envs[1])
-end
-
-function action_space(env::AbstractParallelEnv)
-    return action_space(env.envs[1])
-end
-# Random.seed! extensions for environments
-"""
-    Random.seed!(env::AbstractEnv, seed::Integer)
-
-Seed an environment's internal RNG. Environments should have an `rng` field 
-that gets seeded for reproducible behavior.
-"""
-function Random.seed!(env::AbstractEnv, seed::Integer)
-    if hasfield(typeof(env), :rng)
-        Random.seed!(env.rng, seed)
-    else
-        @debug "Environment $(typeof(env)) does not have an rng field - seeding has no effect"
-    end
-    return env
-end
-
-"""
-    Random.seed!(env::AbstractParallelEnv, seed::Integer)
-
-Seed all sub-environments in a parallel environment with incremented seeds.
-Each sub-environment gets seeded with `seed + i - 1` where `i` is the environment index.
-"""
-function Random.seed!(env::AbstractParallelEnv, seed::Integer)
-    for (i, sub_env) in enumerate(env.envs)
-        Random.seed!(sub_env, seed + i - 1)
     end
     return env
 end
@@ -268,14 +233,14 @@ Concrete subtypes include `Box` (continuous) and `Discrete` (finite actions).
 abstract type AbstractSpace end
 
 """
-    Box{T <: Number} <: AbstractSpace
+    Box{T <: Number, N} <: AbstractSpace
 
-A continuous space with lower and upper bounds per dimension.
+A continuous space with lower and upper bounds per element.
 
 # Fields
-- `low::Array{T}`: Lower bounds for each dimension
-- `high::Array{T}`: Upper bounds for each dimension
-- `shape::Tuple{Vararg{Int}}`: Shape of the space
+- `low::Array{T, N}`: lower bounds
+- `high::Array{T, N}`: upper bounds
+- `shape::NTuple{N, Int}`: shape of one sample
 
 # Example
 ```julia
@@ -286,32 +251,30 @@ space = Box(Float32[-1, -2], Float32[1, 3])
 space = Box(-1.0f0, 1.0f0, (4,))
 ```
 """
-struct Box{T <: Number} <: AbstractSpace
-    low::Array{T}
-    high::Array{T}
-    shape::Tuple{Vararg{Int}}
+struct Box{T <: Number, N} <: AbstractSpace
+    low::Array{T, N}
+    high::Array{T, N}
+    shape::NTuple{N, Int}
+    function Box{T, N}(low::Array{T, N}, high::Array{T, N}) where {T <: Number, N}
+        @assert size(low) == size(high) "Low and high arrays must have the same shape"
+        @assert all(low .<= high) "All low values must be <= corresponding high values"
+        return new{T, N}(low, high, size(low))
+    end
 end
 
-function Box{T}(low::Array{T}, high::Array{T}) where {T <: Number}
-    @assert size(low) == size(high) "Low and high arrays must have the same shape"
-    @assert all(low .<= high) "All low values must be <= corresponding high values"
-    shape = size(low)
-    return Box{T}(low, high, shape)
+Box{T}(low::Array{T, N}, high::Array{T, N}) where {T <: Number, N} = Box{T, N}(low, high)
+Box(low::Array{T, N}, high::Array{T, N}) where {T <: Number, N} = Box{T, N}(low, high)
+
+function Box(low::T, high::T, shape::NTuple{N, Int}) where {T <: Number, N}
+    return Box{T, N}(fill(low, shape), fill(high, shape))
 end
 
-function Box(low::T, high::T, shape::Tuple{Vararg{Int}}) where {T <: Number}
-    return Box{T}(low * ones(T, shape), high * ones(T, shape), shape)
-end
-
-# Convenience constructors
-Box(low::Array{T}, high::Array{T}) where {T <: Number} = Box{T}(low, high)
-
-Base.ndims(space::Box) = length(size(space))
+Base.ndims(::Box{T, N}) where {T, N} = N
 
 Base.eltype(::Box{T}) where {T} = T
 
 function Base.isequal(box1::Box{T1}, box2::Box{T2}) where {T1, T2}
-    return T1 == T2 && box1.low == box2.low && box1.high == box2.high && box1.shape == box2.shape
+    return T1 == T2 && box1.low == box2.low && box1.high == box2.high
 end
 
 """
@@ -329,9 +292,7 @@ sample = rand(space)
 ```
 """
 function Random.rand(rng::AbstractRNG, space::Box{T}) where {T}
-    # Generate random values in [0, 1] with correct type and shape
     unit_random = rand(rng, T, space.shape...)
-    # Scale to [low, high] range element-wise
     return unit_random .* (space.high .- space.low) .+ space.low
 end
 
@@ -350,47 +311,36 @@ Random.rand(space::Box, n::Integer) = rand(Random.default_rng(), space, n)
 Random.rand(space::Box) = rand(Random.default_rng(), space)
 
 """
-    sample in space::Box{T}
+    sample in space::Box{T, N}
 
-Check if a sample is within the bounds of the box space.
+Whether `sample` is an array of element type `T` and shape `space.shape` that lies within
+the bounds. Anything else, including a batch of samples, is not in the space.
 
 # Examples
 ```julia
-low = Float32[-1.0, -2.0]
-high = Float32[1.0, 3.0]
-space = Box(low, high)
-Float32[0.5, 1.5] in space  # Returns true
-Float32[1.5, 0.0] in space  # Returns false (first element out of bounds)
-
-# Can also use ∈ symbol
-@test action ∈ action_space
+space = Box(Float32[-1.0, -2.0], Float32[1.0, 3.0])
+Float32[0.5, 1.5] in space  # true
+Float32[1.5, 0.0] in space  # false: first element out of bounds
+[0.5, 1.5] in space         # false: Float64 sample in a Float32 box
 ```
 """
-function Base.in(sample, space::Box{T}) where {T}
-    if !isa(sample, AbstractArray)
-        return false
-    end
-
-    # Check shape compatibility (allowing for batch dimensions)
-    sample_shape = size(sample)
-    if length(sample_shape) < length(space.shape)
-        return false
-    end
-
-    # Check if the leading dimensions match the space shape
-    if sample_shape[1:length(space.shape)] != space.shape
-        return false
-    end
-
-    # Check type compatibility - require exact type match for strict type safety
-    if eltype(sample) != T
-        return false
-    end
-
-    # Check bounds element-wise
+function Base.in(sample::AbstractArray{T, N}, space::Box{T, N}) where {T <: Number, N}
+    size(sample) == space.shape || return false
     return all(space.low .<= sample .<= space.high)
 end
 
+# Dense CPU arrays: a branch-free loop, which does not allocate and vectorizes.
+function Base.in(sample::Array{T, N}, space::Box{T, N}) where {T <: Number, N}
+    size(sample) == space.shape || return false
+    low, high = space.low, space.high
+    ok = true
+    for i in eachindex(sample, low, high)
+        ok &= (low[i] <= sample[i]) & (sample[i] <= high[i])
+    end
+    return ok
+end
+
+Base.in(sample, ::Box) = false
 
 """
     Discrete{T <: Integer} <: AbstractSpace
@@ -498,7 +448,7 @@ abstract type AbstractPolicy end
 
 """
     RandomPolicy(action_space)
-    RandomPolicy(env::AbstractEnv)
+    RandomPolicy(env)
 
 A policy that returns a random action from the action space.
 
@@ -518,7 +468,7 @@ function (rp::RandomPolicy)(obs; deterministic::Bool = true, rng::AbstractRNG = 
     return rand(rng, rp.action_space)
 end
 
-function RandomPolicy(env::AbstractEnv)
+function RandomPolicy(env::Union{AbstractEnv, AbstractParallelEnv})
     return RandomPolicy(action_space(env))
 end
 

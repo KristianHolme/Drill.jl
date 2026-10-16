@@ -5,6 +5,7 @@ using Random
 using Lux
 using Lux: cpu_device
 using Enzyme
+using Zygote
 using Reactant
 include("setup.jl")
 using .TestSetup
@@ -58,16 +59,87 @@ end
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 2)
     cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
 
-    ad_type = AutoEnzyme()
-    cache.ad_type = ad_type
+    cache.ad_type = AutoEnzyme()
+    initial_params = deepcopy(cpu_device()(Drill.parameters(cache)))
     solve!(cache)
-    @test true
+    @test Drill.get_device(Drill.parameters(cache)) isa Lux.ReactantDevice
+    @test cpu_device()(Drill.parameters(cache)) != initial_params
+    @test cache.gradient_updates > 0
+    # inference kernels plus the compiled update
+    @test Drill.reactant_cache_entry_count(cache) > 0
 end
 
-# Full SAC train! on Reactant still requires compiling host-side target-Q / entropy
-# forwards (outside Lux TrainState). Constructor + inference coverage is below.
+@testset "SAC training with Reactant device" begin
+    continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
+    continuous_obs_space = DrillInterface.observation_space(continuous_env)
+    continuous_action_space = DrillInterface.action_space(continuous_env)
 
-@testset "PPO constructor builds TrainState on Reactant device without warning" begin
+    Reactant.set_default_backend("cpu")
+    device = Lux.reactant_device()
+    layer = ContinuousActorCriticModel(continuous_obs_space, continuous_action_space; hidden_dims = [16, 16], critic_type = QCritic())
+    alg = SAC(; start_steps = 4, batch_size = 4, target_update_interval = 2)
+    cache = init(RLProblem(continuous_env, layer), alg; max_steps = 32, verbosity = 0, rng = Random.Xoshiro(42), device)
+    cache.ad_type = AutoEnzyme()
+
+    initial_params = deepcopy(cpu_device()(Drill.parameters(cache)))
+    initial_target = deepcopy(cpu_device()(cache.learner.target_ps))
+    solve!(cache)
+    @test cache.learner isa Drill.SACLearner
+    @test Drill.get_device(Drill.parameters(cache)) isa Lux.ReactantDevice
+    @test cache.gradient_updates > 0
+    @test cpu_device()(Drill.parameters(cache)) != initial_params
+    @test cpu_device()(cache.learner.target_ps) != initial_target
+    @test all(isfinite, cache.stats[:critic_losses])
+    @test Drill.reactant_cache_entry_count(cache) > 0
+end
+
+@testset "PPO update parity: CPU vs compiled on Reactant" begin
+    env = BroadcastedParallelEnv([CustomEnv(8, Random.Xoshiro(i)) for i in 1:2])
+    layer = ActorCriticModel(observation_space(env), action_space(env); hidden_dims = [16, 16])
+    alg = PPO(; n_steps = 8, batch_size = 16, epochs = 1)
+    cache = init(RLProblem(env, layer), alg; max_steps = 16, verbosity = 0, rng = Random.Xoshiro(42))
+    Drill.collect_rollout!(cache.buffer, cache, alg, env)
+    Drill.prepare_rollout!(cache.buffer, alg)
+    b = cache.buffer
+    batch = (
+        b.observations, Drill.prepare_training_actions(b.actions, action_space(b)),
+        b.advantages, b.returns, b.logprobs, b.values,
+    )
+    initial = deepcopy(cache.learner)
+    cpu_learner, cpu_metrics = ppo_update(alg, cache.model, deepcopy(initial), batch, AutoZygote())
+
+    Reactant.set_default_backend("cpu")
+    dev = Lux.reactant_device()
+    r_cache = init(RLProblem(env, layer), alg; max_steps = 16, verbosity = 0, rng = Random.Xoshiro(42), device = dev)
+    r_learner = Drill.init_learner(
+        alg, cache.model, dev(initial.ps), dev(initial.st); device = dev,
+    )
+    ad = Drill.gradient_backend(dev, AutoEnzyme())
+    new_r_learner, r_metrics = Drill.run_update(dev, r_cache, ppo_update, alg, cache.model, r_learner, dev(batch), ad)
+    r_metrics = Drill.host_metrics(r_metrics)
+    @test Drill.reactant_cache_entry_count(r_cache) == 1
+
+    for name in keys(cpu_metrics)
+        @test isapprox(r_metrics[name], cpu_metrics[name]; rtol = 1.0e-4, atol = 1.0e-6)
+    end
+    cpu_ps = cpu_learner.ps
+    r_ps = cpu_device()(new_r_learner.ps)
+    @test Lux.Functors.fleaves(r_ps) |> length == Lux.Functors.fleaves(cpu_ps) |> length
+    for (r, c) in zip(Lux.Functors.fleaves(r_ps), Lux.Functors.fleaves(cpu_ps))
+        @test isapprox(r, c; rtol = 1.0e-4)
+    end
+    # The parameter step itself agrees, not only the (nearly equal) parameters
+    init_ps = initial.ps
+    for (r, c, p) in zip(Lux.Functors.fleaves(r_ps), Lux.Functors.fleaves(cpu_ps), Lux.Functors.fleaves(init_ps))
+        @test isapprox(r .- p, c .- p; rtol = 1.0e-2, atol = 1.0e-6)
+    end
+
+    # Running the compiled update again reuses the cached executable
+    Drill.run_update(dev, r_cache, ppo_update, alg, cache.model, new_r_learner, dev(batch), ad)
+    @test Drill.reactant_cache_entry_count(r_cache) == 1
+end
+
+@testset "PPO constructor builds learner on Reactant device without warning" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
     continuous_obs_space = DrillInterface.observation_space(continuous_env)
     continuous_action_space = DrillInterface.action_space(continuous_env)
@@ -82,12 +154,12 @@ end
     end
 
     @test cache isa Drill.RLCache
-    @test cache.train_state isa Drill.PPOTrainState
+    @test cache.learner isa Drill.PPOLearner
     @test Drill.get_device(Drill.parameters(cache)) !== nothing
     @test isnothing(cache.inference_cache)
 end
 
-@testset "SAC constructor builds TrainState on Reactant device without warning" begin
+@testset "SAC constructor builds learner on Reactant device without warning" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
     continuous_obs_space = DrillInterface.observation_space(continuous_env)
     continuous_action_space = DrillInterface.action_space(continuous_env)
@@ -102,9 +174,9 @@ end
     end
 
     @test cache isa Drill.RLCache
-    @test cache.train_state isa Drill.SACTrainState
+    @test cache.learner isa Drill.SACLearner
     @test Drill.get_device(Drill.parameters(cache)) !== nothing
-    @test Drill.get_device(cache.train_state.target_parameters) !== nothing
+    @test Drill.get_device(cache.learner.target_ps) isa Lux.ReactantDevice
     @test isnothing(cache.inference_cache)
 end
 
@@ -136,14 +208,14 @@ end
     @test actions_1 == actions_2
     @test cache_size_1 > 0
     @test cache_size_2 == cache_size_1
-    @test length(values_only) == length(observations)
+    @test length(values_only) == size(observations, 2)
     @test cache_size_values > cache_size_2
-    @test length(stochastic_actions) == length(observations)
+    @test length(stochastic_actions) == size(observations, 2)
     @test cache_size_stochastic > cache_size_values
 
     _, values, logprobs = Drill.get_action_and_values(cache, observations)
-    @test length(values) == length(observations)
-    @test length(logprobs) == length(observations)
+    @test length(values) == size(observations, 2)
+    @test length(logprobs) == size(observations, 2)
     @test Drill.reactant_cache_entry_count(cache) > cache_size_stochastic
 end
 
@@ -162,13 +234,13 @@ end
 
     @test Drill.reactant_cache_entry_count(deployment_layer) == 0
 
-    single_action = deployment_layer(observations[1]; deterministic = true, rng = Random.Xoshiro(5))
+    single_action = deployment_layer(observations[:, 1]; deterministic = true, rng = Random.Xoshiro(5))
     cache_size_single = Drill.reactant_cache_entry_count(deployment_layer)
     batch_actions = deployment_layer(observations; deterministic = true, rng = Random.Xoshiro(5))
     cache_size_batch = Drill.reactant_cache_entry_count(deployment_layer)
 
     @test !isempty(single_action)
-    @test length(batch_actions) == length(observations)
+    @test length(batch_actions) == size(observations, 2)
     @test cache_size_single > 0
     @test cache_size_batch > cache_size_single
 end
@@ -195,7 +267,7 @@ end
     actions = predict_actions(cache, observations; deterministic = true, rng = Random.Xoshiro(17))
     cache_size = Drill.reactant_cache_entry_count(cache)
 
-    @test length(actions) == length(observations)
+    @test length(actions) == size(observations, 2)
     @test cache_size > 0
 end
 

@@ -14,7 +14,8 @@ using .TestSetup
     for shape in shapes
         low = rand(Float32, shape...) .- 1.0f0
         high = rand(Float32, shape...) .+ 1.0f0
-        action_space = Box(low, high, shape)
+        action_space = Box(low, high)
+        @test size(action_space) == shape
 
         same_outputs = Bool[]
         for i in 1:100

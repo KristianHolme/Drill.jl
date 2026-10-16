@@ -115,64 +115,60 @@ observation_space(env::NormalizeWrapperEnv) = observation_space(env.env)
 action_space(env::NormalizeWrapperEnv) = action_space(env.env)
 number_of_envs(env::NormalizeWrapperEnv) = number_of_envs(env.env)
 
-function reset!(env::NormalizeWrapperEnv{E, T}) where {E, T}
-    reset!(env.env)
-    obs = observe(env.env)
-
-    # Store original observations BEFORE normalization
-    #should we also store rewards or something?
-    env.old_obs .= batch(obs, observation_space(env))
+function reset!(env::NormalizeWrapperEnv{E, T}; seed::Union{Nothing, Integer} = nothing) where {E, T}
+    obs = reset!(env.env; seed)
     env.returns .= zero(T)
-
-    return nothing
+    return _normalize_new_obs!(env, obs)
 end
 
-function observe(env::NormalizeWrapperEnv{E, T}) where {E, T}
-    # Copy: the inner env may return arrays it still owns.
-    obs = copy.(observe(env.env))
-
-    # Store original observations and rewards for access
-    env.old_obs .= batch(obs, observation_space(env))
-
-    # Update observation statistics if in training mode
+# Record and normalize a batched observation that just came from the inner env. The
+# result is a new array: the inner env may still own `obs`.
+function _normalize_new_obs!(env::NormalizeWrapperEnv, obs::AbstractArray)
+    env.old_obs .= obs
     if env.training && env.norm_obs
-        obs_batch = batch(obs, observation_space(env))
-        update!(env.obs_rms, obs_batch)
+        update!(env.obs_rms, env.old_obs)
     end
-    #FIXME: type instability here?
-    normalize_obs!.(obs, Ref(env))
-    return obs
+    return _normalized_copy(obs, env)
 end
 
-function act!(env::NormalizeWrapperEnv{E, T}, actions::AbstractVector) where {E, T}
-    rewards, terminateds, truncateds, infos = act!(env.env, actions)
+function _normalized_copy(obs::AbstractArray, env::NormalizeWrapperEnv)
+    normalized = copy(obs)
+    normalize_obs!(normalized, env)
+    return normalized
+end
+
+"""
+    observe(env::NormalizeWrapperEnv)
+
+The normalized current observation. Unlike `reset!` and `step!`, this does not update the
+running statistics.
+"""
+function observe(env::NormalizeWrapperEnv)
+    return _normalized_copy(observe(env.env), env)
+end
+
+function step!(env::NormalizeWrapperEnv{E, T}, actions::AbstractVector) where {E, T}
+    obs, rewards, terminateds, truncateds, final_obs, infos = step!(env.env, actions)
     env.old_rewards .= rewards
 
-    # Update reward statistics and normalize
     if env.training && env.norm_reward
         update_reward_stats!(env, rewards)
     end
-    normalize_rewards!(rewards, env)
+    norm_rewards = copy(rewards)
+    normalize_rewards!(norm_rewards, env)
 
-    # Reset returns for terminated environments
-    dones = terminateds .| truncateds
-    for i in findall(dones)
-        env.returns[i] = zero(T)
-    end
-
-    # Normalize terminal observations in infos
-    for i in findall(truncateds)
-        if haskey(infos[i], "terminal_observation")
-            term_obs = copy(infos[i]["terminal_observation"])
-            normalize_obs!(term_obs, env)
-            infos[i]["terminal_observation"] = term_obs
+    for i in eachindex(terminateds, truncateds)
+        if terminateds[i] || truncateds[i]
+            env.returns[i] = zero(T)
         end
     end
 
-    return rewards, terminateds, truncateds, infos
+    norm_obs = _normalize_new_obs!(env, obs)
+    norm_final_obs = _normalized_copy(final_obs, env)
+    return norm_obs, norm_rewards, terminateds, truncateds, norm_final_obs, infos
 end
 
-function update_reward_stats!(env::NormalizeWrapperEnv, rewards::Vector{T}) where {T <: AbstractFloat}
+function update_reward_stats!(env::NormalizeWrapperEnv, rewards::AbstractVector{T}) where {T <: AbstractFloat}
     env.returns .= env.returns .* env.gamma .+ rewards
     # Update return statistics (single value, so we reshape for consistency)
     return update!(env.ret_rms, reshape(env.returns, 1, length(env.returns)))
@@ -225,33 +221,19 @@ function unnormalize_rewards!(rewards, env::NormalizeWrapperEnv)
     return nothing
 end
 
-# Get original (unnormalized) observations and rewards
-get_original_obs(env::NormalizeWrapperEnv) = eachslice(env.old_obs, dims = ndims(env.old_obs))
-get_original_rewards(env::NormalizeWrapperEnv) = env.old_rewards
+"""
+    get_original_obs(env::NormalizeWrapperEnv) -> Array
 
-# Forward other methods
-terminated(env::NormalizeWrapperEnv) = terminated(env.env)
-truncated(env::NormalizeWrapperEnv) = truncated(env.env)
-function get_info(env::NormalizeWrapperEnv)
-    infos = get_info(env.env)
-    terminateds = terminated(env.env)
-    truncateds = truncated(env.env)
-    dones = terminateds .| truncateds
+A copy of the last batched observation from the inner env, before normalization.
+"""
+get_original_obs(env::NormalizeWrapperEnv) = copy(env.old_obs)
 
-    for i in findall(dones)
-        if haskey(infos[i], "terminal_observation")
-            term_obs = copy(infos[i]["terminal_observation"])
-            normalize_obs!(term_obs, env)
-            infos[i]["terminal_observation"] = term_obs
-        end
-    end
-    return infos
-end
+"""
+    get_original_rewards(env::NormalizeWrapperEnv) -> Vector
 
-function seed!(env::NormalizeWrapperEnv, seed::Integer)
-    seed!(env.env, seed)
-    return env
-end
+A copy of the last rewards from the inner env, before normalization.
+"""
+get_original_rewards(env::NormalizeWrapperEnv) = copy(env.old_rewards)
 
 # Training mode control
 """
@@ -259,14 +241,14 @@ end
 
 Return an environment with training mode set when applicable (e.g. [`NormalizeWrapperEnv`](@ref)); default no-op for other envs.
 """
-set_training(env::AbstractEnv, ::Bool) = env #default to no-op
+set_training(env::Union{AbstractEnv, AbstractParallelEnv}, ::Bool) = env #default to no-op
 
 """
     is_training(env) -> Bool
 
 Whether `env` is in training mode (obs/reward normalization updates when wrapped with [`NormalizeWrapperEnv`](@ref)); default `true` for other envs.
 """
-is_training(env::AbstractEnv) = true
+is_training(env::Union{AbstractEnv, AbstractParallelEnv}) = true
 set_training(env::NormalizeWrapperEnv{E, T}, training::Bool) where {E, T} = @set env.training = training
 is_training(env::NormalizeWrapperEnv{E, T}) where {E, T} = env.training
 

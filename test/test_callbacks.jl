@@ -27,7 +27,7 @@ using .TestSetup
 
     @kwdef struct OnTrainingStartCheckLocalsCallback <: AbstractCallback
         keys::Vector{Symbol} = [
-            :prob, :alg, :model, :adapter, :train_state, :buffer, :logger, :rng,
+            :prob, :alg, :model, :adapter, :learner, :buffer, :logger, :rng,
             :max_steps, :steps_taken, :gradient_updates, :callbacks,
         ]
     end
@@ -38,7 +38,7 @@ using .TestSetup
 
     @kwdef struct OnRolloutStartCheckLocalsCallback <: AbstractCallback
         first_keys::Vector{Symbol} = [
-            :prob, :alg, :model, :adapter, :train_state, :buffer, :logger,
+            :prob, :alg, :model, :adapter, :learner, :buffer, :logger,
             :max_steps, :steps_taken,
         ]
         subsequent_keys::Vector{Symbol} = [:prob, :alg, :max_steps, :steps_taken]

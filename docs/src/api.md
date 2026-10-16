@@ -9,12 +9,15 @@ AbstractParallelEnvWrapper
 reset!
 act!
 observe
+observe!
 terminated
 truncated
 action_space
 observation_space
 get_info
 number_of_envs
+allocate_observations
+observation_slot
 ```
 
 ## Spaces
@@ -65,6 +68,9 @@ SACLayer
 ```@docs
 RolloutBuffer
 ReplayBuffer
+transitions
+env_transitions
+episodes
 ```
 
 ## Wrappers

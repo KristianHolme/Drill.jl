@@ -251,3 +251,152 @@ end
 
     @test all(a -> !isnan(a) && isfinite(a), roll_buffer_td0.advantages)
 end
+
+# Buffer for `compute_gae!` tests with per-env inputs given as `n_envs × n_steps` matrices.
+function gae_buffer(rewards, values, terminateds, truncateds, bootstrap_values)
+    n_envs, n_steps = size(rewards)
+    obs_space = Box(Float32[-1.0], Float32[1.0])
+    act_space = Box(Float32[-1.0], Float32[1.0])
+    buffer = RolloutBuffer(obs_space, act_space, n_steps, n_envs)
+    for t in 1:n_steps
+        store_step!(
+            buffer, t, zeros(Float32, 1, n_envs), zeros(Float32, 1, n_envs),
+            rewards[:, t], zeros(Float32, n_envs), values[:, t],
+            terminateds[:, t], truncateds[:, t],
+        )
+        buffer.bootstrap_values[step_indices(buffer, t)] .= bootstrap_values[:, t]
+    end
+    return buffer
+end
+
+# Reference advantages for one env: split its steps into episode segments and apply
+# `compute_expected_gae` to each segment.
+function reference_env_gae(rewards, values, terminateds, truncateds, bootstrap_values, gamma, gae_lambda)
+    n_steps = length(rewards)
+    advantages = zeros(Float32, n_steps)
+    start = 1
+    for t in 1:n_steps
+        if terminateds[t] || truncateds[t] || t == n_steps
+            seg = start:t
+            advantages[seg] .= compute_expected_gae(
+                rewards[seg], values[seg], gamma, gae_lambda;
+                is_terminated = terminateds[t], bootstrap_value = bootstrap_values[t],
+            )
+            start = t + 1
+        end
+    end
+    return advantages
+end
+
+function check_gae(rewards, values, terminateds, truncateds, bootstrap_values, gamma, gae_lambda)
+    buffer = gae_buffer(rewards, values, terminateds, truncateds, bootstrap_values)
+    compute_gae!(buffer, gamma, gae_lambda)
+    n_envs, n_steps = size(rewards)
+    for e in 1:n_envs
+        inds = [step_indices(buffer, t)[e] for t in 1:n_steps]
+        expected = reference_env_gae(
+            rewards[e, :], values[e, :], terminateds[e, :], truncateds[e, :],
+            bootstrap_values[e, :], gamma, gae_lambda,
+        )
+        @test buffer.advantages[inds] ≈ expected atol = 1.0e-5
+        @test buffer.returns[inds] ≈ expected .+ values[e, :] atol = 1.0e-5
+    end
+    return buffer
+end
+
+@testset "compute_gae! single env with several terminated episodes" begin
+    rng = Random.Xoshiro(1)
+    n_steps = 10
+    rewards = rand(rng, Float32, 1, n_steps)
+    values = rand(rng, Float32, 1, n_steps)
+    terminateds = falses(1, n_steps)
+    terminateds[1, [3, 7]] .= true
+    truncateds = falses(1, n_steps)
+    bootstrap_values = zeros(Float32, 1, n_steps)
+    bootstrap_values[1, n_steps] = 0.4f0
+    buffer = check_gae(rewards, values, terminateds, truncateds, bootstrap_values, 0.9f0, 0.8f0)
+
+    # The step before a termination does not look past the episode boundary.
+    @test buffer.advantages[3] ≈ rewards[3] - values[3] atol = 1.0e-6
+    @test buffer.advantages[7] ≈ rewards[7] - values[7] atol = 1.0e-6
+    # The rollout ends mid-episode, so the last step bootstraps.
+    @test buffer.advantages[n_steps] ≈ rewards[n_steps] + 0.9f0 * 0.4f0 - values[n_steps] atol = 1.0e-6
+end
+
+@testset "compute_gae! multiple envs with different episode boundaries" begin
+    rng = Random.Xoshiro(2)
+    n_envs, n_steps = 3, 8
+    rewards = rand(rng, Float32, n_envs, n_steps)
+    values = rand(rng, Float32, n_envs, n_steps)
+    terminateds = falses(n_envs, n_steps)
+    truncateds = falses(n_envs, n_steps)
+    terminateds[1, 2] = true
+    terminateds[1, 6] = true
+    truncateds[2, 4] = true
+    terminateds[3, n_steps] = true
+    bootstrap_values = zeros(Float32, n_envs, n_steps)
+    bootstrap_values[2, 4] = 0.7f0
+    bootstrap_values[1, n_steps] = 0.3f0
+    bootstrap_values[2, n_steps] = -0.2f0
+    for (gamma, gae_lambda) in ((0.99f0, 0.95f0), (0.9f0, 0.0f0), (1.0f0, 1.0f0), (0.0f0, 0.8f0))
+        check_gae(rewards, values, terminateds, truncateds, bootstrap_values, gamma, gae_lambda)
+    end
+end
+
+@testset "compute_gae! truncation uses bootstrap value" begin
+    gamma, gae_lambda = 0.9f0, 0.8f0
+    rewards = Float32[1 1 1 1]
+    values = Float32[0.5 0.5 0.5 0.5]
+    terminateds = falses(1, 4)
+    truncateds = falses(1, 4)
+    truncateds[1, 2] = true
+    bootstrap_values = Float32[0 2 0 0]
+    buffer = check_gae(rewards, values, terminateds, truncateds, bootstrap_values, gamma, gae_lambda)
+    @test buffer.advantages[2] ≈ 1.0f0 + gamma * 2.0f0 - 0.5f0 atol = 1.0e-6
+
+    # The same step marked terminated ignores the bootstrap value.
+    buffer_term = gae_buffer(rewards, values, truncateds, terminateds, bootstrap_values)
+    compute_gae!(buffer_term, gamma, gae_lambda)
+    @test buffer_term.advantages[2] ≈ 0.5f0 atol = 1.0e-6
+    @test !(buffer_term.advantages[1] ≈ buffer.advantages[1])
+end
+
+@testset "compute_gae! rollout end with and without termination" begin
+    gamma, gae_lambda = 0.95f0, 0.9f0
+    rewards = Float32[0 0 1; 0 0 1]
+    values = Float32[0.2 0.3 0.4; 0.2 0.3 0.4]
+    terminateds = falses(2, 3)
+    terminateds[2, 3] = true
+    truncateds = falses(2, 3)
+    # Env 2 terminates at the last step; a stray bootstrap value must be ignored.
+    bootstrap_values = Float32[0 0 1.5; 0 0 1.5]
+    buffer = check_gae(rewards, values, terminateds, truncateds, bootstrap_values, gamma, gae_lambda)
+    last_inds = step_indices(buffer, 3)
+    @test buffer.advantages[last_inds[1]] ≈ 1.0f0 + gamma * 1.5f0 - 0.4f0 atol = 1.0e-6
+    @test buffer.advantages[last_inds[2]] ≈ 1.0f0 - 0.4f0 atol = 1.0e-6
+end
+
+@testset "compute_gae! lambda = 0 is TD(0)" begin
+    rng = Random.Xoshiro(3)
+    n_envs, n_steps = 2, 5
+    gamma = 0.9f0
+    rewards = rand(rng, Float32, n_envs, n_steps)
+    values = rand(rng, Float32, n_envs, n_steps)
+    terminateds = falses(n_envs, n_steps)
+    terminateds[1, 3] = true
+    truncateds = falses(n_envs, n_steps)
+    bootstrap_values = zeros(Float32, n_envs, n_steps)
+    bootstrap_values[:, n_steps] .= 0.6f0
+    buffer = check_gae(rewards, values, terminateds, truncateds, bootstrap_values, gamma, 0.0f0)
+    for e in 1:n_envs, t in 1:n_steps
+        i = step_indices(buffer, t)[e]
+        next_value = if terminateds[e, t]
+            0.0f0
+        elseif t == n_steps
+            bootstrap_values[e, t]
+        else
+            values[e, t + 1]
+        end
+        @test buffer.advantages[i] ≈ rewards[e, t] + gamma * next_value - values[e, t] atol = 1.0e-6
+    end
+end

@@ -1,10 +1,10 @@
-struct RLSolution{U, P, A, ST, TS, B, TO}
+struct RLSolution{U, P, A, ST, LS, B, TO}
     u::U
     prob::P
     alg::A
     retcode::ReturnCode.T
     stats::ST
-    train_state::TS
+    learner::LS
     buffer::B
     timer::TO
 end
@@ -17,7 +17,7 @@ function RLSolution(cache::RLCache)
         cache.alg,
         cache.retcode,
         cache.stats,
-        cache.train_state,
+        cache.learner,
         cache.buffer,
         cache.timer,
     )

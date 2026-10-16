@@ -14,61 +14,68 @@ end
 """
     MonitorWrapperEnv(env, stats_window=100)
 
-Wraps a parallel environment to track per-env episode returns and lengths in rolling buffers ([`EpisodeStats`](@ref)), exposing them via `get_info` for logging and [`evaluate`](@ref).
+Wraps a parallel environment to track per-env episode returns and lengths. Finished
+episodes go into rolling buffers ([`EpisodeStats`](@ref)) for logging, and the last
+finished episode of each env is kept in `last_episode_returns` / `last_episode_lengths`
+for [`evaluate`](@ref).
 
 Use when you want stable episode metrics under vectorized resets.
 """
-struct MonitorWrapperEnv{E <: AbstractParallelEnv, T} <: AbstractParallelEnvWrapper{E} where {T <: AbstractFloat}
+struct MonitorWrapperEnv{E <: AbstractParallelEnv, T <: AbstractFloat} <: AbstractParallelEnvWrapper{E}
     env::E
     current_episode_lengths::Vector{Int}
     current_episode_returns::Vector{T}
+    last_episode_lengths::Vector{Int}
+    last_episode_returns::Vector{T}
     episode_stats::EpisodeStats{T}
 end
 
 function MonitorWrapperEnv(env::E, stats_window::Int = 100) where {E <: AbstractParallelEnv}
-    T = eltype(observation_space(env))
+    T = reward_type(observation_space(env))
+    n = number_of_envs(env)
     return MonitorWrapperEnv{E, T}(
         env,
-        zeros(Int, number_of_envs(env)),
-        zeros(T, number_of_envs(env)),
-        EpisodeStats{T}(stats_window)
+        zeros(Int, n),
+        zeros(T, n),
+        zeros(Int, n),
+        zeros(T, n),
+        EpisodeStats{T}(stats_window),
     )
 end
 
-#TODO clean up this so its not necessary to forward all the methods
-observe(monitor_env::MonitorWrapperEnv{E, T}) where {E, T} = observe(monitor_env.env)
-terminated(monitor_env::MonitorWrapperEnv{E, T}) where {E, T} = terminated(monitor_env.env)
-truncated(monitor_env::MonitorWrapperEnv{E, T}) where {E, T} = truncated(monitor_env.env)
-get_info(monitor_env::MonitorWrapperEnv{E, T}) where {E, T} = get_info(monitor_env.env)
-action_space(monitor_env::MonitorWrapperEnv{E, T}) where {E, T} = action_space(monitor_env.env)
-observation_space(monitor_env::MonitorWrapperEnv{E, T}) where {E, T} = observation_space(monitor_env.env)
-number_of_envs(monitor_env::MonitorWrapperEnv{E, T}) where {E, T} = number_of_envs(monitor_env.env)
-seed!(monitor_env::MonitorWrapperEnv{E, T}, seed::Integer) where {E, T} = seed!(monitor_env.env, seed)
+observe(monitor_env::MonitorWrapperEnv) = observe(monitor_env.env)
+action_space(monitor_env::MonitorWrapperEnv) = action_space(monitor_env.env)
+observation_space(monitor_env::MonitorWrapperEnv) = observation_space(monitor_env.env)
+number_of_envs(monitor_env::MonitorWrapperEnv) = number_of_envs(monitor_env.env)
 
-function reset!(monitor_env::MonitorWrapperEnv{E, T}) where {E, T}
-    DrillInterface.reset!(monitor_env.env)
-    #dont count the current episodes to the stats, since they are manually stopped
+function reset!(monitor_env::MonitorWrapperEnv; seed::Union{Nothing, Integer} = nothing)
+    obs = reset!(monitor_env.env; seed)
+    # Episodes cut short by a reset do not count towards the stats
     monitor_env.current_episode_lengths .= 0
     monitor_env.current_episode_returns .= 0
-    return nothing
+    return obs
 end
 
-function act!(monitor_env::MonitorWrapperEnv{E, T}, actions::AbstractVector) where {E, T}
-    rewards, terminateds, truncateds, infos = act!(monitor_env.env, actions)
+function step!(monitor_env::MonitorWrapperEnv, actions::AbstractVector)
+    obs, rewards, terminateds, truncateds, final_obs, infos = step!(monitor_env.env, actions)
 
     monitor_env.current_episode_returns .+= rewards
     monitor_env.current_episode_lengths .+= 1
-    dones = terminateds .| truncateds
 
-    for i in findall(dones)
-        push!(monitor_env.episode_stats.episode_returns, monitor_env.current_episode_returns[i])
-        push!(monitor_env.episode_stats.episode_lengths, monitor_env.current_episode_lengths[i])
-        infos[i]["episode"] = Dict("r" => monitor_env.current_episode_returns[i], "l" => monitor_env.current_episode_lengths[i])
-        monitor_env.current_episode_returns[i] = 0
-        monitor_env.current_episode_lengths[i] = 0
+    for i in eachindex(terminateds, truncateds)
+        if terminateds[i] || truncateds[i]
+            ret = monitor_env.current_episode_returns[i]
+            len = monitor_env.current_episode_lengths[i]
+            push!(monitor_env.episode_stats.episode_returns, ret)
+            push!(monitor_env.episode_stats.episode_lengths, len)
+            monitor_env.last_episode_returns[i] = ret
+            monitor_env.last_episode_lengths[i] = len
+            monitor_env.current_episode_returns[i] = 0
+            monitor_env.current_episode_lengths[i] = 0
+        end
     end
 
-    return rewards, terminateds, truncateds, infos
+    return obs, rewards, terminateds, truncateds, final_obs, infos
 end
 
 unwrap(env::MonitorWrapperEnv) = env.env

@@ -4,7 +4,6 @@ using Drill
 using Drill.Lux
 using ClassicControlEnvironments
 using Random
-using Statistics: mean
 
 # MLUtils is a Drill dependency; Buffers brings DataLoader into its namespace.
 const DataLoader = Drill.Buffers.DataLoader
@@ -149,86 +148,56 @@ function setup_threaded_envs(; n_envs::Int = DEFAULT_N_ENVS)
     return threaded_env, actions
 end
 
-function ppo_lux_train_state(cache)
-    return Drill.lux_train_state(cache.train_state)
+# One minibatch from a fresh PPO rollout, in the layout `ppo_update` expects.
+function ppo_gradient_data(env::AbstractParallelEnv)
+    cache, alg = make_ppo_cache(env)
+    buffer = RolloutBuffer(
+        observation_space(env),
+        action_space(env),
+        alg.n_steps,
+        number_of_envs(env),
+    )
+    reset!(env)
+    Drill.collect_rollout!(buffer, cache, alg, env)
+    Drill.prepare_rollout!(buffer, alg)
+    data_loader = DataLoader(
+        (
+            buffer.observations,
+            Drill.prepare_training_actions(buffer.actions, action_space(buffer)),
+            buffer.advantages,
+            buffer.returns,
+            buffer.logprobs,
+            buffer.values,
+        );
+        batchsize = alg.batch_size,
+        shuffle = true,
+        parallel = true,
+        rng = cache.rng,
+    )
+    batch_data = first(data_loader)
+    return (; alg, model = cache.model, batch_data, learner = cache.learner)
 end
 
 function setup_ppo_gradient_data_discrete(; n_envs::Int = DEFAULT_N_ENVS)
-    env = make_cartpole_env(; n_envs = n_envs)
-    cache, alg = make_ppo_cache(env)
-    n_steps = alg.n_steps
-    buffer = RolloutBuffer(
-        observation_space(env),
-        action_space(env),
-        n_steps,
-        n_envs,
-    )
-    reset!(env)
-    Drill.collect_rollout!(buffer, cache, alg, env)
-    Drill.prepare_rollout!(buffer, alg)
-    data_loader = DataLoader(
-        (
-            buffer.observations,
-            buffer.actions,
-            buffer.advantages,
-            buffer.returns,
-            buffer.logprobs,
-            buffer.values,
-        );
-        batchsize = alg.batch_size,
-        shuffle = true,
-        parallel = true,
-        rng = cache.rng,
-    )
-    batch_data = nothing
-    for batch_data_item in data_loader
-        batch_data = batch_data_item
-        break
-    end
-    @assert batch_data !== nothing
-    train_state = deepcopy(ppo_lux_train_state(cache))
-    return alg, batch_data, train_state
+    return ppo_gradient_data(make_cartpole_env(; n_envs = n_envs))
 end
 
 function setup_ppo_gradient_data_continuous(; n_envs::Int = DEFAULT_N_ENVS)
-    env = make_pendulum_env(; n_envs = n_envs)
-    cache, alg = make_ppo_cache(env)
-    n_steps = alg.n_steps
-    buffer = RolloutBuffer(
-        observation_space(env),
-        action_space(env),
-        n_steps,
-        n_envs,
-    )
-    reset!(env)
-    Drill.collect_rollout!(buffer, cache, alg, env)
-    Drill.prepare_rollout!(buffer, alg)
-    data_loader = DataLoader(
-        (
-            buffer.observations,
-            buffer.actions,
-            buffer.advantages,
-            buffer.returns,
-            buffer.logprobs,
-            buffer.values,
-        );
-        batchsize = alg.batch_size,
-        shuffle = true,
-        parallel = true,
-        rng = cache.rng,
-    )
-    batch_data = nothing
-    for batch_data_item in data_loader
-        batch_data = batch_data_item
-        break
-    end
-    @assert batch_data !== nothing
-    train_state = deepcopy(ppo_lux_train_state(cache))
-    return alg, batch_data, train_state
+    return ppo_gradient_data(make_pendulum_env(; n_envs = n_envs))
 end
 
 function setup_ppo_gradient_data(; n_envs::Int = DEFAULT_N_ENVS)
     return setup_ppo_gradient_data_discrete(; n_envs = n_envs)
+end
+
+"""
+    bench_ppo_ad(ad_backend, state)
+
+One `ppo_update` (loss, gradient, clipping, optimizer step) on `state` from
+`setup_ppo_gradient_data*`. The update is pure, so `state` can be reused.
+"""
+function bench_ppo_ad(ad_backend, state)
+    return ppo_update(state.alg, state.model, state.learner, state.batch_data, ad_backend)
 end
 
 function setup_sac_gradient_data(; n_envs::Int = DEFAULT_N_ENVS, n_steps::Int = DEFAULT_ROLLOUT_STEPS)
@@ -239,88 +208,21 @@ function setup_sac_gradient_data(; n_envs::Int = DEFAULT_N_ENVS, n_steps::Int = 
     reset!(env)
     Drill.collect_rollout!(buffer, cache, alg, env, n_steps)
     data_loader = Drill.get_data_loader(buffer, alg.batch_size, 1, true, true, cache.rng)
-    batch_data = nothing
-    for batch_data_item in data_loader
-        batch_data = batch_data_item
-        break
-    end
-    @assert batch_data !== nothing
-    return (;
-        model = cache.model,
-        alg = alg,
-        batch_data = batch_data,
-        ts = deepcopy(cache.train_state),
-        rng = cache.rng,
-    )
+    batch_data = first(data_loader)
+    target_entropy = Drill.get_target_entropy(alg.ent_coef, action_space(env))
+    return (; model = cache.model, alg, batch_data, learner = cache.learner, target_entropy)
 end
 
-function bench_sac_ad!(ad_backend, state)
-    model = state.model
-    alg = state.alg
-    batch_data = state.batch_data
-    ts = state.ts
-    rng = state.rng
-    if alg.ent_coef isa AutoEntropyCoefficient
-        target_entropy = Drill.get_target_entropy(alg.ent_coef, action_space(model))
-        _, log_probs_pi, _ = Drill.action_log_prob(
-            model,
-            batch_data.observations,
-            Drill.parameters(ts),
-            Drill.states(ts);
-            rng = rng,
-        )
-        c = mean(log_probs_pi .+ target_entropy)
-        ent_data = (; c)
-        _, _, _, ent_ts = Lux.Training.compute_gradients(
-            ad_backend,
-            Drill.SACEntropyObjective(),
-            ent_data,
-            ts.ent_ts,
-        )
-        ts.ent_ts = ent_ts
-    end
-    target_q_values = Drill.compute_target_q_values(
-        alg,
-        model,
-        Drill.parameters(ts),
-        Drill.states(ts),
-        (
-            rewards = batch_data.rewards,
-            next_observations = batch_data.next_observations,
-            terminated = batch_data.terminated,
-            log_ent_coef = Drill.entropy_parameters(ts),
-            target_ps = ts.target_parameters,
-            target_st = ts.target_states,
-        );
-        rng = rng,
-    )
-    critic_data = (
-        observations = batch_data.observations,
-        actions = batch_data.actions,
-        target_q_values = target_q_values,
-        actor_ps = ts.actor_ts.parameters,
-        actor_st = ts.actor_ts.states,
-    )
-    critic_objective = Drill.SACCriticObjective(alg, rng)
-    _, _, _, critic_ts = Lux.Training.compute_gradients(
-        ad_backend,
-        critic_objective,
-        critic_data,
-        ts.critic_ts,
-    )
-    ts.critic_ts = critic_ts
-    ent_coef = Float32(Drill.entropy_coefficient(ts))
-    actor_objective = Drill.SACActorObjective(alg, rng)
-    return Lux.Training.compute_gradients(
-        ad_backend,
-        actor_objective,
-        (
-            observations = batch_data.observations,
-            ent_coef = ent_coef,
-            critic_ps = ts.critic_ts.parameters,
-            critic_st = ts.critic_ts.states,
-        ),
-        ts.actor_ts,
+"""
+    bench_sac_ad(ad_backend, state)
+
+One `sac_update` (target Q values, critic, actor and entropy steps, target update) on
+`state` from `setup_sac_gradient_data`. The update is pure, so `state` can be reused.
+"""
+function bench_sac_ad(ad_backend, state)
+    return sac_update(
+        state.alg, state.model, state.learner, state.batch_data, ad_backend,
+        state.target_entropy, Val(true),
     )
 end
 

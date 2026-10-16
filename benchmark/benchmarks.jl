@@ -3,7 +3,7 @@ using Drill
 using ClassicControlEnvironments
 using Random
 using Drill.Lux
-# Lux AutoZygote requires Zygote to be loaded before compute_gradients.
+# Drill's AutoZygote gradients live in a package extension that loads with Zygote.
 using Zygote
 
 include("bench_utils.jl")
@@ -88,20 +88,20 @@ end
 wrappers = BenchmarkGroup()
 SUITE["wrappers"] = wrappers
 
-wrappers["broadcasted_act"] = @benchmarkable begin
-    act!(env, actions)
+wrappers["broadcasted_step"] = @benchmarkable begin
+    step!(env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
-wrappers["monitor_act"] = @benchmarkable begin
-    act!(monitor_env, actions)
+wrappers["monitor_step"] = @benchmarkable begin
+    step!(monitor_env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
-wrappers["normalize_act"] = @benchmarkable begin
-    act!(normalize_env, actions)
+wrappers["normalize_step"] = @benchmarkable begin
+    step!(normalize_env, actions)
 end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
@@ -124,8 +124,8 @@ end setup = begin
     env, monitor_env, normalize_env, actions = BenchUtils.setup_wrapper_envs()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
 
-wrappers["multithreaded_act"] = @benchmarkable begin
-    act!(threaded_env, actions)
+wrappers["multithreaded_step"] = @benchmarkable begin
+    step!(threaded_env, actions)
 end setup = begin
     threaded_env, actions = BenchUtils.setup_threaded_envs()
 end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
@@ -167,23 +167,23 @@ if ENABLE_AD_BACKEND_BENCHES
 
     for (name, ad_backend) in ad_backend_types
         ad_backends["ppo_discrete"][name] = @benchmarkable begin
-            Lux.Training.compute_gradients($ad_backend, alg, batch_data, train_state)
+            BenchUtils.bench_ppo_ad($ad_backend, state)
         end setup = begin
-            alg, batch_data, train_state = BenchUtils.setup_ppo_gradient_data_discrete()
+            state = BenchUtils.setup_ppo_gradient_data_discrete()
         end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
     end
 
     for (name, ad_backend) in ad_backend_types
         ad_backends["ppo_continuous"][name] = @benchmarkable begin
-            Lux.Training.compute_gradients($ad_backend, alg, batch_data, train_state)
+            BenchUtils.bench_ppo_ad($ad_backend, state)
         end setup = begin
-            alg, batch_data, train_state = BenchUtils.setup_ppo_gradient_data_continuous()
+            state = BenchUtils.setup_ppo_gradient_data_continuous()
         end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
     end
 
     for (name, ad_backend) in ad_backend_types[[1, 3]] #dont use enzyme without runtime activity
         ad_backends["sac"][name] = @benchmarkable begin
-            BenchUtils.bench_sac_ad!($ad_backend, state)
+            BenchUtils.bench_sac_ad($ad_backend, state)
         end setup = begin
             state = BenchUtils.setup_sac_gradient_data()
         end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
