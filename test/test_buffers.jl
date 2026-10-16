@@ -2,10 +2,34 @@ using Test
 using Drill
 using DrillInterface
 using Random
-using ClassicControlEnvironments
 using Statistics
 include("setup.jl")
 using .TestSetup
+
+# Small discrete-action env: Box(4) observations, two actions,
+# reward 1 per step, termination after `max_steps` steps.
+mutable struct DiscreteCountingEnv <: AbstractEnv
+    max_steps::Int
+    steps::Int
+    rng::Random.AbstractRNG
+end
+DiscreteCountingEnv(max_steps::Int = 10) = DiscreteCountingEnv(max_steps, 0, Random.Xoshiro())
+
+DrillInterface.observation_space(::DiscreteCountingEnv) = Box(-1.0f0, 1.0f0, (4,))
+DrillInterface.action_space(::DiscreteCountingEnv) = Discrete(2)
+DrillInterface.observe(env::DiscreteCountingEnv) = rand(env.rng, Float32, 4) .* 2.0f0 .- 1.0f0
+DrillInterface.terminated(env::DiscreteCountingEnv) = env.steps >= env.max_steps
+DrillInterface.truncated(::DiscreteCountingEnv) = false
+function DrillInterface.act!(env::DiscreteCountingEnv, action::Integer)
+    @assert action in DrillInterface.action_space(env)
+    env.steps += 1
+    return 1.0f0
+end
+function DrillInterface.reset!(env::DiscreteCountingEnv; seed = nothing)
+    isnothing(seed) || Random.seed!(env.rng, seed)
+    env.steps = 0
+    return nothing
+end
 
 function make_cache(env, layer, alg; max_steps = alg.n_steps * DrillInterface.number_of_envs(env))
     return init(RLProblem(env, layer), alg; max_steps, verbosity = 0)
@@ -18,8 +42,7 @@ function collect_and_prepare!(roll_buffer, cache, alg, env)
 end
 
 @testset "Buffer logprobs consistency" begin
-    pend_env() = PendulumEnv()
-    env = MultiThreadedParallelEnv([pend_env() for _ in 1:4])
+    env = MultiThreadedParallelEnv([TrackingTargetEnv() for _ in 1:4])
     layer = ActorCriticModel(DrillInterface.observation_space(env), DrillInterface.action_space(env))
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 1)
     cache = make_cache(env, layer, alg)
@@ -195,8 +218,7 @@ end
 end
 
 @testset "RolloutBuffer with discrete actions" begin
-    cartpole_env() = CartPoleEnv()
-    env = MultiThreadedParallelEnv([cartpole_env() for _ in 1:4])
+    env = MultiThreadedParallelEnv([DiscreteCountingEnv() for _ in 1:4])
     layer = DiscreteActorCriticModel(DrillInterface.observation_space(env), DrillInterface.action_space(env))
     alg = PPO(; n_steps = 8, batch_size = 8, epochs = 1)
     cache = make_cache(env, layer, alg)
@@ -238,11 +260,11 @@ end
 
 @testset "Discrete vs continuous buffer comparison" begin
     alg = PPO(n_steps = 4, batch_size = 4, epochs = 1)
-    discrete_env = MultiThreadedParallelEnv([CartPoleEnv() for _ in 1:2])
+    discrete_env = MultiThreadedParallelEnv([DiscreteCountingEnv() for _ in 1:2])
     discrete_layer = DiscreteActorCriticModel(DrillInterface.observation_space(discrete_env), DrillInterface.action_space(discrete_env))
     discrete_cache = make_cache(discrete_env, discrete_layer, alg)
 
-    continuous_env = MultiThreadedParallelEnv([PendulumEnv() for _ in 1:2])
+    continuous_env = MultiThreadedParallelEnv([TrackingTargetEnv() for _ in 1:2])
     continuous_layer = ContinuousActorCriticModel(DrillInterface.observation_space(continuous_env), DrillInterface.action_space(continuous_env))
     continuous_cache = make_cache(continuous_env, continuous_layer, alg)
 
@@ -287,7 +309,7 @@ end
 @testset "RolloutBuffer with different box shapes" begin
     n_steps = 8
 
-    function get_rollout(env::AbstractEnv)
+    function get_rollout(env::AbstractParallelEnv)
         obs_space = DrillInterface.observation_space(env)
         act_space = DrillInterface.action_space(env)
         layer = ActorCriticModel(obs_space, act_space)
@@ -298,7 +320,7 @@ end
         return roll_buffer
     end
 
-    function test_rollout(roll_buffer::RolloutBuffer, env::AbstractEnv)
+    function test_rollout(roll_buffer::RolloutBuffer, env::AbstractParallelEnv)
         act_space = DrillInterface.action_space(env)
         obs_space = DrillInterface.observation_space(env)
         act_shape = size(act_space)

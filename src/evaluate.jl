@@ -1,10 +1,11 @@
-function is_monitored(env::AbstractParallelEnv)
-    monitored = false
-    while env isa AbstractParallelEnvWrapper
-        monitored = env isa MonitorWrapperEnv
+# The outermost MonitorWrapperEnv in a stack of wrappers, or `nothing`
+function find_monitor(env::AbstractParallelEnv)
+    while true
+        env isa MonitorWrapperEnv && return env
+        env isa AbstractParallelEnvWrapper || return nothing
         env = unwrap(env)
     end
-    return monitored
+    return
 end
 
 """
@@ -13,7 +14,7 @@ end
 Roll out a policy for `n_eval_episodes` completed episodes and summarize performance.
 
 Each finished episode contributes one **episode return** (undiscounted sum of per-step
-rewards from `act!` over that episode) and one **episode length** (number of steps).
+rewards over that episode) and one **episode length** (number of steps).
 Per-step rewards from the environment are never returned directly; they are only
 accumulated into these episode-level totals.
 
@@ -32,12 +33,12 @@ accumulated into these episode-level totals.
 
 # Episode returns and lengths
 For every completed episode, evaluation records:
-- **Return** `r`: ∑ₜ rewardₜ, the sum of scalar rewards returned by `act!` for each step in that episode (no discounting).
+- **Return** `r`: ∑ₜ rewardₜ, the sum of the per-step rewards in that episode (no discounting).
 - **Length** `l`: number of steps in that episode.
 
 How those totals are obtained:
-- **With [`MonitorWrapperEnv`](@ref)**: on episode end, `r` and `l` are read from `infos[i]["episode"]`
-  (the same undiscounted return and step count the monitor accumulated from per-step rewards).
+- **With [`MonitorWrapperEnv`](@ref)**: on episode end, `r` and `l` are read from the monitor's
+  `last_episode_returns` and `last_episode_lengths`, accumulated from the rewards of the env it wraps.
 - **Without a monitor**: the same quantities are computed inside `evaluate` by adding each
   step's reward to `current_rewards` and incrementing `current_lengths` until the episode terminates.
 
@@ -89,10 +90,9 @@ function evaluate(
         rng::AbstractRNG = default_rng(),
         show_progress::Bool = false,
     )
-    # Check if environment is wrapped with Monitor
-    is_monitor_wrapped = is_monitored(env)
+    monitor = find_monitor(env)
 
-    if !is_monitor_wrapped && warn
+    if isnothing(monitor) && warn
         @warn """Evaluation environment is not wrapped with a Monitor wrapper. 
         This may result in reporting modified episode lengths and rewards, 
         if other wrappers happen to modify these. Consider wrapping 
@@ -100,7 +100,7 @@ function evaluate(
     end
 
     # Initialize tracking variables
-    T = eltype(observation_space(env))
+    T = reward_type(observation_space(env))
     episode_rewards = T[]
     episode_lengths = Int[]
 
@@ -110,9 +110,7 @@ function evaluate(
     current_rewards = zeros(T, n_envs)
     current_lengths = zeros(Int, n_envs)
 
-    # Reset environment
-    reset!(env)
-    observations = observe(env)
+    observations = reset!(env)
 
     p = Progress(n_eval_episodes; enabled = show_progress)
     while length(episode_rewards) < n_eval_episodes
@@ -120,11 +118,9 @@ function evaluate(
         actions = policy(observations; deterministic, rng)
         actions = actions isa AbstractVector ? actions : collect(actions)
 
-        # Take step in environment
-        step_rewards, terminateds, truncateds, infos = act!(env, actions)
+        observations, step_rewards, terminateds, truncateds, _, _ = step!(env, actions)
         current_rewards .+= step_rewards
         current_lengths .+= 1
-        observations = observe(env)
 
         # Process each environment
         dones = terminateds .| truncateds
@@ -133,10 +129,9 @@ function evaluate(
                 # Check if episode ended
                 if dones[i]
                     next!(p)
-                    if is_monitor_wrapped && haskey(infos[i], "episode")
-                        # Use Monitor statistics if available
-                        push!(episode_rewards, infos[i]["episode"]["r"])
-                        push!(episode_lengths, infos[i]["episode"]["l"])
+                    if !isnothing(monitor)
+                        push!(episode_rewards, monitor.last_episode_returns[i])
+                        push!(episode_lengths, monitor.last_episode_lengths[i])
                     else
                         # Use manually tracked statistics
                         push!(episode_rewards, current_rewards[i])

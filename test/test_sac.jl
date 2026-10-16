@@ -70,8 +70,8 @@ using .TestSetup
 
             for (obs_dim, action_dim) in test_cases
                 @testset "$(obs_dim)D obs, $(action_dim)D action" begin
-                    obs_space = Box(Float32[-1.0], Float32[1.0], (obs_dim,))
-                    action_space = Box(Float32[-1.0], Float32[1.0], (action_dim,))
+                    obs_space = Box(-1.0f0, 1.0f0, (obs_dim,))
+                    action_space = Box(-1.0f0, 1.0f0, (action_dim,))
 
                     hidden_dim = max(obs_dim, action_dim) * 2
                     layer = ContinuousActorCriticModel(

@@ -136,14 +136,14 @@ end
     @test actions_1 == actions_2
     @test cache_size_1 > 0
     @test cache_size_2 == cache_size_1
-    @test length(values_only) == length(observations)
+    @test length(values_only) == size(observations, 2)
     @test cache_size_values > cache_size_2
-    @test length(stochastic_actions) == length(observations)
+    @test length(stochastic_actions) == size(observations, 2)
     @test cache_size_stochastic > cache_size_values
 
     _, values, logprobs = Drill.get_action_and_values(cache, observations)
-    @test length(values) == length(observations)
-    @test length(logprobs) == length(observations)
+    @test length(values) == size(observations, 2)
+    @test length(logprobs) == size(observations, 2)
     @test Drill.reactant_cache_entry_count(cache) > cache_size_stochastic
 end
 
@@ -162,13 +162,13 @@ end
 
     @test Drill.reactant_cache_entry_count(deployment_layer) == 0
 
-    single_action = deployment_layer(observations[1]; deterministic = true, rng = Random.Xoshiro(5))
+    single_action = deployment_layer(observations[:, 1]; deterministic = true, rng = Random.Xoshiro(5))
     cache_size_single = Drill.reactant_cache_entry_count(deployment_layer)
     batch_actions = deployment_layer(observations; deterministic = true, rng = Random.Xoshiro(5))
     cache_size_batch = Drill.reactant_cache_entry_count(deployment_layer)
 
     @test !isempty(single_action)
-    @test length(batch_actions) == length(observations)
+    @test length(batch_actions) == size(observations, 2)
     @test cache_size_single > 0
     @test cache_size_batch > cache_size_single
 end
@@ -195,7 +195,7 @@ end
     actions = predict_actions(cache, observations; deterministic = true, rng = Random.Xoshiro(17))
     cache_size = Drill.reactant_cache_entry_count(cache)
 
-    @test length(actions) == length(observations)
+    @test length(actions) == size(observations, 2)
     @test cache_size > 0
 end
 

@@ -120,7 +120,7 @@ struct MyEnv <: AbstractEnv
 end
 
 # Required methods
-DrillInterface.reset!(env::MyEnv) = # Reset environment
+DrillInterface.reset!(env::MyEnv; seed = nothing) = # Reset environment, reseeding if `seed` is given
 DrillInterface.act!(env::MyEnv, action) = # Take action, return reward
 DrillInterface.observe(env::MyEnv) = # Return current observation
 DrillInterface.terminated(env::MyEnv) = # Check if episode is done

@@ -74,7 +74,7 @@ end
     DrillInterface.truncated(::DummyEnv) = false
     DrillInterface.act!(::DummyEnv, action) = randn() * 20.0f0 + 1000.0f0
     DrillInterface.get_info(::DummyEnv) = Dict()
-    DrillInterface.reset!(::DummyEnv) = nothing
+    DrillInterface.reset!(::DummyEnv; seed = nothing) = nothing
 
     base_env = MultiThreadedParallelEnv([DummyEnv() for _ in 1:4])
 
@@ -98,7 +98,7 @@ end
     DrillInterface.truncated(::DummyEnv2) = false
     DrillInterface.act!(::DummyEnv2, action) = 5.0f0
     DrillInterface.get_info(::DummyEnv2) = Dict()
-    DrillInterface.reset!(::DummyEnv2) = nothing
+    DrillInterface.reset!(::DummyEnv2; seed = nothing) = nothing
 
     base_env = MultiThreadedParallelEnv([DummyEnv2() for _ in 1:2])
 
@@ -143,7 +143,7 @@ end
         return 0.0f0
     end
     DrillInterface.get_info(::DetEnv) = Dict()
-    function DrillInterface.reset!(env::DetEnv)
+    function DrillInterface.reset!(env::DetEnv; seed = nothing)
         env.step_count = 0
         nothing
     end
@@ -154,21 +154,35 @@ end
     base_env = MultiThreadedParallelEnv(envs)
     norm_env = NormalizeWrapperEnv(base_env; training = true, norm_obs = true, norm_reward = false)
 
-    reset!(norm_env)
+    obs = reset!(norm_env)
+    @test size(obs) == (3, 2)
 
+    local step_obs
     for i in 1:6
         actions = [rand(action_space(norm_env)) for _ in 1:2]
-        rewards = act!(norm_env, actions)
+        step_obs, rewards, _ = step!(norm_env, actions)
+        @test size(step_obs) == (3, 2)
+        @test rewards == zeros(Float32, 2)
     end
 
-    final_obs = observe(norm_env)[1]
-    final_original = get_original_obs(norm_env)[1]
+    current_obs = observe(norm_env)[:, 1]
+    current_original = get_original_obs(norm_env)[:, 1]
 
-    @test final_obs != final_original
+    @test current_obs != current_original
+    @test current_obs == step_obs[:, 1]
+    @test current_original == envs[1].obs_values[end]
 
-    unnorm_obs = copy(final_obs)
+    unnorm_obs = copy(current_obs)
     unnormalize_obs!(unnorm_obs, norm_env)
-    @test all(abs.(unnorm_obs .- final_original) .< 1.0e-5)
+    @test all(abs.(unnorm_obs .- current_original) .< 1.0e-5)
+
+    # observe returns normalized obs without touching the running statistics
+    count_before = norm_env.obs_rms.count
+    mean_before = copy(norm_env.obs_rms.mean)
+    observe(norm_env)
+    observe(norm_env)
+    @test norm_env.obs_rms.count == count_before
+    @test norm_env.obs_rms.mean == mean_before
 end
 
 @testset "NormalizeWrapperEnv reward normalization" begin
@@ -188,7 +202,7 @@ end
         return env.reward_values[env.step_count]
     end
     DrillInterface.get_info(::HighVarRewardEnv) = Dict()
-    DrillInterface.reset!(env::HighVarRewardEnv) = (env.step_count = 0; nothing)
+    DrillInterface.reset!(env::HighVarRewardEnv; seed = nothing) = (env.step_count = 0; nothing)
 
     base_env = MultiThreadedParallelEnv([HighVarRewardEnv() for _ in 1:2])
     norm_env = NormalizeWrapperEnv(base_env; training = true, norm_obs = false, norm_reward = true)
@@ -199,7 +213,7 @@ end
 
     for i in 1:8
         actions = [rand(Float32) for _ in 1:2]
-        rewards, _ = act!(norm_env, actions)
+        _, rewards, _ = step!(norm_env, actions)
         push!(all_rewards, rewards...)
         push!(original_rewards, get_original_rewards(norm_env)...)
     end
@@ -210,7 +224,7 @@ end
     @test norm_reward_std < orig_reward_std
 
     actions = [rand(Float32) for _ in 1:2]
-    last_rewards, _ = act!(norm_env, actions)
+    _, last_rewards, _ = step!(norm_env, actions)
     last_original = get_original_rewards(norm_env)
     unnorm_rewards = copy(last_rewards)
     unnormalize_rewards!(unnorm_rewards, norm_env)
@@ -227,7 +241,7 @@ end
     DrillInterface.truncated(::ExtremeObsEnv) = false
     DrillInterface.act!(::ExtremeObsEnv, action) = 0.0f0
     DrillInterface.get_info(::ExtremeObsEnv) = Dict()
-    DrillInterface.reset!(::ExtremeObsEnv) = nothing
+    DrillInterface.reset!(::ExtremeObsEnv; seed = nothing) = nothing
 
     base_env = MultiThreadedParallelEnv([ExtremeObsEnv() for _ in 1:1])
 
@@ -236,10 +250,10 @@ end
     reset!(norm_env)
     for i in 1:5
         actions = [rand(Float32)]
-        act!(norm_env, actions)
+        step!(norm_env, actions)
     end
 
-    obs = observe(norm_env)[1]
+    obs = observe(norm_env)[:, 1]
 
     @test all(abs.(obs) .<= norm_env.clip_obs + 1.0e-6)
 end
@@ -260,27 +274,35 @@ end
         return env.value
     end
     DrillInterface.get_info(::SimpleEnv) = Dict()
-    DrillInterface.reset!(env::SimpleEnv) = (env.value = 1.0f0; nothing)
+    DrillInterface.reset!(env::SimpleEnv; seed = nothing) = (env.value = 1.0f0; nothing)
 
     base_env = MultiThreadedParallelEnv([SimpleEnv() for _ in 1:2])
     norm_env = NormalizeWrapperEnv(base_env; training = true)
 
+    @test norm_env.obs_rms.count == 0
     reset!(norm_env)
-
     initial_count = norm_env.obs_rms.count
+    @test initial_count == 2
+
     actions = [rand(Float32) for _ in 1:2]
-    act!(norm_env, actions)
-    obs = observe(norm_env)
+    step!(norm_env, actions)
     training_count = norm_env.obs_rms.count
-    @test training_count > initial_count
+    @test training_count == initial_count + 2
+    ret_count = norm_env.ret_rms.count
+    @test ret_count > 0
+
+    observe(norm_env)
+    @test norm_env.obs_rms.count == training_count
 
     norm_env = set_training(norm_env, false)
     actions = [rand(Float32) for _ in 1:2]
-    act!(norm_env, actions)
+    step!(norm_env, actions)
+    reset!(norm_env)
     obs = observe(norm_env)
     eval_count = norm_env.obs_rms.count
 
     @test eval_count == training_count
+    @test norm_env.ret_rms.count == ret_count
 end
 
 @testset "NormalizeWrapperEnv terminal observation handling" begin
@@ -300,7 +322,7 @@ end
         return Float32(env.steps)
     end
     DrillInterface.get_info(::TerminalEnv) = Dict{String, Any}()
-    function DrillInterface.reset!(env::TerminalEnv)
+    function DrillInterface.reset!(env::TerminalEnv; seed = nothing)
         env.steps = 0
         nothing
     end
@@ -311,23 +333,29 @@ end
     reset!(norm_env)
 
     actions = [[rand(Float32)] for _ in 1:2]
-    rewards, terms, truncs, infos = act!(norm_env, actions)
-    obs = observe(norm_env)
+    obs, rewards, terms, truncs, final_obs, infos = step!(norm_env, actions)
     @test !any(terms)
+    @test !any(truncs)
 
     actions = [[rand(Float32)] for _ in 1:2]
-    rewards, terms, truncs, infos = act!(norm_env, actions)
-    obs = observe(norm_env)
+    obs, rewards, terms, truncs, final_obs, infos = step!(norm_env, actions)
     @test all(terms)
+    @test infos isa Vector
+    @test all(info -> !haskey(info, "terminal_observation"), infos)
 
-    for info in infos
-        if haskey(info, "terminal_observation")
-            terminal_obs = info["terminal_observation"]
-            @test terminal_obs isa Vector{Float32}
-            @test length(terminal_obs) == 1
-            @test abs(terminal_obs[1]) ≤ 2.0f0
-        end
-    end
+    @test size(final_obs) == (1, 2)
+    @test eltype(final_obs) == Float32
+    @test all(abs.(final_obs) .<= norm_env.clip_obs)
+    # final_obs holds the normalized last observation of the finished episode
+    unnorm_final = copy(final_obs)
+    unnormalize_obs!(unnorm_final, norm_env)
+    @test unnorm_final ≈ Float32[2.0 2.0] atol = 1.0e-4
+    # obs holds the normalized first observation of the next episode
+    @test get_original_obs(norm_env) == Float32[0.0 0.0]
+    unnorm_obs = copy(obs)
+    unnormalize_obs!(unnorm_obs, norm_env)
+    @test unnorm_obs ≈ Float32[0.0 0.0] atol = 1.0e-4
+    @test final_obs != obs
 end
 
 @testset "NormalizeWrapperEnv interface compliance" begin
@@ -341,7 +369,10 @@ end
     DrillInterface.truncated(::SimpleTestEnv) = false
     DrillInterface.act!(env::SimpleTestEnv, action) = rand(env.rng, Float32)
     DrillInterface.get_info(::SimpleTestEnv) = Dict()
-    DrillInterface.reset!(::SimpleTestEnv) = nothing
+    function DrillInterface.reset!(env::SimpleTestEnv; seed = nothing)
+        isnothing(seed) || Random.seed!(env.rng, seed)
+        return nothing
+    end
 
     base_env = MultiThreadedParallelEnv([SimpleTestEnv(Random.MersenneTwister(i)) for i in 1:3])
     norm_env = NormalizeWrapperEnv(base_env)
@@ -351,10 +382,12 @@ end
     @test hasmethod(number_of_envs, (typeof(norm_env),))
     @test hasmethod(reset!, (typeof(norm_env),))
     @test hasmethod(observe, (typeof(norm_env),))
-    @test hasmethod(act!, (typeof(norm_env), Vector))
-    @test hasmethod(terminated, (typeof(norm_env),))
-    @test hasmethod(truncated, (typeof(norm_env),))
-    @test hasmethod(get_info, (typeof(norm_env),))
+    @test hasmethod(step!, (typeof(norm_env), Vector))
+    # Parallel envs have no single-env stepping API
+    @test !hasmethod(act!, (typeof(norm_env), Vector))
+    @test !hasmethod(terminated, (typeof(norm_env),))
+    @test !hasmethod(truncated, (typeof(norm_env),))
+    @test !(norm_env isa AbstractEnv)
 
     obs_space = observation_space(norm_env)
     act_space = action_space(norm_env)
@@ -364,17 +397,17 @@ end
     @test act_space isa Box{Float32}
     @test n_envs == 3
 
-    reset!(norm_env)
-    initial_obs = observe(norm_env)
-    @test length(initial_obs) == 3
-    @test all(obs -> length(obs) == 2, initial_obs)
+    initial_obs = reset!(norm_env)
+    @test size(initial_obs) == (2, 3)
 
     current_obs = observe(norm_env)
-    @test length(current_obs) == 3
-    @test all(obs -> length(obs) == 2, current_obs)
+    @test size(current_obs) == (2, 3)
 
     actions = rand(action_space(norm_env), 3)
-    rewards, terms, truncs, infos = act!(norm_env, actions)
+    obs, rewards, terms, truncs, final_obs, infos = step!(norm_env, actions)
+
+    @test size(obs) == (2, 3)
+    @test size(final_obs) == (2, 3)
 
     @test length(rewards) == 3
     @test all(r -> r isa Float32, rewards)
@@ -387,13 +420,9 @@ end
     @test all(i -> i isa Dict, infos)
 
     norm_env = set_training(norm_env, false)
-    Random.seed!(norm_env, 42)
-    reset!(norm_env)
-    obs1 = observe(norm_env)
-    Random.seed!(norm_env, 42)
-    reset!(norm_env)
-    obs2 = observe(norm_env)
-    @test all([isapprox(o1, o2) for (o1, o2) in zip(obs1, obs2)])
+    obs1 = reset!(norm_env; seed = 42)
+    obs2 = reset!(norm_env; seed = 42)
+    @test obs1 ≈ obs2
 end
 
 @testset "NormalizeWrapperEnv does not mutate env-owned arrays" begin
@@ -402,5 +431,8 @@ end
     env = NormalizeWrapperEnv(BroadcastedParallelEnv([inner]))
     DrillInterface.observe(env)
     DrillInterface.observe(env)
+    @test inner.state == state_before
+    reset!(env)
+    step!(env, [Float32[0.5, 0.5]])
     @test inner.state == state_before
 end

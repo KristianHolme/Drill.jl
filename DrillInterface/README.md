@@ -16,7 +16,7 @@ Pkg.add("DrillInterface")
 
 Subtype `AbstractEnv` and implement:
 
-- `reset!(env)` — reset to initial state
+- `reset!(env; seed = nothing)` — reset to initial state, reseeding the env's RNG when `seed` is an integer
 - `act!(env, action)` — take action, return reward
 - `observe(env)` — current observation
 - `terminated(env)` — episode terminated?
@@ -24,7 +24,13 @@ Subtype `AbstractEnv` and implement:
 - `action_space(env)` — action space
 - `observation_space(env)` — observation space
 
-Spaces: use `Box(low, high)` for continuous and `Discrete(n)` or `Discrete(n; start=0)` for discrete actions.
+Optionally implement `observe!(dest, env)` (default: copy `observe(env)`) and `get_info(env)` (default: `nothing`).
+
+Callers may keep what `observe` returns and never mutate it; envs never mutate the actions they are given.
+
+Spaces: use `Box(low, high)` for continuous and `Discrete(n)` or `Discrete(n, 0)` for discrete actions.
+
+Parallel envs subtype `AbstractParallelEnv` (a separate hierarchy) and implement `reset!(penv; seed) -> obs` and `step!(penv, actions) -> (obs, rewards, terminated, truncated, final_obs, infos)` with batched observations; see the `AbstractParallelEnv` docstring.
 
 ```julia
 using DrillInterface
@@ -35,7 +41,7 @@ end
 
 DrillInterface.observation_space(::MyEnv) = Box(Float32[0, 0], Float32[1, 1])
 DrillInterface.action_space(::MyEnv) = Discrete(2)
-DrillInterface.reset!(env::MyEnv) = nothing
+DrillInterface.reset!(env::MyEnv; seed = nothing) = nothing
 DrillInterface.act!(env::MyEnv, action) = 0.0f0
 DrillInterface.observe(env::MyEnv) = rand(observation_space(env))
 DrillInterface.terminated(::MyEnv) = false

@@ -17,11 +17,16 @@ function _env_action(cache::RLCache, action)
     return to_env(cache.adapter, action, action_space(cache.prob.env))
 end
 
-function get_action_and_values(cache::RLCache, observations::AbstractVector)
+# Observations arrive either batched, `(obs_dims..., n)`, or as a vector of single observations.
+_obs_batch(obs::AbstractVector{<:AbstractArray}, space) = batch(obs, space)
+_obs_batch(obs::AbstractVector{<:Integer}, space) = batch(obs, space)
+_obs_batch(obs::AbstractArray, space) = obs
+
+function get_action_and_values(cache::RLCache, observations::AbstractArray)
     model = cache.model
     ps = parameters(cache)
     st = rollout_inference_state(states(cache))
-    obs_batch = batch(observations, observation_space(cache.prob.env))
+    obs_batch = _obs_batch(observations, observation_space(cache.prob.env))
     dev = current_device(ps)
     obs_batch = canonicalize_device_batch(dev, obs_batch |> dev)
     actions_batched, values, logprobs, st = execute_rollout_action_values(
@@ -41,7 +46,7 @@ end
 
 function predict_actions(
         cache::RLCache,
-        observations::AbstractVector;
+        observations::AbstractArray;
         deterministic::Bool = false,
         rng::AbstractRNG = cache.rng,
         raw::Bool = false,
@@ -49,7 +54,7 @@ function predict_actions(
     model = cache.model
     ps = parameters(cache)
     st = rollout_inference_state(states(cache))
-    obs_batch = batch(observations, observation_space(cache.prob.env))
+    obs_batch = _obs_batch(observations, observation_space(cache.prob.env))
     dev = current_device(ps)
     obs_batch = canonicalize_device_batch(dev, obs_batch |> dev)
     actions_batched, st = execute_rollout_predict_actions(
@@ -69,15 +74,15 @@ function predict_actions(
     return _stored_action.(Ref(cache.adapter), actions, Ref(action_space(cache.prob.env)))
 end
 
-function predict_actions_raw(cache::RLCache, observations::AbstractVector)
+function predict_actions_raw(cache::RLCache, observations::AbstractArray)
     return predict_actions(cache, observations; raw = true)
 end
 
-function predict_values(cache::RLCache, observations::AbstractVector)
+function predict_values(cache::RLCache, observations::AbstractArray)
     model = cache.model
     ps = parameters(cache)
     st = rollout_inference_state(states(cache))
-    obs_batch = batch(observations, observation_space(cache.prob.env))
+    obs_batch = _obs_batch(observations, observation_space(cache.prob.env))
     dev = current_device(ps)
     obs_batch = canonicalize_device_batch(dev, obs_batch |> dev)
     values, st = execute_rollout_predict_values(dev, cache, obs_batch, ps, st)
