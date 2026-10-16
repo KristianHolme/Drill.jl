@@ -68,6 +68,9 @@ SACLayer
 ```@docs
 RolloutBuffer
 ReplayBuffer
+transitions
+env_transitions
+episodes
 ```
 
 ## Wrappers
