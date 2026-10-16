@@ -13,6 +13,26 @@ All backends automatically log training metrics during `solve` / `solve!` calls,
 - Learning rate, gradient norms
 - Frames per second (FPS)
 
+## Console output
+
+The `verbosity` keyword of `init` / `solve` controls what is printed during training (see [`Verbosity`](@ref)):
+
+```julia
+# Progress bar with live stats (the default)
+verbosity = (; meter = 2)
+
+# For log files, e.g. a batch job on a cluster: no colors, fewer meter updates
+verbosity = (; meter = 1, color = false, dt = 30.0)
+
+# Only a stats table on stdout after each iteration (requires PrettyTables)
+verbosity = (; meter = 0, table = true)
+
+# Show the progress meter in another terminal (run `tty` there to get its path)
+verbosity = (; meter = 2, output = open("/dev/pts/3", "w"))
+```
+
+The progress meter writes to `stderr` by default and redraws its line with carriage returns and terminal escape codes, which pile up in a log file. Set a larger `dt` to write fewer of them, or turn the meter off with `meter = 0`.
+
 ## TensorBoard Example
 
 TensorBoard is great for local development and quick experiments. Logs are stored locally and viewed through a web interface.

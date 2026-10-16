@@ -71,6 +71,6 @@ export execute_rollout_action_values, execute_rollout_predict_actions,
 
 # Used by Algorithms train_step! implementations (late-included).
 export _record_stat!, _mark_complete!, _callbacks_continue, add_steps!, add_gradient_update!
-export update_training_progress!, latest_stat, training_metric_rows
+export update_training_progress!, latest_stat, training_metric_rows, progress_output, table_output
 
 end
