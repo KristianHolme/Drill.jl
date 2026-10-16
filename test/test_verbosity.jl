@@ -38,6 +38,52 @@ end
     @test_throws ArgumentError normalize_verbosity((; timer = -1))
 end
 
+@testset "verbosity color, output and dt" begin
+    v = normalize_verbosity((;))
+    @test v.color
+    @test v.output === stderr
+    @test v.dt == 0.1
+    @test progress_output(v) === stderr
+    @test table_output(v) === stdout
+
+    io = IOBuffer()
+    v = normalize_verbosity((; color = false, output = io, dt = 2.0))
+    @test !v.color
+    @test v.output === io
+    @test v.dt == 2.0
+    @test progress_output(v) isa IOContext
+    @test get(progress_output(v), :color, true) == false
+    @test get(table_output(v), :color, true) == false
+    @test normalize_verbosity(v) == v
+
+    @test_throws ArgumentError normalize_verbosity((; dt = 0.0))
+    @test_throws ArgumentError normalize_verbosity((; dt = -1.0))
+end
+
+@testset "progress meter writes to verbosity.output, with or without color" begin
+    env = BroadcastedParallelEnv([TrackingTargetEnv(8, Random.Xoshiro(3))])
+    layer = ActorCriticModel(observation_space(env), action_space(env); hidden_dims = [16])
+    alg = PPO(; n_steps = 8, batch_size = 8, epochs = 1)
+    function meter_text(color)
+        buf = IOBuffer()
+        cache = init(
+            RLProblem(env, layer),
+            alg;
+            max_steps = 16,
+            verbosity = (; meter = 2, color, output = IOContext(buf, :color => true), dt = 1.0e-9),
+            rng = Random.Xoshiro(1),
+        )
+        solve!(cache)
+        return String(take!(buf))
+    end
+    colored = meter_text(true)
+    plain = meter_text(false)
+    @test occursin("Training", colored)
+    @test occursin("Training", plain)
+    @test occursin("\e[32m", colored)
+    @test !occursin(r"\e\[3\dm", plain)
+end
+
 @testset "print_training_table without extension errors" begin
     ext = Base.get_extension(Drill, :Drill_PrettyTablesExt)
     if ext === nothing

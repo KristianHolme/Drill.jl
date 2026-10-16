@@ -1,6 +1,6 @@
 module Drill_PrettyTablesExt
 
-using Drill: Drill, RLCache, training_metric_rows
+using Drill: Drill, RLCache, table_output, training_metric_rows
 using PrettyTables: PrettyTables, pretty_table
 import Drill: print_training_table
 
@@ -10,7 +10,7 @@ function print_training_table(cache::RLCache)
     names = first.(rows)
     values = last.(rows)
     pretty_table(
-        hcat(names, values);
+        table_output(cache.verbosity), hcat(names, values);
         column_labels = ["metric", "value"],
         alignment = [:l, :r],
     )
