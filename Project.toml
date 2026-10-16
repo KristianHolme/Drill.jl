@@ -30,20 +30,24 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [weakdeps]
 DearDiary = "bcf306fc-d39d-4f25-b732-26abcc96baf2"
+Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
 Reactant = "3c362404-f566-11ee-1572-e11a4b42c853"
 TensorBoardLogger = "899adc3e-224a-11e9-021f-63837185c80f"
 Wandb = "ad70616a-06c9-5745-b1f1-6a5f42545108"
+Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [sources.DrillInterface]
 path = "DrillInterface"
 
 [extensions]
 Drill_DearDiaryExt = ["DearDiary"]
+Drill_EnzymeExt = ["Enzyme"]
 Drill_PrettyTablesExt = "PrettyTables"
 Drill_ReactantExt = ["Reactant"]
 Drill_TensorBoardLoggerExt = ["TensorBoardLogger"]
 Drill_WandbExt = ["Wandb"]
+Drill_ZygoteExt = ["Zygote"]
 
 [compat]
 Accessors = "0.1"
@@ -54,6 +58,7 @@ ComponentArrays = "0.15"
 DataStructures = "0.18.22, 0.19"
 DearDiary = "0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.10, 0.11"
 DrillInterface = "0.2"
+Enzyme = "0.13"
 FileIO = "1"
 Functors = "0.5"
 JLD2 = "0.5.13, 0.6"
@@ -74,6 +79,7 @@ Statistics = "1"
 TensorBoardLogger = "0.1, 1"
 TimerOutputs = "1"
 Wandb = "0.5"
+Zygote = "0.7"
 julia = "1.10"
 
 [extras]

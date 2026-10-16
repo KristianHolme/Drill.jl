@@ -144,9 +144,9 @@ env = ScalingWrapperEnv(env)
 
 ### AD backends and Device support (CPU / GPU)
 
-Different backends for automatic differentiation are supported through the `ad_type` keyword argument to the `train!` function. Currently, [Zygote.jl](https://github.com/FluxML/Zygote.jl) is the default (using the `AutoZygote()` backend). [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl) is also supported by using the `AutoEnzyme()` backend. For the SAC algorithm, runtime activity must be turned on (`AutoEnzyme(; mode = set_runtime_activity(Reverse))`). The corresponding package (Zygote/Enzyme) must be loaded before calling `train!`.
+Different backends for automatic differentiation are supported through the `ad_type` keyword argument to `init`/`solve`. [Zygote.jl](https://github.com/FluxML/Zygote.jl) is the default (`AutoZygote()`); [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl) is supported with `AutoEnzyme()`. For SAC, Enzyme needs runtime activity (`AutoEnzyme(; mode = set_runtime_activity(Reverse))`). Load the corresponding package (Zygote/Enzyme) before training.
 
-[Reactant.jl](https://github.com/EnzymeAD/Reactant.jl) support is experimental: put parameters on `reactant_device()` and train with `AutoEnzyme()`. Lux's `TrainState` owns training compilation; Drill only `@compile`s rollout/deployment inference kernels. Multi-objective algorithms (SAC) use one Lux `TrainState` per objective (actor / critic / entropy).
+Each algorithm's update is a pure function (`ppo_update`, `sac_update`) over an immutable learner state. With parameters on `reactant_device()` (pass `device = reactant_device()` to `init`), [Reactant.jl](https://github.com/EnzymeAD/Reactant.jl) compiles the whole update, gradient and optimizer step included, once per batch shape; PPO and SAC are both supported. Rollout inference is compiled as well. Compilation takes tens of seconds, so Reactant pays off when the learner dominates the run time: fast environments, large networks, or many gradient steps per environment step.
 
 ### Custom Layer Architectures
 

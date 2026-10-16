@@ -28,6 +28,8 @@ end
             :Drill_TensorBoardLoggerExt,
             :Drill_DearDiaryExt,
             :Drill_ReactantExt,
+            :Drill_ZygoteExt,
+            :Drill_EnzymeExt,
         )
         ext = Base.get_extension(Drill, ext_name)
         ext === nothing || push!(modules, ext)

@@ -88,7 +88,7 @@ function sac_actor_loss(
     q_values, st = predict_values(layer, data.observations, actions_pi, ps, st)
     min_q_values = vec(minimum(q_values, dims = 1))
     loss = mean(ent_coef .* log_probs_pi - min_q_values)
-    return loss, st, NamedTuple()
+    return loss, st, log_probs_pi
 end
 
 function compute_target_q_values(
@@ -100,9 +100,9 @@ function compute_target_q_values(
         rng::AbstractRNG = default_rng(),
     )
     next_obs = data.next_observations
-    ent_coef = exp(first(data.log_ent_coef.log_ent_coef))
+    ent_coef = exp(sum(data.log_ent_coef.log_ent_coef))
     next_actions, next_log_probs, st = action_log_prob(layer, next_obs, ps, st; rng)
-    ps_with_target = merge_params(ps, data.target_ps)
+    ps_with_target = merge(ps, data.target_ps)
     st_with_target = merge(st, data.target_st)
     next_q_vals, _ = predict_values(layer, next_obs, next_actions, ps_with_target, st_with_target)
     min_next_q = vec(minimum(next_q_vals, dims = 1))
@@ -128,58 +128,6 @@ function sac_critic_loss(
     critic_loss = T(0.5) * sum(mean(abs2, δ; dims = 2))
     stats = (mean_q_values = mean(current_q_values),)
     return critic_loss, new_st, stats
-end
-
-function (alg::SAC)(::ContinuousActorCriticModel, ps, st, batch_data)
-    error("SAC algorithm object should not be called directly. Use SAC objectives instead.")
-end
-
-struct SACEntropyObjective end
-
-function (::SACEntropyObjective)(model, ps, st, data)
-    log_ent_coef = first(ps.log_ent_coef)
-    loss = -(log_ent_coef * data.c)
-    return loss, st, NamedTuple()
-end
-
-struct SACCriticObjective{A, R}
-    alg::A
-    rng::R
-end
-
-function (objective::SACCriticObjective)(model, ps, st, data)
-    full_ps = merge_actor_critic_parameters(data.actor_ps, ps)
-    full_st = merge_actor_critic_states(data.actor_st, st)
-    loss, new_full_st, stats = sac_critic_loss(
-        objective.alg,
-        model,
-        full_ps,
-        full_st,
-        data;
-        rng = objective.rng,
-    )
-    new_st = project_namedtuple(new_full_st, st)
-    return loss, new_st, stats
-end
-
-struct SACActorObjective{A, R}
-    alg::A
-    rng::R
-end
-
-function (objective::SACActorObjective)(model, ps, st, data)
-    full_ps = merge_actor_critic_parameters(ps, data.critic_ps)
-    full_st = merge_actor_critic_states(st, data.critic_st)
-    loss, new_full_st, stats = sac_actor_loss(
-        objective.alg,
-        model,
-        full_ps,
-        full_st,
-        data;
-        rng = objective.rng,
-    )
-    new_st = project_namedtuple(new_full_st, st)
-    return loss, new_st, stats
 end
 
 function process_action(action, action_space::Box{T}, ::SAC) where {T}

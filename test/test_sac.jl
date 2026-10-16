@@ -188,17 +188,17 @@ end
         batch_data = first(data_loader)
 
         @testset "Critic gradient with real data" begin
-            ts = cache.train_state
+            learner = cache.learner
 
             target_q_values = Drill.compute_target_q_values(
-                alg, layer, Drill.parameters(ts), Drill.states(ts),
+                alg, layer, Drill.parameters(learner), Drill.states(learner),
                 (
                     next_observations = batch_data.next_observations,
                     terminated = batch_data.terminated,
-                    log_ent_coef = Drill.entropy_parameters(ts),
+                    log_ent_coef = learner.log_ent_coef,
                     rewards = batch_data.rewards,
-                    target_ps = ts.target_parameters,
-                    target_st = ts.target_states,
+                    target_ps = learner.target_ps,
+                    target_st = learner.target_st,
                 );
                 rng = rng
             )
@@ -207,15 +207,21 @@ end
                 observations = batch_data.observations,
                 actions = batch_data.actions,
                 target_q_values = target_q_values,
-                actor_ps = ts.actor_ts.parameters,
-                actor_st = ts.actor_ts.states,
             )
+            function critic_objective(critic_ps, actor_ps, st, data)
+                loss, new_st, stats = Drill.sac_critic_loss(
+                    alg, layer, merge(actor_ps, critic_ps), st, data; rng,
+                )
+                return loss, (new_st, stats)
+            end
 
-            critic_grad, critic_loss, critic_stats, _ = Lux.Training.compute_gradients(
+            critic_loss, (_, critic_stats), critic_grad = Drill.value_and_gradient(
                 AutoZygote(),
-                Drill.SACCriticObjective(alg, rng),
+                critic_objective,
+                learner.critic_ps,
+                learner.actor_ps,
+                Drill.states(learner),
                 critic_data,
-                ts.critic_ts,
             )
 
             @test !isnothing(critic_grad)
@@ -225,6 +231,7 @@ end
             @test isfinite(critic_loss)
             @test critic_loss isa Float32
             @test critic_loss > 0
+            @test isfinite(critic_stats.mean_q_values)
 
             critic_grad_norm = nested_norm(critic_grad.critic_head, Float32)
             @test critic_grad_norm > 1.0f-10
@@ -232,21 +239,24 @@ end
         end
 
         @testset "Actor gradient with real data" begin
-            ts = cache.train_state
+            learner = cache.learner
 
-            ent_coef = Float32(Drill.entropy_coefficient(ts))
-            actor_data = (
-                observations = batch_data.observations,
-                ent_coef = ent_coef,
-                critic_ps = ts.critic_ts.parameters,
-                critic_st = ts.critic_ts.states,
-            )
+            ent_coef = Float32(Drill.entropy_coefficient(learner))
+            actor_data = (observations = batch_data.observations, ent_coef = ent_coef)
+            function actor_objective(actor_ps, critic_ps, st, data)
+                loss, new_st, log_probs = Drill.sac_actor_loss(
+                    alg, layer, merge(actor_ps, critic_ps), st, data; rng,
+                )
+                return loss, (new_st, log_probs)
+            end
 
-            actor_grad, actor_loss, _, _ = Lux.Training.compute_gradients(
+            actor_loss, (_, log_probs), actor_grad = Drill.value_and_gradient(
                 AutoZygote(),
-                Drill.SACActorObjective(alg, rng),
+                actor_objective,
+                learner.actor_ps,
+                learner.critic_ps,
+                Drill.states(learner),
                 actor_data,
-                ts.actor_ts,
             )
 
             @test !isnothing(actor_grad)
@@ -255,6 +265,7 @@ end
             @test !nested_all_zero(actor_grad.actor_head)
             @test isfinite(actor_loss)
             @test actor_loss isa Float32
+            @test length(log_probs) == size(batch_data.observations, 2)
 
             actor_grad_norm = nested_norm(actor_grad.actor_head, Float32)
             @test actor_grad_norm > 1.0f-10
