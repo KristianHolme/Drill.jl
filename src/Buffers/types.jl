@@ -2,30 +2,26 @@ abstract type AbstractBuffer end
 abstract type OnPolicyBuffer <: AbstractBuffer end
 abstract type OffPolicyBuffer <: AbstractBuffer end
 
-mutable struct Trajectory{T <: AbstractFloat, O, A}
-    observations::Vector{O}
-    actions::Vector{A}
-    rewards::Vector{T}
-    logprobs::Vector{T}
-    values::Vector{T}
-    terminated::Bool
-    truncated::Bool
-    bootstrap_value::Union{Nothing, T}  # Value of the next state for truncated episodes
-end
-
 """
     RolloutBuffer
 
-On-policy rollout storage: stacked observations, actions, rewards, GAE advantages, returns, old log-probs and values for one PPO update.
+On-policy rollout storage for one PPO update: observations, actions, rewards, log-probs,
+values, done flags, bootstrap values, and the GAE advantages and returns computed from them.
 
-Typically constructed via `RolloutBuffer(observation_space, action_space, n_steps, n_envs)`.
-Episode boundaries are recorded in `episode_ends` (last flat index of each packed episode).
+Construct with `RolloutBuffer(observation_space, action_space, n_steps, n_envs)`. Every
+array has one entry per transition, `n_envs * n_steps` in all, with the transition of env
+`e` at step `t` at index `(t - 1) * n_envs + e`. The collector writes the `n_envs`
+transitions of each step as one contiguous block.
+
+`bootstrap_values[i]` is the value of the state after transition `i` and is used only
+where an episode is cut short: when `truncateds[i]` is set, or at the last step of the
+rollout for an env that did not finish.
 """
-mutable struct RolloutBuffer{T <: AbstractFloat, S, AS, O, A} <: OnPolicyBuffer
+struct RolloutBuffer{T <: AbstractFloat, S, AS, OA <: AbstractArray, AA <: AbstractArray} <: OnPolicyBuffer
     observation_space::S
     action_space::AS
-    observations::Array{O}
-    actions::Array{A}
+    observations::OA
+    actions::AA
     rewards::Vector{T}
     advantages::Vector{T}
     returns::Vector{T}
@@ -33,43 +29,32 @@ mutable struct RolloutBuffer{T <: AbstractFloat, S, AS, O, A} <: OnPolicyBuffer
     values::Vector{T}
     terminateds::Vector{Bool}
     truncateds::Vector{Bool}
-    bootstrap_values::Vector{Union{Nothing, T}}
-    episode_ends::Vector{Int}
+    bootstrap_values::Vector{T}
     n_steps::Int
     n_envs::Int
 end
 
 """
-    OffPolicyTrajectory{T,O,A}
+    ReplayBuffer
 
-A mutable container for storing a single trajectory of off-policy experience data including observations, actions, rewards, and termination information.
+Off-policy transition storage as a ring of preallocated arrays: observations, actions,
+rewards, done flags and next observations, `capacity` transitions in all. Once full, new
+transitions overwrite the oldest.
+
+`next_observations` holds the real next observation of every transition, including the
+last observation of a finished episode, so sampling never needs a placeholder.
 """
-mutable struct OffPolicyTrajectory{T <: AbstractFloat, O, A}
-    observations::Vector{O}
-    actions::Vector{A}
-    rewards::Vector{T}
-    terminated::Bool
-    truncated::Bool
-    truncated_observation::Union{Nothing, O}
-end
-
-"""
-    ReplayBuffer{T,O,OBS,AC}
-
-A circular buffer for storing multiple trajectories of off-policy experience data, used for replay-based learning algorithms.
-
-# Truncation Logic
-- If `terminated = true`, then there should be no `truncated_observation`
-- If `truncated = true`, then there should be a `truncated_observation`  
-- If `terminated = false` and `truncated = false`, then we stopped in the middle of an episode, so there should be a `truncated_observation`
-"""
-struct ReplayBuffer{T, O, OBS, AC} <: OffPolicyBuffer
-    observation_space::O
-    action_space::Box
-    observations::CircularBuffer{OBS}
-    actions::CircularBuffer{AC}
-    rewards::CircularBuffer{T}
-    terminated::CircularBuffer{Bool}
-    truncated::CircularBuffer{Bool}
-    truncated_observations::CircularBuffer{Union{Nothing, OBS}}
+mutable struct ReplayBuffer{T <: AbstractFloat, O, A, OA <: AbstractArray, AA <: AbstractArray} <: OffPolicyBuffer
+    const observation_space::O
+    const action_space::A
+    const observations::OA
+    const next_observations::OA
+    const actions::AA
+    const rewards::Vector{T}
+    const terminated::Vector{Bool}
+    const truncated::Vector{Bool}
+    # Index the next transition is written to
+    position::Int
+    # Number of stored transitions
+    count::Int
 end

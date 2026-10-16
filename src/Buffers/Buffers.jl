@@ -1,21 +1,18 @@
 module Buffers
 
-using DataStructures: CircularBuffer
 import DataStructures: capacity, isfull
 using DrillInterface: AbstractSpace, Box
 import DrillInterface: action_space, observation_space, reset!
-using DrillInterface: batch
 using MLUtils: DataLoader
 using Random: AbstractRNG
-using StatsBase: sample
 
 include("types.jl")
-include("trajectory.jl")
 include("rollout.jl")
 include("replay.jl")
 
 export AbstractBuffer, OnPolicyBuffer, OffPolicyBuffer
-export RolloutBuffer, Trajectory, OffPolicyTrajectory, ReplayBuffer
-export compute_advantages!, compute_gae!, get_data_loader, pack_trajectories!
+export RolloutBuffer, ReplayBuffer
+export compute_gae!, get_data_loader, step_indices, store_step!
+export add_transitions!, sample_batch
 
 end

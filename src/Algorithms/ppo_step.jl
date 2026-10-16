@@ -62,7 +62,6 @@ function train_step!(cache::RLCache{<:Any, <:PPO}, alg::PPO)
         );
         batchsize = alg.batch_size,
         shuffle = true,
-        parallel = true,
         rng = cache.rng,
     )
     dev = get_device(parameters(cache))
