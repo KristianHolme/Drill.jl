@@ -169,7 +169,7 @@ Benchmarks live in `benchmark/benchmarks.jl`.
 
 ### CI
 
-- **Basic suite** (automatic on every PR): `rollouts`, `training`, and `wrappers` via [`.github/workflows/benchmarks.yml`](.github/workflows/benchmarks.yml). Heavy packages (Zygote, Enzyme, Reactant) are not installed for this path.
+- **Basic suite** (automatic on every PR): `rollouts`, `training`, and `wrappers` via [`.github/workflows/benchmarks.yml`](.github/workflows/benchmarks.yml). Zygote and Enzyme are installed for this path; Reactant is not.
 - **Full suite** (on demand): comment `/bench-full` on a PR (OWNER/MEMBER/COLLABORATOR), or run the **Full benchmarks** workflow from the Actions tab. This includes `devices` and `ad_backends` and installs Zygote, Enzyme, and Reactant. See [`.github/workflows/benchmarks-full.yml`](.github/workflows/benchmarks-full.yml).
 
 ### Local
