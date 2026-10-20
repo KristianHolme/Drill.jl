@@ -148,7 +148,7 @@ env = ScalingWrapperEnv(env)
 
 ### AD backends and Device support (CPU / GPU)
 
-Different backends for automatic differentiation are supported through the `ad_type` keyword argument to `init`/`solve`. [Zygote.jl](https://github.com/FluxML/Zygote.jl) is the default (`AutoZygote()`); [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl) is supported with `AutoEnzyme()`. For SAC, Enzyme needs runtime activity (`AutoEnzyme(; mode = set_runtime_activity(Reverse))`). Load the corresponding package (Zygote/Enzyme) before training.
+Different backends for automatic differentiation are supported through the `ad_type` keyword argument to `init`/`solve`. [Enzyme.jl](https://github.com/EnzymeAD/Enzyme.jl) is the default (`AutoEnzyme()`); [Zygote.jl](https://github.com/FluxML/Zygote.jl) is supported with `AutoZygote()`. Load the corresponding package (`using Enzyme` or `using Zygote`) before training.
 
 Each algorithm's update is a pure function (`ppo_update`, `sac_update`) over an immutable learner state. With parameters on `reactant_device()` (pass `device = reactant_device()` to `init`), [Reactant.jl](https://github.com/EnzymeAD/Reactant.jl) compiles the whole update, gradient and optimizer step included, once per batch shape; PPO and SAC are both supported. Rollout inference is compiled as well. Compilation takes tens of seconds, so Reactant pays off when the learner dominates the run time: fast environments, large networks, or many gradient steps per environment step.
 
@@ -169,7 +169,7 @@ Benchmarks live in `benchmark/benchmarks.jl`.
 
 ### CI
 
-- **Basic suite** (automatic on every PR): `rollouts`, `training`, and `wrappers` via [`.github/workflows/benchmarks.yml`](.github/workflows/benchmarks.yml). Heavy packages (Zygote, Enzyme, Reactant) are not installed for this path.
+- **Basic suite** (automatic on every PR): `rollouts`, `training`, and `wrappers` via [`.github/workflows/benchmarks.yml`](.github/workflows/benchmarks.yml). Zygote and Enzyme are installed for this path; Reactant is not.
 - **Full suite** (on demand): comment `/bench-full` on a PR (OWNER/MEMBER/COLLABORATOR), or run the **Full benchmarks** workflow from the Actions tab. This includes `devices` and `ad_backends` and installs Zygote, Enzyme, and Reactant. See [`.github/workflows/benchmarks-full.yml`](.github/workflows/benchmarks-full.yml).
 
 ### Local

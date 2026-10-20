@@ -77,20 +77,46 @@ function init_entropy_coefficient(entropy_coefficient::AutoEntropyCoefficient)
     return (; log_ent_coef = [entropy_coefficient.initial_value |> log])
 end
 
+"""
+    sac_actor_loss(alg::SAC, layer, actor_ps, actor_st, critic_ps, critic_st, data; rng) -> (loss, actor_st, log_probs)
+
+The SAC actor loss. Actor and critic parameters are separate arguments, so a gradient with
+respect to `actor_ps` treats the critic as a constant without merging the two.
+"""
 function sac_actor_loss(
         ::SAC,
         layer::ContinuousActorCriticModel{<:Any, <:Any, <:Any, QCritic},
-        ps,
-        st,
+        actor_ps,
+        actor_st,
+        critic_ps,
+        critic_st,
         data;
         rng::AbstractRNG = default_rng(),
     )
     ent_coef = data.ent_coef
-    actions_pi, log_probs_pi, st = action_log_prob(layer, data.observations, ps, st; rng)
-    q_values, st = predict_values(layer, data.observations, actions_pi, ps, st)
+    actor_feats, actor_st = _sac_actor_features(layer, data.observations, actor_ps, actor_st, critic_ps, critic_st)
+    actions_pi, log_probs_pi, actor_st = action_log_prob_from_features(layer, actor_feats, actor_ps, actor_st; rng)
+    critic_feats, critic_st = critic_features(layer, data.observations, critic_ps, critic_st)
+    q_values, _ = get_values_from_features(layer, critic_feats, actions_pi, critic_ps, critic_st)
     min_q_values = vec(minimum(q_values, dims = 1))
     loss = mean(ent_coef .* log_probs_pi - min_q_values)
-    return loss, st, log_probs_pi
+    return loss, actor_st, log_probs_pi
+end
+
+# Shared features belong to the critic; the actor uses them as a constant.
+function _sac_actor_features(
+        layer::ContinuousActorCriticModel{<:Any, <:Any, <:Any, <:Any, SharedFeatures},
+        obs, actor_ps, actor_st, critic_ps, critic_st,
+    )
+    feats, _ = actor_features(layer, obs, critic_ps, critic_st)
+    return feats, actor_st
+end
+
+function _sac_actor_features(
+        layer::ContinuousActorCriticModel{<:Any, <:Any, <:Any, <:Any, SeparateFeatures},
+        obs, actor_ps, actor_st, critic_ps, critic_st,
+    )
+    return actor_features(layer, obs, actor_ps, actor_st)
 end
 
 function compute_target_q_values(
@@ -116,20 +142,25 @@ function compute_target_q_values(
     return target_q_values
 end
 
+"""
+    sac_critic_loss(alg::SAC, layer, critic_ps, critic_st, data) -> (loss, critic_st, stats)
+
+The SAC critic loss, from the critic's parameters and states alone.
+"""
 function sac_critic_loss(
-        alg::SAC,
+        ::SAC,
         layer::ContinuousActorCriticModel{<:Any, <:Any, <:Any, QCritic},
-        ps,
-        st,
-        data;
-        rng::AbstractRNG = default_rng(),
+        critic_ps,
+        critic_st,
+        data,
     )
-    current_q_values, new_st = predict_values(layer, data.observations, data.actions, ps, st)
+    feats, critic_st = critic_features(layer, data.observations, critic_ps, critic_st)
+    current_q_values, critic_st = get_values_from_features(layer, feats, data.actions, critic_ps, critic_st)
     T = eltype(current_q_values)
     δ = current_q_values .- reshape(data.target_q_values, 1, :)
     critic_loss = T(0.5) * sum(mean(abs2, δ; dims = 2))
     stats = (mean_q_values = mean(current_q_values),)
-    return critic_loss, new_st, stats
+    return critic_loss, critic_st, stats
 end
 
 function process_action(action, action_space::Box{T}, ::SAC) where {T}

@@ -43,7 +43,7 @@ end
     @test cache_on_cpu isa Drill.RLCache
 
     initial_params = deepcopy(Drill.parameters(cache_on_cpu))
-    cache_on_cpu.ad_type = AutoEnzyme(; mode = set_runtime_activity(Reverse))
+    cache_on_cpu.ad_type = AutoEnzyme()
     solve!(cache_on_cpu)
     @test Drill.parameters(cache_on_cpu) != initial_params
 end

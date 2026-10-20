@@ -42,9 +42,7 @@ if startswith(BACKEND, "reactant")
     const AD = Drill.gradient_backend(DEV, AutoEnzyme())
 elseif BACKEND in ("zygote", "enzyme")
     const DEV = Lux.cpu_device()
-    # SAC with Enzyme needs runtime activity; PPO uses the same mode for comparability.
-    const AD = BACKEND == "zygote" ? AutoZygote() :
-        AutoEnzyme(; mode = Enzyme.set_runtime_activity(Enzyme.Reverse))
+    const AD = BACKEND == "zygote" ? AutoZygote() : AutoEnzyme()
 else
     error("Unknown backend $BACKEND")
 end

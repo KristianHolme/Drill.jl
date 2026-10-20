@@ -4,8 +4,8 @@ Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
 DocumenterVitepress = "4710194d-e776-4893-9690-8d956a29c365"
 Drill = "49b37b9d-a8e6-4364-9144-4677bcb8a7f0"
 DrillInterface = "d92b6104-cdd8-4875-a041-bad43500bca7"
+Enzyme = "7da242da-08ed-463a-9acd-ee780be4f1d9"
 MultiProgressManagers = "cc0c738e-a464-4ba6-84fc-30e2ce8f9d3d"
-Zygote = "e88e6eb3-aa80-5325-afca-941959d7151f"
 
 [sources]
 ClassicControlEnvironments = {url = "https://github.com/KristianHolme/ClassicControlEnvironments.jl", rev = "drillinterface-0.2"}

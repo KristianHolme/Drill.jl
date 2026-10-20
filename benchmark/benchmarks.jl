@@ -3,8 +3,10 @@ using Drill
 using ClassicControlEnvironments
 using Random
 using Drill.Lux
-# Drill's AutoZygote gradients live in a package extension that loads with Zygote.
+# Drill's gradients live in package extensions: Zygote for AutoZygote(), Enzyme for
+# AutoEnzyme(). Both are loaded so that revisions with either default run.
 using Zygote
+using Enzyme
 
 include("bench_utils.jl")
 using .BenchUtils
@@ -181,7 +183,7 @@ if ENABLE_AD_BACKEND_BENCHES
         end seconds = BASIC_SECONDS samples = BASIC_SAMPLES
     end
 
-    for (name, ad_backend) in ad_backend_types[[1, 3]] #dont use enzyme without runtime activity
+    for (name, ad_backend) in ad_backend_types[[1, 3]] # revisions before #103 need runtime activity for SAC
         ad_backends["sac"][name] = @benchmarkable begin
             BenchUtils.bench_sac_ad($ad_backend, state)
         end setup = begin
