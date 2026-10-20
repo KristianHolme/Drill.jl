@@ -1,8 +1,7 @@
 module Drill_DearDiaryExt
 
-using Drill
-using DearDiary
-import Drill: AbstractTrainingLogger, set_step!, increment_step!, log_scalar!, log_metrics!, log_hparams!, flush!, close!
+using Drill: Drill, AbstractTrainingLogger
+using DearDiary: DearDiary
 
 """
     DearDiaryBackend <: AbstractTrainingLogger

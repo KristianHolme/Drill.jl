@@ -54,4 +54,3 @@ jobs:
           force_latest_compatible_version: true
         env:
           JULIA_CONDAPKG_ENV: ${{ github.workspace }}/.condapkg-ci/wandb
-          # test_logging is skipped on GITHUB_ACTIONS in test/runtests.jl (wandb-core hang).
