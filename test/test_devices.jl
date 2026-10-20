@@ -69,6 +69,28 @@ end
     @test Drill.reactant_cache_entry_count(cache) > 0
 end
 
+@testset "Learning rate schedule with Reactant device" begin
+    env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
+    Reactant.set_default_backend("cpu")
+    device = Lux.reactant_device()
+    layer = ActorCriticModel(observation_space(env), action_space(env); hidden_dims = [16, 16])
+
+    # The compiled update reads the adjusted rate: a zero rate leaves the parameters as they are
+    alg = PPO(; n_steps = 8, batch_size = 8, epochs = 1, learning_rate = p -> p < 0.5 ? 1.0f-3 : 0.0f0)
+    cache = init(RLProblem(env, layer), alg; max_steps = 64, verbosity = 0, rng = Random.Xoshiro(42), device)
+    cache.ad_type = AutoEnzyme()
+    initial_ps = deepcopy(cpu_device()(Drill.parameters(cache)))
+    step!(cache)
+    ps = deepcopy(cpu_device()(Drill.parameters(cache)))
+    @test ps != initial_ps
+    entries = Drill.reactant_cache_entry_count(cache)
+    step!(cache)
+    step!(cache)
+    @test cpu_device()(Drill.parameters(cache)) == ps
+    # Changing the rate does not recompile the update
+    @test Drill.reactant_cache_entry_count(cache) == entries
+end
+
 @testset "SAC training with Reactant device" begin
     continuous_env = BroadcastedParallelEnv([CustomEnv(8) for _ in 1:2])
     continuous_obs_space = DrillInterface.observation_space(continuous_env)

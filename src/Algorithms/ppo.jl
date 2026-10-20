@@ -19,6 +19,7 @@ struct PPO{
         AS <: AbstractAdvantageStrategy,
         CVS <: AbstractClipVFStrategy{T},
         KLS <: AbstractKLTargetStrategy{T},
+        LR,
     } <: OnPolicyAlgorithm
     gamma::T
     gae_lambda::T
@@ -32,7 +33,7 @@ struct PPO{
     n_steps::Int
     batch_size::Int
     epochs::Int
-    learning_rate::T
+    learning_rate::LR
     optimizer::Type{<:Optimisers.AbstractRule}
 end
 
@@ -85,7 +86,7 @@ function PPO(;
         n_steps::Int = 2048,
         batch_size::Int = 64,
         epochs::Int = 10,
-        learning_rate::Real = 3.0f-4,
+        learning_rate = 3.0f-4,
         optimizer::Type{<:Optimisers.AbstractRule} = Optimisers.Adam,
     )
     T = promote_type(
@@ -95,14 +96,15 @@ function PPO(;
         typeof(float(ent_coef)),
         typeof(float(vf_coef)),
         typeof(float(max_grad_norm)),
-        typeof(float(learning_rate)),
+        learning_rate isa Real ? typeof(float(learning_rate)) : Float32,
         isnothing(clip_range_vf) ? Float32 : typeof(float(clip_range_vf)),
         isnothing(target_kl) ? Float32 : typeof(float(target_kl)),
     )
     advantage_strategy = convert(AbstractAdvantageStrategy, normalize_advantage)
     clip_vf_strategy = convert(AbstractClipVFStrategy{T}, clip_range_vf)
     target_kl_strategy = convert(AbstractKLTargetStrategy{T}, target_kl)
-    return PPO{T, typeof(advantage_strategy), typeof(clip_vf_strategy), typeof(target_kl_strategy)}(
+    lr = learning_rate isa Real ? T(learning_rate) : learning_rate
+    return PPO{T, typeof(advantage_strategy), typeof(clip_vf_strategy), typeof(target_kl_strategy), typeof(lr)}(
         T(gamma),
         T(gae_lambda),
         T(clip_range),
@@ -115,18 +117,26 @@ function PPO(;
         n_steps,
         batch_size,
         epochs,
-        T(learning_rate),
+        lr,
         optimizer,
     )
 end
 
 function make_optimizer(optimizer_type::Type{<:Optimisers.Adam}, alg::PPO)
-    return optimizer_type(eta = alg.learning_rate, epsilon = 1.0f-5)
+    return optimizer_type(eta = learning_rate(alg, 0), epsilon = 1.0f-5)
 end
 
 function make_optimizer(optimizer_type::Type{<:Optimisers.AbstractRule}, alg::PPO)
-    return optimizer_type(alg.learning_rate)
+    return optimizer_type(learning_rate(alg, 0))
 end
+
+"""
+    learning_rate(alg, progress)
+
+The learning rate of `alg` at training progress `progress` (fraction of `max_steps` taken),
+in the algorithm's float type.
+"""
+learning_rate(alg::PPO{T}, progress::Real) where {T} = T(schedule_value(alg.learning_rate, progress))
 
 make_optimizer(alg::PPO) = make_optimizer(alg.optimizer, alg)
 

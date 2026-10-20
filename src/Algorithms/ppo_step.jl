@@ -17,7 +17,6 @@ function train_step!(cache::RLCache{<:Any, <:PPO}, alg::PPO)
     env = cache.prob.env
     n_steps = alg.n_steps
     n_envs = number_of_envs(env)
-    _record_stat!(cache, :learning_rates, alg.learning_rate)
 
     if !_callbacks_continue(cache.callbacks, on_rollout_start, cache)
         cache.retcode = ReturnCode.Terminated
@@ -41,6 +40,8 @@ function train_step!(cache::RLCache{<:Any, <:PPO}, alg::PPO)
     log_scalar!(cache.logger, "env/fps", fps)
     log_stats(env, cache.logger)
     _record_stat!(cache, :fps, Float32(fps))
+    lr = update_learning_rate!(cache, alg)
+    _record_stat!(cache, :learning_rates, lr)
 
     if !_callbacks_continue(cache.callbacks, on_rollout_end, cache)
         cache.retcode = ReturnCode.Terminated
@@ -68,7 +69,7 @@ function train_step!(cache::RLCache{<:Any, <:PPO}, alg::PPO)
     log_scalar!(cache.logger, "train/clip_fraction", means.clip_fraction)
     log_scalar!(cache.logger, "train/loss", means.loss)
     log_scalar!(cache.logger, "train/grad_norm", means.grad_norm)
-    log_scalar!(cache.logger, "train/learning_rate", alg.learning_rate)
+    log_scalar!(cache.logger, "train/learning_rate", lr)
     ps = parameters(cache)
     if ps isa NamedTuple && haskey(ps, :log_std)
         log_scalar!(cache.logger, "train/std", mean(exp.(Array(ps.log_std))))
@@ -87,7 +88,7 @@ function train_step!(cache::RLCache{<:Any, <:PPO}, alg::PPO)
             ("loss", means.loss),
             ("fps", fps),
             ("grad_norm", means.grad_norm),
-            ("learning_rate", alg.learning_rate),
+            ("learning_rate", lr),
         ],
     )
     return _mark_complete!(cache)

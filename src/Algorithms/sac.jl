@@ -1,5 +1,5 @@
-@kwdef struct SAC{T <: AbstractFloat, E <: AbstractEntropyCoefficient} <: OffPolicyAlgorithm
-    learning_rate::T = 3.0f-4
+@kwdef struct SAC{T <: AbstractFloat, E <: AbstractEntropyCoefficient, LR} <: OffPolicyAlgorithm
+    learning_rate::LR = 3.0f-4
     buffer_capacity::Int = 1_000_000
     start_steps::Int = 100
     batch_size::Int = 256
@@ -13,12 +13,14 @@
 end
 
 function make_optimizer(optimizer_type::Type{<:Optimisers.Adam}, alg::SAC)
-    return optimizer_type(eta = alg.learning_rate, epsilon = 1.0f-5)
+    return optimizer_type(eta = learning_rate(alg, 0), epsilon = 1.0f-5)
 end
 
 function make_optimizer(optimizer_type::Type{<:Optimisers.AbstractRule}, alg::SAC)
-    return optimizer_type(alg.learning_rate)
+    return optimizer_type(learning_rate(alg, 0))
 end
+
+learning_rate(alg::SAC{T}, progress::Real) where {T} = T(schedule_value(alg.learning_rate, progress))
 
 make_optimizer(alg::SAC) = make_optimizer(alg.optimizer, alg)
 

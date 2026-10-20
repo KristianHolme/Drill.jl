@@ -92,10 +92,25 @@ parameters(learner::PPOLearner) = learner.ps
 states(learner::PPOLearner) = learner.st
 with_states(learner::PPOLearner, st) = PPOLearner(learner.ps, st, learner.opt_state)
 
+"""
+    set_learning_rate(learner, eta) -> learner
+
+A copy of `learner` with the learning rate of every optimizer state set to `eta`.
+`learner` is unchanged. See [`adjust_learning_rate!`](@ref) for the in-place version.
+"""
 function set_learning_rate(learner::PPOLearner, eta::Real)
-    opt_state = deepcopy(learner.opt_state)
-    Optimisers.adjust!(opt_state, eta)
-    return PPOLearner(learner.ps, learner.st, opt_state)
+    return adjust_learning_rate!(PPOLearner(learner.ps, learner.st, deepcopy(learner.opt_state)), eta)
+end
+
+"""
+    adjust_learning_rate!(learner, eta) -> learner
+
+Set the learning rate of every optimizer state in `learner` to `eta`, in place. See
+[`set_learning_rate`](@ref) for a version that leaves `learner` unchanged.
+"""
+function adjust_learning_rate!(learner::PPOLearner, eta::Real)
+    Optimisers.adjust!(learner.opt_state, eta)
+    return learner
 end
 
 """
@@ -209,14 +224,19 @@ entropy_coefficient(learner::SACLearner) = exp(sum(learner.log_ent_coef.log_ent_
 
 function set_learning_rate(learner::SACLearner, eta::Real)
     actor_opt, critic_opt, ent_opt = deepcopy((learner.actor_opt, learner.critic_opt, learner.ent_opt))
-    Optimisers.adjust!(actor_opt, eta)
-    Optimisers.adjust!(critic_opt, eta)
-    Optimisers.adjust!(ent_opt, eta)
-    return SACLearner(
+    copied = SACLearner(
         learner.actor_ps, learner.actor_st, learner.critic_ps, learner.critic_st,
         learner.target_ps, learner.target_st, learner.log_ent_coef, actor_opt, critic_opt,
         ent_opt, learner.rng,
     )
+    return adjust_learning_rate!(copied, eta)
+end
+
+function adjust_learning_rate!(learner::SACLearner, eta::Real)
+    Optimisers.adjust!(learner.actor_opt, eta)
+    Optimisers.adjust!(learner.critic_opt, eta)
+    Optimisers.adjust!(learner.ent_opt, eta)
+    return learner
 end
 
 _learns_entropy(::AutoEntropyCoefficient) = true
