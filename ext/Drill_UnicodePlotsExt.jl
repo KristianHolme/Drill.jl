@@ -7,14 +7,18 @@ import UnicodePlots: lineplot
 """
     lineplot(schedule::AbstractSchedule; n = 101, kwargs...)
 
-Plot `schedule` against training progress from 0 to 1, evaluated at `n` points. Other
-keyword arguments go to `UnicodePlots.lineplot`.
+Plot `schedule` against training progress from 0 to 1, evaluated at `n` points. The y axis
+spans the schedule's values, or 0 to twice the value for a constant schedule. Other keyword arguments go to `UnicodePlots.lineplot`.
 """
 function lineplot(s::AbstractSchedule; n::Integer = 101, kwargs...)
     progress = range(0.0, 1.0; length = n)
+    values = [s(p) for p in progress]
+    lo, hi = extrema(values)
+    # (0, 0) lets UnicodePlots choose
+    ylim = lo < hi ? (lo, hi) : hi > 0 ? (zero(hi), 2hi) : (0, 0)
     return lineplot(
-        progress, [s(p) for p in progress];
-        title = sprint(show, s), xlabel = "progress", xlim = (0, 1),
+        progress, values;
+        title = sprint(show, s), xlabel = "progress", xlim = (0, 1), ylim,
         width = 40, height = 8, kwargs...,
     )
 end
