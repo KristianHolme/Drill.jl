@@ -71,3 +71,27 @@ sac = SAC(ent_coef = FixedEntropyCoefficient(0.2f0))
 sac = SAC(ent_coef = AutoEntropyCoefficient())
 ```
 
+
+## Learning rate schedules
+
+`learning_rate` takes a number or a schedule. A schedule is a function of the training
+progress `p`, the fraction of `max_steps` taken so far, from 0 at the start to 1 at the
+end. The learning rate is updated after each rollout for PPO and after each collection
+step for SAC, before the gradient updates.
+
+```julia
+ppo = PPO(; learning_rate = LinearSchedule(3f-4, 0f0))       # linear decay to 0
+sac = SAC(; learning_rate = CosineSchedule(1f-3, 1f-5))      # cosine annealing
+ppo = PPO(; learning_rate = ExponentialSchedule(1f-3, 1f-5)) # geometric decay
+ppo = PPO(; learning_rate = p -> p < 0.1f0 ? 3f-5 : 3f-4)    # any function of p
+```
+
+The current value is logged as `train/learning_rate` and recorded in
+`cache.stats[:learning_rates]`. With UnicodePlots loaded, a schedule shows as a plot in
+the REPL, and `lineplot(schedule)` returns the plot:
+
+```julia
+julia> using UnicodePlots
+
+julia> CosineSchedule(1f-3, 0f0)
+```

@@ -35,6 +35,18 @@ PPO
 SAC
 ```
 
+### Schedules
+
+```@docs
+AbstractSchedule
+LinearSchedule
+CosineSchedule
+ExponentialSchedule
+training_progress
+set_learning_rate
+adjust_learning_rate!
+```
+
 ## Solve
 
 ```@docs

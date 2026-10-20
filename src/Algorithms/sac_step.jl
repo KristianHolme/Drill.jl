@@ -50,8 +50,9 @@ function train_step!(cache::RLCache{<:Any, <:SAC}, alg::SAC)
     end
 
     n_updates = get_gradient_steps(alg, alg.train_freq, n_envs)
+    lr = update_learning_rate!(cache, alg)
     if length(cache.buffer) > 0 && n_updates > 0
-        @timeit cache.timer "update" _sac_updates!(cache, alg, n_updates)
+        @timeit cache.timer "update" _sac_updates!(cache, alg, n_updates, lr)
     end
     set_step!(cache.logger, cache.steps_taken)
     log_scalar!(cache.logger, "train/total_steps", cache.steps_taken)
@@ -64,14 +65,14 @@ function train_step!(cache::RLCache{<:Any, <:SAC}, alg::SAC)
         ("mean_q_values", latest_stat(cache, :q_values)),
         ("entropy_coefficient", latest_stat(cache, :entropy_coefficients)),
         ("grad_norm", latest_stat(cache, :grad_norms)),
-        ("learning_rate", alg.learning_rate),
+        ("learning_rate", lr),
     ]
     filter!(pair -> last(pair) !== nothing, showvalues)
     update_training_progress!(cache, n_steps * n_envs; showvalues)
     return _mark_complete!(cache)
 end
 
-function _sac_updates!(cache::RLCache, alg::SAC, n_updates::Int)
+function _sac_updates!(cache::RLCache, alg::SAC, n_updates::Int, lr)
     data_loader = get_data_loader(cache.buffer, alg.batch_size, n_updates, true, false, cache.rng)
     dev = current_device(parameters(cache))
     ad = gradient_backend(dev, cache.ad_type)
@@ -90,7 +91,7 @@ function _sac_updates!(cache::RLCache, alg::SAC, n_updates::Int)
         _record_stat!(cache, :actor_losses, metrics.actor_loss)
         _record_stat!(cache, :q_values, metrics.mean_q_values)
         _record_stat!(cache, :entropy_coefficients, metrics.entropy_coefficient)
-        _record_stat!(cache, :learning_rates, alg.learning_rate)
+        _record_stat!(cache, :learning_rates, lr)
         _record_stat!(cache, :grad_norms, metrics.grad_norm)
     end
     cache.learner = learner

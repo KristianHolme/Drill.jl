@@ -7,6 +7,17 @@ function latest_stat(cache::RLCache, key::Symbol, default = nothing)
 end
 
 """
+    training_progress(cache) -> Float64
+
+The fraction of `max_steps` taken so far, between 0 and 1. Schedules are evaluated at
+this value.
+"""
+function training_progress(cache::RLCache)
+    cache.max_steps > 0 || return 1.0
+    return clamp(cache.steps_taken / cache.max_steps, 0.0, 1.0)
+end
+
+"""
     training_metric_rows(cache) -> Vector{Pair{String,Any}}
 
 Latest recorded training stats as ordered name => value pairs for console tables.

@@ -48,6 +48,7 @@ include("Solve/Solve.jl")
 @reexport using .Solve
 
 # Algorithm train steps need RLCache / collect APIs from Solve.
+Base.include(Algorithms, joinpath(@__DIR__, "Algorithms", "schedule_step.jl"))
 Base.include(Algorithms, joinpath(@__DIR__, "Algorithms", "ppo_step.jl"))
 Base.include(Algorithms, joinpath(@__DIR__, "Algorithms", "sac_step.jl"))
 

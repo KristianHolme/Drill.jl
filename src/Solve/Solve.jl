@@ -52,7 +52,7 @@ include("device_adapt.jl")
 
 export RLCache, RLSolution
 export Verbosity, DEFAULT_VERBOSITY, normalize_verbosity, print_training_table
-export parameters, states, set_states!, invalidate_cache!, steps_taken
+export parameters, states, set_states!, invalidate_cache!, steps_taken, training_progress
 export get_action_and_values, predict_actions, predict_values, predict_actions_raw
 export collect_rollout!, prepare_rollout!
 export init, solve!, step!, solve
