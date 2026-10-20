@@ -78,6 +78,8 @@ function init(
         desc = "Training...",
         showspeed = true,
         enabled = selected_verbosity.meter > 0,
+        output = progress_output(selected_verbosity),
+        dt = selected_verbosity.dt,
     )
     cache = RLCache(
         prob,

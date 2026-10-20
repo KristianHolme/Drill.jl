@@ -41,6 +41,8 @@ SAC
 Verbosity
 normalize_verbosity
 print_training_table
+progress_output
+table_output
 ```
 
 ## Inference
