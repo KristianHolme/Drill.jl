@@ -72,3 +72,7 @@ ext = Base.get_extension(Drill, :Drill_PrettyTablesExt)
 ```
 
 `check_no_implicit_imports(Drill)` also analyzes **loaded** extensions, so a weakdep present in the test environment can cause quality tests to fail if that extension uses bare `using`.
+
+## Changelog entries
+
+Every PR with user-facing changes adds `changelog/<PR number>.md` (or `DrillInterface/changelog/<PR number>.md` for subpackage changes) with only `- ` entries, optionally under `## Breaking/Added/Changed/Deprecated/Removed/Fixed`. Do not edit `CHANGELOG.md` directly and do not add the PR link. Open the PR first if you need its number. Validate with `julia tooling/changelog.jl check`; PRs without user-facing changes get the `skip-changelog` label. At release time, `julia tooling/changelog.jl release <version> [--package DrillInterface] [--dry-run]` builds the release section (use `--dry-run` for registry release notes). See `changelog/README.md`.
