@@ -3,7 +3,7 @@ using Drill
 using DrillInterface
 using Random
 using UnicodePlots: UnicodePlots
-using Zygote
+using Enzyme
 include("setup.jl")
 using .TestSetup
 
