@@ -73,7 +73,16 @@ end
 
 function action_log_prob(model::ContinuousActorCriticModel, obs::AbstractArray, ps, st; rng::AbstractRNG = default_rng())
     actor_feats, _, st = extract_features(model, obs, ps, st)
-    action_means, st = get_actions_from_features(model, actor_feats, ps, st)
+    return action_log_prob_from_features(model, actor_feats, ps, st; rng)
+end
+
+"""
+    action_log_prob_from_features(model::ContinuousActorCriticModel, feats, ps, st; rng) -> (actions, log_probs, st)
+
+Like `action_log_prob`, from actor features. `ps` needs only `actor_head` and `log_std`.
+"""
+function action_log_prob_from_features(model::ContinuousActorCriticModel, feats::AbstractArray, ps, st; rng::AbstractRNG = default_rng())
+    action_means, st = get_actions_from_features(model, feats, ps, st)
     d = _distribution_type(model)
     actions = rand(rng, d, action_means, ps.log_std)
     log_probs = logpdf(d, actions, action_means, ps.log_std)

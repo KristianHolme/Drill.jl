@@ -21,15 +21,6 @@ function value_and_gradient(ad, f, x, args...)
     )
 end
 
-"""
-    with_runtime_activity(ad)
-
-The AD backend `ad` with Enzyme runtime activity turned on. Other backends are returned
-unchanged. `sac_update` applies it, because the SAC losses need runtime activity under
-Enzyme.
-"""
-with_runtime_activity(ad) = ad
-
 _array_leaves(x) = filter(l -> l isa AbstractArray, fleaves(x))
 
 """
@@ -255,7 +246,6 @@ step (from the actor's log-probabilities), and a Polyak update of the target cri
 loss is the one from before this step.
 """
 function sac_update(alg::SAC, model, learner::SACLearner, batch, ad, target_entropy, ::Val{update_target}) where {update_target}
-    ad = with_runtime_activity(ad)
     rng = learner.rng
     ent_coef = entropy_coefficient(learner)
     full_ps = parameters(learner)
@@ -279,8 +269,7 @@ function sac_update(alg::SAC, model, learner::SACLearner, batch, ad, target_entr
 
     critic_data = (; batch.observations, batch.actions, target_q_values)
     critic_loss, (critic_st, critic_stats), critic_grad = value_and_gradient(
-        ad, _sac_critic_loss, learner.critic_ps,
-        alg, model, learner.actor_ps, learner.actor_st, learner.critic_st, critic_data, rng,
+        ad, _sac_critic_loss, learner.critic_ps, alg, model, learner.critic_st, critic_data,
     )
     critic_grad_norm = global_norm(critic_grad)
     critic_opt, critic_ps = Optimisers.update!(learner.critic_opt, learner.critic_ps, critic_grad)
@@ -316,24 +305,14 @@ function sac_update(alg::SAC, model, learner::SACLearner, batch, ad, target_entr
     return new_learner, metrics
 end
 
-function _sac_critic_loss(critic_ps, alg, model, actor_ps, actor_st, critic_st, data, rng)
-    loss, new_st, stats = sac_critic_loss(
-        alg, model,
-        merge_actor_critic_parameters(actor_ps, critic_ps),
-        merge_actor_critic_states(actor_st, critic_st),
-        data; rng,
-    )
-    return loss, (project_namedtuple(new_st, critic_st), stats)
+function _sac_critic_loss(critic_ps, alg, model, critic_st, data)
+    loss, new_st, stats = sac_critic_loss(alg, model, critic_ps, critic_st, data)
+    return loss, (new_st, stats)
 end
 
 function _sac_actor_loss(actor_ps, alg, model, actor_st, critic_ps, critic_st, data, rng)
-    loss, new_st, log_probs = sac_actor_loss(
-        alg, model,
-        merge_actor_critic_parameters(actor_ps, critic_ps),
-        merge_actor_critic_states(actor_st, critic_st),
-        data; rng,
-    )
-    return loss, (project_namedtuple(new_st, actor_st), log_probs)
+    loss, new_st, log_probs = sac_actor_loss(alg, model, actor_ps, actor_st, critic_ps, critic_st, data; rng)
+    return loss, (new_st, log_probs)
 end
 
 _entropy_loss(p, c) = (-(sum(p.log_ent_coef) * c), nothing)

@@ -25,8 +25,10 @@ export FeatureSharing, SharedFeatures, SeparateFeatures
 export StateIndependantNoise, StateDependentNoise, NoNoise
 export ContinuousActorCriticModel, DiscreteActorCriticModel, ActorCriticModel
 export OrthogonalInitializer
-export predict_actions, predict_values, evaluate_actions, action_log_prob
-export extract_features, get_actions_from_features, get_values_from_features
+export predict_actions, predict_values, evaluate_actions, action_log_prob,
+    action_log_prob_from_features
+export extract_features, actor_features, critic_features, get_actions_from_features,
+    get_values_from_features
 export observation_space, action_space
 
 end

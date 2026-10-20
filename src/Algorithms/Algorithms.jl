@@ -12,7 +12,8 @@ import DrillInterface: AbstractSpace, Box, Discrete, action_space
 import ..Adapters: ClampAdapter, DiscreteAdapter, ScaleAdapter
 import ..Models: AbstractActorCriticModel, ContinuousActorCriticModel,
     CriticType, QCritic, VCritic, SeparateFeatures, SharedFeatures,
-    action_log_prob, evaluate_actions, predict_values
+    action_log_prob, action_log_prob_from_features, actor_features, critic_features,
+    evaluate_actions, get_values_from_features, predict_values
 import ..Buffers: OnPolicyBuffer, OffPolicyBuffer
 import ..Utils: discrete_to_onehotbatch
 
@@ -39,7 +40,7 @@ export action_adapter, has_twin_critics, has_target_networks, has_entropy_tuning
     uses_replay, critic_type
 export AbstractLearner, PPOLearner, SACLearner, init_learner, ppo_update, sac_update,
     prepare_optimizer
-export value_and_gradient, with_runtime_activity, global_norm, clip_by_global_norm!, polyak!
+export value_and_gradient, global_norm, clip_by_global_norm!, polyak!
 export parameters, states, with_states, set_learning_rate, entropy_coefficient
 export select_actor_parameters, select_critic_parameters, select_actor_states,
     select_critic_states, merge_actor_critic_parameters, merge_actor_critic_states,

@@ -2,7 +2,7 @@ module Drill_EnzymeExt
 
 using Enzyme: Enzyme, Active, Const, Duplicated, EnzymeRules
 using Lux: AutoEnzyme
-import Drill: value_and_gradient, with_runtime_activity
+import Drill: value_and_gradient
 
 # Enzyme differentiates a scalar function; the auxiliary output leaves through a Ref,
 # written by a setter Enzyme treats as inactive.
@@ -31,11 +31,6 @@ function _primal_mode(ad::AutoEnzyme)
         mode = Enzyme.set_runtime_activity(mode)
     end
     return mode
-end
-
-function with_runtime_activity(ad::AutoEnzyme{M, A}) where {M, A}
-    mode = Enzyme.set_runtime_activity(ad.mode === nothing ? Enzyme.Reverse : ad.mode)
-    return AutoEnzyme(; mode, function_annotation = A)
 end
 
 function value_and_gradient(ad::AutoEnzyme, f::F, x, args...) where {F}

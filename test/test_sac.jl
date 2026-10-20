@@ -160,6 +160,9 @@ using .TestSetup
     end
 end
 
+flat_params(x::AbstractArray) = vec(x)
+flat_params(x::Union{NamedTuple, Tuple}) = reduce(vcat, map(flat_params, values(x)); init = Float32[])
+
 @testset "SAC end-to-end gradient computation with real rollouts" begin
     using Drill: nested_all_zero, nested_norm
 
@@ -209,10 +212,8 @@ end
                 actions = batch_data.actions,
                 target_q_values = target_q_values,
             )
-            function critic_objective(critic_ps, actor_ps, st, data)
-                loss, new_st, stats = Drill.sac_critic_loss(
-                    alg, layer, merge(actor_ps, critic_ps), st, data; rng,
-                )
+            function critic_objective(critic_ps, critic_st, data)
+                loss, new_st, stats = Drill.sac_critic_loss(alg, layer, critic_ps, critic_st, data)
                 return loss, (new_st, stats)
             end
 
@@ -220,10 +221,18 @@ end
                 AutoZygote(),
                 critic_objective,
                 learner.critic_ps,
-                learner.actor_ps,
-                Drill.states(learner),
+                learner.critic_st,
                 critic_data,
             )
+            enzyme_loss, _, enzyme_grad = Drill.value_and_gradient(
+                AutoEnzyme(),
+                critic_objective,
+                learner.critic_ps,
+                learner.critic_st,
+                critic_data,
+            )
+            @test enzyme_loss ≈ critic_loss
+            @test flat_params(enzyme_grad) ≈ flat_params(critic_grad)
 
             @test !isnothing(critic_grad)
             @test haskey(critic_grad, :critic_head)
@@ -244,9 +253,10 @@ end
 
             ent_coef = Float32(Drill.entropy_coefficient(learner))
             actor_data = (observations = batch_data.observations, ent_coef = ent_coef)
-            function actor_objective(actor_ps, critic_ps, st, data)
+            function actor_objective(actor_ps, actor_st, critic_ps, critic_st, data, seed)
                 loss, new_st, log_probs = Drill.sac_actor_loss(
-                    alg, layer, merge(actor_ps, critic_ps), st, data; rng,
+                    alg, layer, actor_ps, actor_st, critic_ps, critic_st, data;
+                    rng = Random.Xoshiro(seed),
                 )
                 return loss, (new_st, log_probs)
             end
@@ -255,10 +265,24 @@ end
                 AutoZygote(),
                 actor_objective,
                 learner.actor_ps,
+                learner.actor_st,
                 learner.critic_ps,
-                Drill.states(learner),
+                learner.critic_st,
                 actor_data,
+                7,
             )
+            enzyme_loss, _, enzyme_grad = Drill.value_and_gradient(
+                AutoEnzyme(),
+                actor_objective,
+                learner.actor_ps,
+                learner.actor_st,
+                learner.critic_ps,
+                learner.critic_st,
+                actor_data,
+                7,
+            )
+            @test enzyme_loss ≈ actor_loss
+            @test flat_params(enzyme_grad) ≈ flat_params(actor_grad)
 
             @test !isnothing(actor_grad)
             @test haskey(actor_grad, :actor_head)
