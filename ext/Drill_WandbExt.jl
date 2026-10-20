@@ -1,8 +1,7 @@
 module Drill_WandbExt
 
-using Drill
-using Wandb
-import Drill: AbstractTrainingLogger, set_step!, increment_step!, log_scalar!, log_metrics!, log_hparams!, flush!, close!
+using Drill: Drill, AbstractTrainingLogger
+using Wandb: Wandb
 
 mutable struct WandbBackend <: AbstractTrainingLogger
     wb::Wandb.WandbLogger

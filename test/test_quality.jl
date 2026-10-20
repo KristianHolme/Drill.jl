@@ -3,6 +3,11 @@ using Drill
 using Aqua
 using ExplicitImports
 using JET
+# Load the logger backends so their extensions are always checked below, whichever tests
+# ran before on this worker.
+using DearDiary: DearDiary
+using TensorBoardLogger: TensorBoardLogger
+using Wandb: Wandb
 
 @testset "Code quality (Aqua.jl)" begin
     Aqua.test_all(Drill)

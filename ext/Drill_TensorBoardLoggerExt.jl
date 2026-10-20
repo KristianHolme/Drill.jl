@@ -1,8 +1,7 @@
 module Drill_TensorBoardLoggerExt
 
-using Drill
-using TensorBoardLogger
-import Drill: AbstractTrainingLogger, set_step!, increment_step!, log_scalar!, log_metrics!, log_hparams!, flush!, close!
+using Drill: Drill, AbstractTrainingLogger
+using TensorBoardLogger: TensorBoardLogger
 
 mutable struct TBLoggerBackend <: AbstractTrainingLogger
     tb::TensorBoardLogger.TBLogger
