@@ -161,6 +161,7 @@ using .TestSetup
 end
 
 flat_params(x::AbstractArray) = vec(x)
+flat_params(::Nothing) = Float32[]
 flat_params(x::Union{NamedTuple, Tuple}) = reduce(vcat, map(flat_params, values(x)); init = Float32[])
 
 @testset "SAC end-to-end gradient computation with real rollouts" begin
