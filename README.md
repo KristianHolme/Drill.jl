@@ -57,6 +57,10 @@ JULIA_CONDAPKG_ENV="$PWD/.condapkg/wandb" julia --project=. -e 'using Pkg; Pkg.t
 Avoid using a path containing `.CondaPkg` for `JULIA_CONDAPKG_ENV`, since CondaPkg reserves
 that name for project-local environments.
 
+## Contributing
+
+PRs with user-facing changes add a short changelog entry file, `changelog/<PR number>.md` (or `DrillInterface/changelog/<PR number>.md`), instead of editing `CHANGELOG.md`. See [`changelog/README.md`](changelog/README.md).
+
 ## Quick Start Example
 
 Here's a complete example training a PPO agent on the CartPole environment:
