@@ -3,8 +3,10 @@ using Drill
 using ClassicControlEnvironments
 using Random
 using Drill.Lux
-# Drill's AutoZygote gradients live in a package extension that loads with Zygote.
+# Drill's gradients live in package extensions: Zygote for AutoZygote(), Enzyme for
+# AutoEnzyme(). Both are loaded so that revisions with either default run.
 using Zygote
+using Enzyme
 
 include("bench_utils.jl")
 using .BenchUtils
