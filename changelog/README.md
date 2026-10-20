@@ -34,3 +34,5 @@ julia tooling/changelog.jl release 0.3.0 --package DrillInterface   # same for D
 The release command collects all entries, newest PR first, into a new `## [version] - date` section of `CHANGELOG.md`. Unsectioned entries come first, followed by one `###` subsection per section in the order listed above.
 
 CI (`.github/workflows/Changelog.yml`) checks that a PR adds an entry file named after its own number unless the `skip-changelog` label is set, and validates all entries with `julia tooling/changelog.jl check`.
+
+This setup is adapted from [Makie.jl's changelog system](https://github.com/MakieOrg/Makie.jl/tree/master/changelog) (MIT License).

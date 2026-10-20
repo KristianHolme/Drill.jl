@@ -1,3 +1,9 @@
+# Adapted from Makie.jl's `tooling/changelog.jl` and `changelog/README.md`
+# (https://github.com/MakieOrg/Makie.jl, MIT License,
+# Copyright (c) 2018-2021: Simon Danisch, Julius Krumbiegel).
+# Changes: per-package entry dirs (Drill, DrillInterface), `release --dry-run`,
+# and a `check-pr` command for CI.
+
 module Changelog
 
     using Dates
