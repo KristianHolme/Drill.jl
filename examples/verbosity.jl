@@ -10,7 +10,7 @@ using ClassicControlEnvironments
 using Drill
 using PrettyTables  # enables Drill_PrettyTablesExt for verbosity.table = true
 using Random
-using Zygote
+using Enzyme
 
 const N_ENVS = 4
 const N_STEPS = 64

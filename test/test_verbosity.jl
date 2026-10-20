@@ -3,7 +3,7 @@ using Drill
 using DrillInterface
 using Random
 using SciMLBase: ReturnCode
-using Zygote
+using Enzyme
 include("setup.jl")
 using .TestSetup
 

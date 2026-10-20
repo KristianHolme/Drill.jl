@@ -1,7 +1,7 @@
 using Test
 using Drill
 using DrillInterface
-using Zygote
+using Enzyme
 include("setup.jl")
 using .TestSetup
 

@@ -7,7 +7,7 @@ On-policy algorithm using clipped surrogate objective.
 
 ```julia
 using Drill
-using Zygote
+using Enzyme
 using ClassicControlEnvironments
 env = BroadcastedParallelEnv([CartPoleEnv() for _ in 1:4])
 obs_space = state_space(env)
@@ -38,7 +38,7 @@ Off-policy algorithm with entropy regularization and twin Q-networks.
 
 ```julia
 using Drill
-using Zygote
+using Enzyme
 using ClassicControlEnvironments
 env = BroadcastedParallelEnv([CartPoleEnv() for _ in 1:4])
 obs_space = state_space(env)

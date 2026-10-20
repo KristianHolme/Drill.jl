@@ -12,7 +12,8 @@ import DrillInterface: AbstractSpace, Box, Discrete, action_space
 import ..Adapters: ClampAdapter, DiscreteAdapter, ScaleAdapter
 import ..Models: AbstractActorCriticModel, ContinuousActorCriticModel,
     CriticType, QCritic, VCritic, SeparateFeatures, SharedFeatures,
-    action_log_prob, evaluate_actions, predict_values
+    action_log_prob, action_log_prob_from_features, actor_features, critic_features,
+    evaluate_actions, get_values_from_features, predict_values
 import ..Buffers: OnPolicyBuffer, OffPolicyBuffer
 import ..Utils: discrete_to_onehotbatch
 
