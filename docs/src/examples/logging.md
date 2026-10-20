@@ -52,7 +52,7 @@ using ClassicControlEnvironments
 using TensorBoardLogger
 using Logging
 using Random
-using Zygote
+using Enzyme
 
 # Configuration
 LOG_DIR = joinpath(pwd(), "data", "tensorboard")
@@ -153,7 +153,7 @@ using Drill
 using ClassicControlEnvironments
 using Wandb
 using Random
-using Zygote
+using Enzyme
 
 # Configuration
 WANDB_PROJECT = "Drill-Examples"
@@ -243,7 +243,7 @@ using Drill
 using ClassicControlEnvironments
 using DearDiary
 using Random
-using Zygote
+using Enzyme
 
 # Configuration
 DB_PATH = joinpath(pwd(), "data", "experiments.db")
@@ -375,7 +375,7 @@ The loop below trains several PPO configurations in sequence; each configuration
 using Drill
 using ClassicControlEnvironments
 using Random
-using Zygote
+using Enzyme
 using MultiProgressManagers
 
 N_ENVS = 4

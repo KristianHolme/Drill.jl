@@ -7,7 +7,7 @@ import Optimisers
 using FileIO: load, save
 import JLD2
 import Lux
-using Lux.Training: AbstractADType, AutoZygote
+using Lux.Training: AbstractADType, AutoEnzyme
 import MLDataDevices: AbstractDevice, CPUDevice, cpu_device, get_device, isleaf
 import ProgressMeter
 using ProgressMeter: Progress, next!

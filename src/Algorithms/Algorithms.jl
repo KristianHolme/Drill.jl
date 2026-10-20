@@ -39,7 +39,7 @@ export action_adapter, has_twin_critics, has_target_networks, has_entropy_tuning
     uses_replay, critic_type
 export AbstractLearner, PPOLearner, SACLearner, init_learner, ppo_update, sac_update,
     prepare_optimizer
-export value_and_gradient, global_norm, clip_by_global_norm!, polyak!
+export value_and_gradient, with_runtime_activity, global_norm, clip_by_global_norm!, polyak!
 export parameters, states, with_states, set_learning_rate, entropy_coefficient
 export select_actor_parameters, select_critic_parameters, select_actor_states,
     select_critic_states, merge_actor_critic_parameters, merge_actor_critic_states,

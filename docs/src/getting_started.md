@@ -4,7 +4,7 @@
 
 ```julia
 using Drill
-using Zygote  # Required for automatic differentiation
+using Enzyme  # Required for automatic differentiation
 using ClassicControlEnvironments
 
 # Create parallel environments
@@ -29,7 +29,7 @@ policy = extract_policy(cache)
 
 ```julia
 using Drill
-using Zygote  # Required for automatic differentiation
+using Enzyme  # Required for automatic differentiation
 
 # Continuous action environment
 env = BroadcastedParallelEnv([YourContinuousEnv() for _ in 1:4])

@@ -107,11 +107,18 @@ end
     @testset "$(backends[1][1])" begin
         @test test_sac_training(backends[1][2])
     end
-    # Plain AutoEnzyme() raises EnzymeRuntimeActivityError in the SAC critic loss.
+    # sac_update turns on runtime activity, so plain AutoEnzyme() works.
     @testset "$(backends[2][1])" begin
-        @test_broken test_sac_training(backends[2][2])
+        @test test_sac_training(backends[2][2])
     end
     @testset "$(backends[3][1])" begin
         @test test_sac_training(backends[3][2])
     end
+end
+
+@testset "with_runtime_activity" begin
+    @test Drill.with_runtime_activity(AutoZygote()) === AutoZygote()
+    @test Enzyme.runtime_activity(Drill.with_runtime_activity(AutoEnzyme()).mode)
+    ad = AutoEnzyme(; mode = set_runtime_activity(Reverse))
+    @test Enzyme.runtime_activity(Drill.with_runtime_activity(ad).mode)
 end

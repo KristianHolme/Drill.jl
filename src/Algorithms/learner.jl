@@ -11,15 +11,24 @@
 
 Differentiate `f(x, args...) -> (loss, aux)` with respect to `x` using the AD backend
 `ad`; `args` are constants. `aux` is returned unchanged and is not differentiated. Methods
-live in package extensions: load Zygote for `AutoZygote()` or Enzyme for `AutoEnzyme()`.
+live in package extensions: load Enzyme for `AutoEnzyme()` or Zygote for `AutoZygote()`.
 """
 function value_and_gradient(ad, f, x, args...)
     throw(
         ArgumentError(
-            "No gradient method for $(typeof(ad)). Load the AD package first, e.g. `using Zygote` for AutoZygote() or `using Enzyme` for AutoEnzyme().",
+            "No gradient method for $(typeof(ad)). Load the AD package first, e.g. `using Enzyme` for AutoEnzyme() or `using Zygote` for AutoZygote().",
         ),
     )
 end
+
+"""
+    with_runtime_activity(ad)
+
+The AD backend `ad` with Enzyme runtime activity turned on. Other backends are returned
+unchanged. `sac_update` applies it, because the SAC losses need runtime activity under
+Enzyme.
+"""
+with_runtime_activity(ad) = ad
 
 _array_leaves(x) = filter(l -> l isa AbstractArray, fleaves(x))
 
@@ -246,6 +255,7 @@ step (from the actor's log-probabilities), and a Polyak update of the target cri
 loss is the one from before this step.
 """
 function sac_update(alg::SAC, model, learner::SACLearner, batch, ad, target_entropy, ::Val{update_target}) where {update_target}
+    ad = with_runtime_activity(ad)
     rng = learner.rng
     ent_coef = entropy_coefficient(learner)
     full_ps = parameters(learner)

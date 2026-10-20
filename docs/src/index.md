@@ -51,7 +51,7 @@ julia> Pkg.add("Drill")
 
 ```julia
 using Drill
-using Zygote  # Required for automatic differentiation
+using Enzyme  # Required for automatic differentiation
 using ClassicControlEnvironments
 
 # Parallel environments

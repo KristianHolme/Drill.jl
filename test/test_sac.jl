@@ -4,6 +4,7 @@ using DrillInterface
 using Random
 using Lux
 using Zygote
+using Enzyme
 using LinearAlgebra
 include("setup.jl")
 using .TestSetup

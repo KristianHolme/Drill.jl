@@ -59,7 +59,7 @@ function init(
         verbosity = DEFAULT_VERBOSITY,
         rng::AbstractRNG = default_rng(),
         buffer = nothing,
-        ad_type::AbstractADType = AutoZygote(),
+        ad_type::AbstractADType = AutoEnzyme(),
         device = cpu_device(),
     )
     check_compatible(prob, alg)
