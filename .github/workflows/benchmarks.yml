@@ -17,6 +17,6 @@ jobs:
           julia-version: "1"
           # Basic suite only (rollouts / training / wrappers). Request a full run with `/bench-full`.
           filter: "rollouts,training,wrappers"
-          # Enzyme must be loaded for the default AutoEnzyme() in the training suite.
+          # The training suite uses the default AD backend: Zygote, or Enzyme from #103 on.
           extra-pkgs: "ClassicControlEnvironments,Zygote,Enzyme"
           mode: "time,memory"
