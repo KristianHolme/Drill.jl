@@ -1,0 +1,26 @@
+name: Changelog
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+jobs:
+  changelog:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+      - name: Check changelog entries
+        if: ${{ contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+        run: julia tooling/changelog.jl check
+      - name: Check changelog entries and PR entry file
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'skip-changelog') }}
+        env:
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          mapfile -t added < <(git diff --name-only --diff-filter=A "$BASE_SHA"...HEAD -- changelog DrillInterface/changelog)
+          julia tooling/changelog.jl check-pr "$PR_NUMBER" "${added[@]}"
